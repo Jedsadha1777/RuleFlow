@@ -220,16 +220,13 @@ class RuleFlow
      */
     private function safeEval(string $expr, array $vars): float
     {
-        // Process functions first
+        // Replace variables with values first, before processing functions
+        $expr = $this->replaceVariables($expr, $vars);
+        
+        // Process functions after variable replacement
         $expr = $this->processFunctions($expr, $vars);
 
-        // Validate expression
-        $this->validateExpression($expr);
-
-        // Replace variables with values
-        $expr = $this->replaceVariables($expr, $vars);
-
-        // Validate final expression
+        // Validate final expression (no need for initial validation since we control the flow)
         $this->validateFinalExpression($expr);
 
         // Tokenize and evaluate
@@ -245,11 +242,9 @@ class RuleFlow
     private function processFunctions(string $expr, array $vars): string
     {
         foreach ($this->allowedFunctions as $func) {
-            $pattern = '/\b' . $func . '\s*\(([^)]+)\)/';
-            while (preg_match($pattern, $expr, $matches)) {
-                $args = array_map('trim', explode(',', $matches[1]));
-                $result = $this->callFunction($func, $args, $vars);
-                $expr = str_replace($matches[0], (string)$result, $expr);
+            // Use recursive pattern to handle nested parentheses properly
+            while (preg_match('/\b' . $func . '\s*\(/', $expr)) {
+                $expr = $this->processFunction($expr, $func, $vars);
             }
         }
 
@@ -257,19 +252,103 @@ class RuleFlow
     }
 
     /**
+     * Process a single function call with proper parentheses matching
+     */
+    private function processFunction(string $expr, string $funcName, array $vars): string
+    {
+        $pattern = '/\b' . $funcName . '\s*\(/';
+        if (!preg_match($pattern, $expr, $matches, PREG_OFFSET_CAPTURE)) {
+            return $expr;
+        }
+
+        $startPos = $matches[0][1] + strlen($matches[0][0]);
+        $openParens = 1;
+        $pos = $startPos;
+        $length = strlen($expr);
+
+        // Find matching closing parenthesis
+        while ($pos < $length && $openParens > 0) {
+            if ($expr[$pos] === '(') {
+                $openParens++;
+            } elseif ($expr[$pos] === ')') {
+                $openParens--;
+            }
+            $pos++;
+        }
+
+        if ($openParens > 0) {
+            throw new Exception("Unmatched parentheses in function call: $funcName");
+        }
+
+        // Extract function arguments
+        $argsStr = substr($expr, $startPos, $pos - $startPos - 1);
+        $args = $this->parseArguments($argsStr);
+        
+        // Calculate function result
+        $result = $this->callFunction($funcName, $args, $vars);
+        
+        // Replace function call with result
+        $functionCall = substr($expr, $matches[0][1], $pos - $matches[0][1]);
+        return str_replace($functionCall, (string)$result, $expr);
+    }
+
+    /**
+     * Parse function arguments handling nested expressions
+     */
+    private function parseArguments(string $argsStr): array
+    {
+        if (trim($argsStr) === '') {
+            return [];
+        }
+
+        $args = [];
+        $current = '';
+        $parenLevel = 0;
+        $length = strlen($argsStr);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $argsStr[$i];
+            
+            if ($char === '(') {
+                $parenLevel++;
+                $current .= $char;
+            } elseif ($char === ')') {
+                $parenLevel--;
+                $current .= $char;
+            } elseif ($char === ',' && $parenLevel === 0) {
+                $args[] = trim($current);
+                $current = '';
+            } else {
+                $current .= $char;
+            }
+        }
+        
+        if (!empty($current)) {
+            $args[] = trim($current);
+        }
+
+        return $args;
+    }
+
+    /**
      * Call allowed function with arguments
      */
     private function callFunction(string $funcName, array $args, array $vars): float
     {
-        // Evaluate arguments
+        // Evaluate arguments - they can be expressions or simple values
         $evaluatedArgs = [];
         foreach ($args as $arg) {
+            $arg = trim($arg);
             if (is_numeric($arg)) {
                 $evaluatedArgs[] = (float)$arg;
-            } elseif (isset($vars[$arg])) {
-                $evaluatedArgs[] = $vars[$arg];
             } else {
-                throw new Exception("Unknown variable in function: {$arg}");
+                // Argument is an expression, evaluate it with simpler method
+                try {
+                    // Since variables are already replaced, just evaluate the numeric expression
+                    $evaluatedArgs[] = $this->evaluateNumericExpression($arg);
+                } catch (Exception $e) {
+                    throw new Exception("Error evaluating argument '$arg' in function $funcName: " . $e->getMessage());
+                }
             }
         }
 
@@ -283,6 +362,23 @@ class RuleFlow
             'floor' => floor($evaluatedArgs[0]),
             default => throw new Exception("Unsupported function: {$funcName}")
         };
+    }
+
+    /**
+     * Evaluate numeric expression (no variables, no functions)
+     */
+    private function evaluateNumericExpression(string $expr): float
+    {
+        // Simple check: ensure no alphabetic characters (which would indicate unresolved variables)
+        if (preg_match('/[a-zA-Z_]/', $expr)) {
+            throw new Exception("Invalid numeric expression: '$expr' contains unresolved variables");
+        }
+
+        // Tokenize and evaluate directly
+        $tokens = $this->tokenize($expr);
+        $postfix = $this->convertToPostfix($tokens);
+        
+        return $this->evaluatePostfix($postfix);
     }
 
     /**
@@ -302,7 +398,8 @@ class RuleFlow
      */
     private function validateExpression(string $expr): void
     {
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+\.?[0-9]*|[\+\-\*\/\(\)\s\*\*]+$/', $expr)) {
+        // Allow alphanumeric variables, numbers, operators, parentheses, commas, and spaces
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+\.?[0-9]*|[\+\-\*\/\(\)\s\*\*,]+$/', $expr)) {
             throw new Exception("Invalid expression: contains unsafe characters");
         }
     }
@@ -327,9 +424,10 @@ class RuleFlow
      */
     private function validateFinalExpression(string $expr): void
     {
+        // After functions are processed and variables replaced, should only contain numbers and operators
         $cleanExpr = str_replace('**', '^', $expr);
         if (!preg_match('/^[0-9+\-*\/\(\)\s\.]+$/', $cleanExpr)) {
-            throw new Exception("Expression contains unresolved variables or invalid characters");
+            throw new Exception("Expression contains unresolved variables or invalid characters: '$expr'");
         }
     }
 
@@ -727,7 +825,7 @@ class RuleFlow
         $warnings = [];
 
         foreach ($config['formulas'] as $index => $formula) {
-            $id = $formula['id'];
+            $id = $formula['id'] ?? "Formula[$index]";
 
             // Check for unused stored values
             if (isset($formula['store_as'])) {
