@@ -1,0 +1,34 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# macOS Spotlight
+.Spotlight-V100
+.Trashes
+
+# macOS Finder metadata
+.fseventsd
+.idea/
+.vscode/
+*.log
+
+# Composer dependencies (ถ้าใช้)
+vendor/
+composer.lock
+
+# PHP debug cache
+*.log
+*.cache
+*.tmp
+
+# Node (ถ้ามี dev ด้วย JS)
+node_modules/
+dist/
+
+# Ignore config secrets
+.env
+.env.*
