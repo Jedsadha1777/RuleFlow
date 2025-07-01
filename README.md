@@ -50,13 +50,6 @@ $engine = new RuleFlow();
 $result = $engine->evaluate($config, $inputs);
 ```
 
-### JavaScript (Coming Soon)
-```javascript
-const { RuleFlow } = require('@ruleflow/engine');
-
-const engine = new RuleFlow();
-const result = engine.evaluate(config, inputs);
-```
 
 ## Use Cases
 
@@ -71,9 +64,7 @@ const result = engine.evaluate(config, inputs);
 | Language | Status | Documentation | Installation |
 |----------|--------|---------------|--------------|
 | PHP | ✅ Ready | [php/README.md](./php/README.md) | Manual download |
-| JavaScript | ⏳ Development | Coming soon | `npm install @ruleflow/engine` |
-| Python | ⏳ Planned | Coming soon | `pip install ruleflow` |
-| Go | ⏳ Planned | Coming soon | `go get github.com/ruleflow/engine` |
+
 
 ## Project Structure
 
