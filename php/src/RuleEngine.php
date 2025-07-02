@@ -129,6 +129,11 @@ class RuleFlow
         if (isset($formula['weight_score'])) {
             $this->processWeightScore($formula, $context);
         }
+        
+        // Process accumulative scoring
+        if (isset($formula['score_rules'])) {
+            $this->processAccumulativeScore($formula, $context);
+        }
     }
 
     /**
@@ -139,11 +144,15 @@ class RuleFlow
         try {
             // Prepare variables for expression
             $vars = [];
-            foreach ($formula['inputs'] as $key) {
-                if (!isset($context[$key])) {
-                    throw new Exception("Missing input: {$key}");
+            
+            // Handle case where inputs might be empty (for constants)
+            if (!empty($formula['inputs'])) {
+                foreach ($formula['inputs'] as $key) {
+                    if (!isset($context[$key])) {
+                        throw new Exception("Missing input: {$key}");
+                    }
+                    $vars[$key] = $context[$key];
                 }
-                $vars[$key] = $context[$key];
             }
 
             // Calculate and store result
@@ -170,6 +179,13 @@ class RuleFlow
         foreach ($formula['cases'] as $case) {
             if ($this->evaluateCondition($switchValue, $case['condition'])) {
                 $context[$formula['id']] = $case['result'];
+                
+                // Set additional variables if specified
+                if (isset($case['set_variables'])) {
+                    foreach ($case['set_variables'] as $varName => $varValue) {
+                        $context[$varName] = $varValue;
+                    }
+                }
                 $matched = true;
                 break;
             }
@@ -178,25 +194,195 @@ class RuleFlow
         // Handle default value
         if (!$matched) {
             $context[$formula['id']] = $formula['default'] ?? null;
+            
+            // Set default variables if specified
+            if (isset($formula['default_variables'])) {
+                foreach ($formula['default_variables'] as $varName => $varValue) {
+                    $context[$varName] = $varValue;
+                }
+            }
         }
     }
 
     /**
-     * Process weight/score calculation
+     * Process weight/score calculation with enhanced features
      */
     private function processWeightScore(array $formula, array &$context): void
     {
-        $value = $context[$formula['store_as'] ?? $formula['id']] ?? null;
-
-        if ($value !== null && $this->evaluateCondition($value, $formula['weight_score']['condition'])) {
-            $context[$formula['id'] . '_score'] = $formula['weight_score']['score'];
-        } else {
-            $context[$formula['id'] . '_score'] = 0;
+        $weightScore = $formula['weight_score'];
+        
+        // รองรับ multiple scoring ranges
+        if (isset($weightScore['ranges'])) {
+            $value = $context[$formula['store_as'] ?? $formula['id']] ?? null;
+            if ($value === null) {
+                $context[$formula['id'] . '_score'] = 0;
+                return;
+            }
+            
+            foreach ($weightScore['ranges'] as $range) {
+                if ($this->evaluateCondition($value, $range['condition'])) {
+                    $context[$formula['id'] . '_score'] = $range['score'];
+                    
+                    // Set additional variables if specified
+                    if (isset($range['set_variables'])) {
+                        foreach ($range['set_variables'] as $varName => $varValue) {
+                            $context[$varName] = $varValue;
+                        }
+                    }
+                    return;
+                }
+            }
+            $context[$formula['id'] . '_score'] = $weightScore['default'] ?? 0;
+        }
+        // รองรับ multi-variable scoring
+        elseif (isset($weightScore['multi_condition'])) {
+            $result = $this->evaluateMultiConditionScore($weightScore['multi_condition'], $context);
+            $context[$formula['id'] . '_score'] = $result['score'] ?? 0;
+            
+            // Store additional result data
+            if (is_array($result)) {
+                foreach ($result as $key => $value) {
+                    if ($key !== 'score') {
+                        $context[$formula['id'] . '_' . $key] = $value;
+                    }
+                }
+            }
+        }
+        // เก็บแบบเดิม
+        else {
+            $value = $context[$formula['store_as'] ?? $formula['id']] ?? null;
+            if ($value === null) {
+                $context[$formula['id'] . '_score'] = 0;
+                return;
+            }
+            
+            if ($this->evaluateCondition($value, $weightScore['condition'])) {
+                $context[$formula['id'] . '_score'] = $weightScore['score'];
+            } else {
+                $context[$formula['id'] . '_score'] = 0;
+            }
         }
     }
 
     /**
-     * Evaluate condition based on operator and value
+     * Evaluate multi-dimensional condition scoring (unlimited levels)
+     */
+    private function evaluateMultiConditionScore(array $multiCondition, array &$context): array
+    {
+        $variables = $multiCondition['variables'];
+        $matrix = $multiCondition['score_matrix'];
+        
+        // Get values for all variables
+        $values = [];
+        foreach ($variables as $var) {
+            $value = $context[$var] ?? null;
+            if ($value === null) {
+                return ['score' => 0];
+            }
+            $values[] = $value;
+        }
+        
+        // Navigate through the multi-dimensional matrix
+        $result = $this->navigateMatrix($matrix, $values, 0, $context);
+        
+        return is_array($result) ? $result : ['score' => 0];
+    }
+
+    /**
+     * Recursively navigate through multi-dimensional scoring matrix
+     */
+    private function navigateMatrix(array $currentLevel, array $values, int $depth, array &$context): array
+    {
+        // Base case: if we've processed all variables
+        if ($depth >= count($values)) {
+            return $currentLevel;
+        }
+        
+        $currentValue = $values[$depth];
+        
+        // Look for matching condition at current level
+        foreach ($currentLevel as $item) {
+            if (isset($item['condition']) && $this->evaluateCondition($currentValue, $item['condition'])) {
+                // Set any variables specified at this level
+                if (isset($item['set_variables'])) {
+                    foreach ($item['set_variables'] as $varName => $varValue) {
+                        $context[$varName] = $varValue;
+                    }
+                }
+                
+                // If there are more levels, continue navigation
+                if (isset($item['ranges'])) {
+                    return $this->navigateMatrix($item['ranges'], $values, $depth + 1, $context);
+                }
+                
+                // Otherwise, return the result
+                return $item;
+            }
+        }
+        
+        // No match found
+        return ['score' => 0];
+    }
+
+    /**
+     * Process accumulative scoring formula
+     */
+    private function processAccumulativeScore(array $formula, array &$context): void
+    {
+        $score = 0;
+        $scoreKey = $formula['id'] . '_score';
+        
+        // Add existing score if any
+        if (isset($context[$scoreKey])) {
+            $score = $context[$scoreKey];
+        }
+        
+        foreach ($formula['score_rules'] as $rule) {
+            $ruleScore = $this->evaluateScoreRule($rule, $context);
+            $score += $ruleScore;
+            
+            // Set additional variables if specified
+            if (isset($rule['set_variables'])) {
+                foreach ($rule['set_variables'] as $varName => $varValue) {
+                    if ($ruleScore > 0 || !isset($rule['only_if_scored']) || !$rule['only_if_scored']) {
+                        $context[$varName] = $varValue;
+                    }
+                }
+            }
+        }
+        
+        $context[$scoreKey] = $score;
+    }
+
+    /**
+     * Evaluate individual score rule
+     */
+    private function evaluateScoreRule(array $rule, array $context): int
+    {
+        $variable = $rule['variable'];
+        $value = $context[$variable] ?? null;
+        
+        if ($value === null) {
+            return 0;
+        }
+        
+        if (isset($rule['ranges'])) {
+            foreach ($rule['ranges'] as $range) {
+                if ($this->evaluateCondition($value, $range['condition'])) {
+                    return $range['score'];
+                }
+            }
+        } elseif (isset($rule['condition'])) {
+            if ($this->evaluateCondition($value, $rule['condition'])) {
+                return $rule['score'];
+            }
+        }
+        
+        return 0;
+    }
+
+    /**
+     * Enhanced condition evaluation for between with multiple operators
      */
     private function evaluateCondition($value, array $condition): bool
     {
@@ -211,6 +397,7 @@ class RuleFlow
             '==' => $value == $condValue,
             '!=' => $value != $condValue,
             'between' => $value >= $condValue[0] && $value <= $condValue[1],
+            'in' => in_array($value, $condValue, true),
             default => throw new Exception("Unsupported operator: {$operator}")
         };
     }
@@ -399,7 +586,7 @@ class RuleFlow
     private function validateExpression(string $expr): void
     {
         // Allow alphanumeric variables, numbers, operators, parentheses, commas, and spaces
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+\.?[0-9]*|[\+\-\*\/\(\)\s\*\*,]+$/', $expr)) {
+        if (!preg_match('/^[a-zA-Z_0-9\+\-\*\/\(\)\s\.\*,]+$/', $expr)) {
             throw new Exception("Invalid expression: contains unsafe characters");
         }
     }
@@ -424,9 +611,15 @@ class RuleFlow
      */
     private function validateFinalExpression(string $expr): void
     {
+        // Skip validation if expression still contains function calls
+        foreach ($this->allowedFunctions as $func) {
+            if (strpos($expr, $func) !== false) {
+                return; // Functions will be processed separately
+            }
+        }
+        
         // After functions are processed and variables replaced, should only contain numbers and operators
-        $cleanExpr = str_replace('**', '^', $expr);
-        if (!preg_match('/^[0-9+\-*\/\(\)\s\.]+$/', $cleanExpr)) {
+        if (!preg_match('/^[0-9+\-*\/\(\)\s\.\*]+$/', $expr)) {
             throw new Exception("Expression contains unresolved variables or invalid characters: '$expr'");
         }
     }
@@ -578,10 +771,17 @@ class RuleFlow
             $scoreErrors = $this->validateWeightScore($formula['weight_score'], $prefix);
             $errors = array_merge($errors, $scoreErrors);
         }
+        
+        // Validate score_rules
+        if (isset($formula['score_rules'])) {
+            $rulesErrors = $this->validateScoreRules($formula['score_rules'], $prefix);
+            $errors = array_merge($errors, $rulesErrors);
+        }
 
         // Check that formula has at least one action
-        if (!isset($formula['expression']) && !isset($formula['switch_on'])) {
-            $errors[] = "$prefix: Formula must have either 'expression' or 'switch_on'";
+        if (!isset($formula['expression']) && !isset($formula['switch_on']) && 
+            !isset($formula['weight_score']) && !isset($formula['score_rules'])) {
+            $errors[] = "$prefix: Formula must have at least one action (expression, switch_on, weight_score, or score_rules)";
         }
 
         return $errors;
@@ -594,18 +794,19 @@ class RuleFlow
     {
         $errors = [];
 
-        if (!is_string($formula['expression']) || empty($formula['expression'])) {
+        if (!isset($formula['expression']) || !is_string($formula['expression']) || trim($formula['expression']) === '') {
             $errors[] = "$prefix: 'expression' must be a non-empty string";
         }
 
         if (!isset($formula['inputs']) || !is_array($formula['inputs'])) {
             $errors[] = "$prefix: 'inputs' must be an array";
-        } elseif (empty($formula['inputs'])) {
+        } elseif (empty($formula['inputs']) && isset($formula['expression']) && $formula['expression'] !== '0') {
+            // Allow empty inputs only for constant expressions like '0'
             $errors[] = "$prefix: 'inputs' cannot be empty for expression formula";
         }
 
         // Validate expression syntax
-        if (isset($formula['expression']) && is_string($formula['expression'])) {
+        if (isset($formula['expression']) && is_string($formula['expression']) && trim($formula['expression']) !== '') {
             try {
                 $this->validateExpressionSyntax($formula['expression']);
             } catch (Exception $e) {
@@ -671,7 +872,7 @@ class RuleFlow
 
         if (!isset($condition['operator'])) {
             $errors[] = "$prefix: Missing 'operator'";
-        } elseif (!in_array($condition['operator'], ['<', '<=', '>', '>=', '==', '!=', 'between'], true)) {
+        } elseif (!in_array($condition['operator'], ['<', '<=', '>', '>=', '==', '!=', 'between', 'in'], true)) {
             $errors[] = "$prefix: Invalid operator '{$condition['operator']}'";
         }
 
@@ -685,8 +886,14 @@ class RuleFlow
             } elseif ($condition['value'][0] > $condition['value'][1]) {
                 $errors[] = "$prefix: 'between' first value must be <= second value";
             }
+        } elseif ($condition['operator'] === 'in') {
+            if (!is_array($condition['value'])) {
+                $errors[] = "$prefix: 'in' operator requires array value";
+            }
+        } elseif (in_array($condition['operator'], ['==', '!='], true)) {
+            // Allow any type for equality operators
         } elseif (!is_numeric($condition['value'])) {
-            $errors[] = "$prefix: 'value' must be numeric";
+            $errors[] = "$prefix: 'value' must be numeric for operator '{$condition['operator']}'";
         }
 
         return $errors;
@@ -699,19 +906,146 @@ class RuleFlow
     {
         $errors = [];
 
-        if (!isset($weightScore['condition'])) {
-            $errors[] = "$prefix.weight_score: Missing 'condition'";
+        // Check for multi_condition
+        if (isset($weightScore['multi_condition'])) {
+            $multiErrors = $this->validateMultiCondition($weightScore['multi_condition'], "$prefix.weight_score.multi_condition");
+            $errors = array_merge($errors, $multiErrors);
+        }
+        // Check for ranges
+        elseif (isset($weightScore['ranges'])) {
+            if (!is_array($weightScore['ranges']) || empty($weightScore['ranges'])) {
+                $errors[] = "$prefix.weight_score: 'ranges' must be a non-empty array";
+            } else {
+                foreach ($weightScore['ranges'] as $index => $range) {
+                    $rangeErrors = $this->validateRange($range, "$prefix.weight_score.ranges[$index]");
+                    $errors = array_merge($errors, $rangeErrors);
+                }
+            }
+        }
+        // Original format
+        else {
+            if (!isset($weightScore['condition'])) {
+                $errors[] = "$prefix.weight_score: Missing 'condition'";
+            } else {
+                $conditionErrors = $this->validateCondition($weightScore['condition'], "$prefix.weight_score.condition");
+                $errors = array_merge($errors, $conditionErrors);
+            }
+
+            if (!isset($weightScore['score'])) {
+                $errors[] = "$prefix.weight_score: Missing 'score'";
+            } elseif (!is_numeric($weightScore['score'])) {
+                $errors[] = "$prefix.weight_score: 'score' must be numeric";
+            }
+        }
+
+        return $errors;
+    }
+    
+    /**
+     * Validate multi_condition structure
+     */
+    private function validateMultiCondition(array $multiCondition, string $prefix): array
+    {
+        $errors = [];
+        
+        if (!isset($multiCondition['variables']) || !is_array($multiCondition['variables'])) {
+            $errors[] = "$prefix: 'variables' must be an array";
+        } elseif (empty($multiCondition['variables'])) {
+            $errors[] = "$prefix: 'variables' cannot be empty";
+        }
+        
+        if (!isset($multiCondition['score_matrix']) || !is_array($multiCondition['score_matrix'])) {
+            $errors[] = "$prefix: 'score_matrix' must be an array";
+        } elseif (empty($multiCondition['score_matrix'])) {
+            $errors[] = "$prefix: 'score_matrix' cannot be empty";
+        }
+        
+        return $errors;
+    }
+    
+    /**
+     * Validate range structure
+     */
+    private function validateRange(array $range, string $prefix): array
+    {
+        $errors = [];
+        
+        if (!isset($range['condition'])) {
+            $errors[] = "$prefix: Missing 'condition'";
         } else {
-            $conditionErrors = $this->validateCondition($weightScore['condition'], "$prefix.weight_score.condition");
+            $conditionErrors = $this->validateCondition($range['condition'], "$prefix.condition");
             $errors = array_merge($errors, $conditionErrors);
         }
-
-        if (!isset($weightScore['score'])) {
-            $errors[] = "$prefix.weight_score: Missing 'score'";
-        } elseif (!is_numeric($weightScore['score'])) {
-            $errors[] = "$prefix.weight_score: 'score' must be numeric";
+        
+        if (!isset($range['score'])) {
+            $errors[] = "$prefix: Missing 'score'";
+        } elseif (!is_numeric($range['score'])) {
+            $errors[] = "$prefix: 'score' must be numeric";
         }
-
+        
+        return $errors;
+    }
+    
+    /**
+     * Validate score_rules structure
+     */
+    private function validateScoreRules(array $scoreRules, string $prefix): array
+    {
+        $errors = [];
+        
+        if (empty($scoreRules)) {
+            $errors[] = "$prefix.score_rules: cannot be empty";
+            return $errors;
+        }
+        
+        foreach ($scoreRules as $index => $rule) {
+            $ruleErrors = $this->validateScoreRule($rule, "$prefix.score_rules[$index]");
+            $errors = array_merge($errors, $ruleErrors);
+        }
+        
+        return $errors;
+    }
+    
+    /**
+     * Validate individual score rule structure
+     */
+    private function validateScoreRule(array $rule, string $prefix): array
+    {
+        $errors = [];
+        
+        if (!isset($rule['variable'])) {
+            $errors[] = "$prefix: Missing 'variable'";
+        } elseif (!is_string($rule['variable'])) {
+            $errors[] = "$prefix: 'variable' must be a string";
+        }
+        
+        // Must have either 'ranges' or 'condition'
+        if (!isset($rule['ranges']) && !isset($rule['condition'])) {
+            $errors[] = "$prefix: Must have either 'ranges' or 'condition'";
+        }
+        
+        if (isset($rule['ranges'])) {
+            if (!is_array($rule['ranges']) || empty($rule['ranges'])) {
+                $errors[] = "$prefix: 'ranges' must be a non-empty array";
+            } else {
+                foreach ($rule['ranges'] as $index => $range) {
+                    $rangeErrors = $this->validateRange($range, "$prefix.ranges[$index]");
+                    $errors = array_merge($errors, $rangeErrors);
+                }
+            }
+        }
+        
+        if (isset($rule['condition'])) {
+            $conditionErrors = $this->validateCondition($rule['condition'], "$prefix.condition");
+            $errors = array_merge($errors, $conditionErrors);
+            
+            if (!isset($rule['score'])) {
+                $errors[] = "$prefix: Missing 'score' when using 'condition'";
+            } elseif (!is_numeric($rule['score'])) {
+                $errors[] = "$prefix: 'score' must be numeric";
+            }
+        }
+        
         return $errors;
     }
 
@@ -720,8 +1054,8 @@ class RuleFlow
      */
     private function validateExpressionSyntax(string $expr): void
     {
-        // Check for allowed characters
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+\.?[0-9]*|[\+\-\*\/\(\)\s\*\*,]+$/', $expr)) {
+        // Check for allowed characters including function names, variables, numbers, operators
+        if (!preg_match('/^[a-zA-Z_0-9\+\-\*\/\(\)\s\.\,\*]+$/', $expr)) {
             throw new Exception("Expression contains invalid characters");
         }
 

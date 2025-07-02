@@ -1,40 +1,73 @@
 # RuleFlow
 
-A declarative, multi-language rule engine for evaluating business logic from JSON configuration.
+A declarative rule engine for complex business logic evaluation from JSON configuration.
 
 ## Supported Languages
 
-- ✅ **PHP** — [See PHP implementation](./php/README.md)
+- ✅ **PHP** — [Documentation](./php/README.md)
 - ⏳ **Go** — coming soon
 
 ## Key Features
 
-- **Declarative Configuration** — Define business rules in JSON format
-- **Expression Evaluation** — Mathematical formulas with variables and functions
-- **Conditional Logic** — Switch/case statements for decision-making
-- **Scoring System** — Weight-based scoring mechanisms
-- **Safe Evaluation** — No eval() functions, secure expression parsing
-- **Multi-language Support** — Consistent API across different programming languages
+- **JSON Configuration** — Define rules without code changes
+- **Multi-Dimensional Scoring** — Navigate unlimited condition levels
+- **Mathematical Expressions** — Variables, functions, operators
+- **Conditional Logic** — Switch/case with variable setting
+- **Secure Evaluation** — No eval(), safe expression parsing
 
-## Quick Example
+## Quick Examples
 
+### Simple BMI Calculator
 ```json
 {
   "formulas": [
     {
       "id": "bmi",
-      "expression": "round((weight / ((height / 100) ** 2)), 2)",
-      "inputs": ["weight", "height"],
-      "store_as": "bmi_value"
+      "expression": "weight / ((height / 100) ** 2)",
+      "inputs": ["weight", "height"]
     },
     {
-      "id": "bmi_category",
-      "switch_on": "bmi_value",
+      "id": "category",
+      "switch_on": "bmi",
       "cases": [
         {"condition": {"operator": "<", "value": 18.5}, "result": "Underweight"},
         {"condition": {"operator": "between", "value": [18.5, 24.9]}, "result": "Normal"},
         {"condition": {"operator": ">=", "value": 25}, "result": "Overweight"}
       ]
+    }
+  ]
+}
+```
+
+### Multi-Dimensional Scoring
+```json
+{
+  "formulas": [
+    {
+      "id": "loan_approval",
+      "weight_score": {
+        "multi_condition": {
+          "variables": ["age", "income", "credit_score"],
+          "score_matrix": [
+            {
+              "condition": {"operator": "between", "value": [25, 45]},
+              "ranges": [
+                {
+                  "condition": {"operator": ">=", "value": 50000},
+                  "ranges": [
+                    {
+                      "condition": {"operator": ">=", "value": 700},
+                      "score": 100,
+                      "decision": "approved",
+                      "set_variables": {"interest_rate": 4.5}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
     }
   ]
 }
@@ -50,119 +83,116 @@ $engine = new RuleFlow();
 $result = $engine->evaluate($config, $inputs);
 ```
 
-
-## Use Cases
-
-- **Health Assessment Systems** — BMI calculations, risk scoring
-- **Insurance Premium Calculators** — Dynamic pricing based on risk factors
-- **Financial Credit Scoring** — Multi-factor credit evaluation
-- **Business Rule Engines** — Complex decision-making workflows
-- **Configuration-Driven Applications** — Rules without code deployment
-
-## Language-Specific Documentation
-
-| Language | Status | Documentation | Installation |
-|----------|--------|---------------|--------------|
-| PHP | ✅ Ready | [php/README.md](./php/README.md) | Manual download |
-
-
-## Project Structure
-
-```
-ruleflow/
-├── README.md                 # This file - main documentation
-├── LICENSE
-└── php/
-    ├── README.md            # PHP-specific documentation
-    ├── src/RuleFlow.php     # PHP implementation
-    ├── tests/               # PHP unit tests
-    └── examples/            # PHP examples
-```
-
 ## Configuration Format
 
-RuleFlow uses a standardized JSON configuration format across all languages:
+### Formula Types
 
+#### Expression
+```json
+{"id": "calc", "expression": "a + b", "inputs": ["a", "b"]}
+```
+
+#### Switch/Case
 ```json
 {
-  "inputs": {
-    "variable_name": {
-      "label": "Display Name",
-      "unit": "Unit"
-    }
-  },
-  "formulas": [
+  "id": "grade",
+  "switch_on": "score", 
+  "cases": [
+    {"condition": {"operator": ">=", "value": 80}, "result": "A"}
+  ],
+  "default": "F"
+}
+```
+
+#### Scoring
+```json
+{
+  "id": "points",
+  "score_rules": [
     {
-      "id": "unique_id",
-      "expression": "mathematical_expression",
-      "inputs": ["input_variables"],
-      "store_as": "result_variable"
-    },
-    {
-      "id": "conditional_logic",
-      "switch_on": "variable_to_evaluate",
-      "cases": [
-        {
-          "condition": {"operator": ">=", "value": 18},
-          "result": "Adult"
-        }
-      ],
-      "default": "Minor"
+      "variable": "performance",
+      "ranges": [
+        {"condition": {"operator": ">=", "value": 90}, "score": 10}
+      ]
     }
   ]
 }
 ```
 
-## Supported Operations
+## Operators & Functions
 
-### Mathematical Operators
-- `+`, `-`, `*`, `/`, `**` (exponentiation)
-- Parentheses for operation precedence
+### Operators
+- **Math**: `+`, `-`, `*`, `/`, `**`
+- **Comparison**: `<`, `<=`, `>`, `>=`, `==`, `!=`
+- **Special**: `between`, `in`
 
 ### Functions
-- `abs(x)`, `min(a,b,c)`, `max(a,b,c)`
+- `abs(x)`, `min(a,b)`, `max(a,b)`
 - `sqrt(x)`, `round(x,n)`, `ceil(x)`, `floor(x)`
 
-### Conditional Operators
-- `<`, `<=`, `>`, `>=`, `==`, `!=`
-- `between` for range checking
+## Use Cases
 
-## Contributing
-
-We welcome contributions in all supported languages!
-
-### Adding a New Language
-
-1. Create a new directory: `/{language}/`
-2. Implement the core `RuleFlow` class following the PHP example
-3. Add comprehensive tests
-4. Create language-specific README.md
-5. Update this main README.md
-
-### Development Guidelines
-
-- Maintain consistent API across languages
-- Follow each language's best practices and conventions
-- Ensure comprehensive test coverage
-- Document all public methods and configuration options
-
-## Testing
-
-Each language implementation includes its own examples:
-
-```bash
-# PHP
-cd php && php examples/demo.php
-```
+- **Healthcare** — Risk assessment, BMI calculations
+- **Finance** — Credit scoring, loan approval
+- **E-commerce** — Dynamic pricing, customer tiers
+- **Business Rules** — Decision workflows
+- **Gaming** — Achievement systems
 
 ## Examples
 
-Find examples in each language-specific directory under `examples/`.
+The PHP implementation includes 5 comprehensive demos:
 
-## Roadmap
+1. **BMI Calculator** — Basic expressions
+2. **Credit Scoring** — Accumulative scoring
+3. **Blood Pressure** — Multi-dimensional health assessment
+4. **E-commerce Discounts** — Dynamic pricing
+5. **Academic Grading** — Weighted scoring
 
-- [x] PHP implementation
-- [ ] Go implementation
+```bash
+cd php && php examples/demo.php
+```
+
+## Contributing
+
+### Adding a New Language
+1. Implement core `RuleFlow` class
+2. Support all formula types
+3. Add comprehensive tests
+4. Follow language conventions
+
+### Required Features
+- Expression evaluation
+- Switch/case logic
+- Multi-dimensional scoring
+- Variable setting
+- All operators and functions
+- Comprehensive validation
+
+## Project Structure
+
+```
+ruleflow/
+├── README.md
+├── LICENSE
+└── php/
+    ├── README.md
+    ├── src/RuleFlow.php
+    └── examples/demo.php
+```
+
+## Version History
+
+### v1.1.0 (Current)
+- Multi-dimensional scoring
+- Enhanced weight scoring
+- Variable setting
+- Advanced operators (`in`)
+- Real-world examples
+
+### v1.0.0
+- Initial PHP implementation
+- Basic expression evaluation
+- Switch/case logic
 
 ## License
 
@@ -171,8 +201,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Jedsadha1777/RuleFlow/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Jedsadha1777/RuleFlow/discussions)
+- **PHP Docs**: [php/README.md](./php/README.md)
 
 ---
 
-**RuleFlow** - Making business logic declarative, testable, and maintainable across all platforms.
+**RuleFlow** - Declarative business logic made simple.
