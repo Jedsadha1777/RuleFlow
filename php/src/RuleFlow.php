@@ -22,24 +22,6 @@ class RuleFlow
     private array $rightAssociative = ['**' => true];
 
     /**
-     * Generate executable function from configuration
-     */
-    public function generateFunction(array $config): Closure
-    {
-        // Validate configuration first
-        $errors = $this->validateConfig($config);
-        if (!empty($errors)) {
-            throw new Exception("Invalid configuration: " . implode(', ', $errors));
-        }
-
-        // Generate optimized PHP code
-        $functionCode = $this->generateFunctionCode($config);
-        
-        // Create and return executable function
-        return eval("return $functionCode;");
-    }
-
-    /**
      * Generate PHP function code as string
      */
     public function generateFunctionAsString(array $config): string

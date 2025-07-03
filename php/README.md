@@ -158,14 +158,7 @@ echo $code; // Shows complete PHP function
 
 RuleFlow can generate optimized PHP code from your JSON configurations:
 
-### 1. In-Memory Functions
-```php
-// Generate executable closure
-$bmiCalculator = $engine->generateFunction($config);
-$result = $bmiCalculator(['weight' => 70, 'height' => 175]);
-```
-
-### 2. PHP Code as String
+### PHP Code as String
 ```php
 // Get the generated code
 $phpCode = $engine->generateFunctionAsString($config);
@@ -180,43 +173,6 @@ function(array $inputs): array {
     return $context;
 }
 */
-```
-
-### 3. Save Individual Functions
-```php
-// Save as standalone PHP file
-$engine->saveFunction($config, 'bmi_calculator.php', 'calculateBMI');
-
-// Generated file content:
-// function calculateBMI(array $inputs): array { ... }
-```
-
-### 4. Generate Class with Multiple Functions
-```php
-$configs = [
-    'bmi' => $bmiConfig,
-    'credit' => $creditConfig,
-    'discount' => $discountConfig
-];
-
-$engine->saveClass($configs, 'BusinessRules.php', 'BusinessRules');
-
-// Usage:
-// $rules = new BusinessRules();
-// $result = $rules->bmi($inputs);
-```
-
-### 5. Create Deployment Package
-```php
-$package = $engine->createDeploymentPackage($configs, './deploy/');
-
-// Creates:
-// - functions/bmiCalculator.php
-// - functions/creditCalculator.php  
-// - GeneratedRules.php (combined class)
-// - autoloader.php
-// - examples.php
-// - README.md
 ```
 
 ## Examples

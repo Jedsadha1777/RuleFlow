@@ -15,7 +15,6 @@ A declarative rule engine for complex business logic evaluation from JSON config
 - **Conditional Logic** — Switch/case with variable setting
 - **Secure Evaluation** — No eval(), safe expression parsing
 - **Code Generation** — Generate optimized PHP functions from JSON
-- **Deployment Ready** — Export as files, classes, or packages
 
 ## Quick Examples
 
@@ -87,10 +86,6 @@ $result = $engine->evaluate($config, $inputs);
 
 ### PHP - Code Generation
 ```php
-// Generate optimized function
-$calculator = $engine->generateFunction($config);
-$result = $calculator($inputs);
-
 // Or get PHP code as string
 $phpCode = $engine->generateFunctionAsString($config);
 ```
