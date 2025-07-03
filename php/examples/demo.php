@@ -67,7 +67,7 @@ function demo2_credit_scoring() {
     $config = [
         'formulas' => [
             [
-                'id' => 'credit_score',
+                'id' => 'credit',
                 'rules' => [
                     [
                         'var' => 'income',
@@ -102,7 +102,7 @@ function demo2_credit_scoring() {
             ],
             [
                 'id' => 'loan_decision',
-                'switch' => 'credit_score_score',
+                'switch' => 'credit_score',
                 'when' => [
                     [
                         'if' => ['op' => '>=', 'value' => 80],
@@ -141,7 +141,7 @@ function demo2_credit_scoring() {
     echo "- Age: {$inputs['age']} years\n";
     echo "- Employment: {$inputs['employment_years']} years\n";
     echo "- Has Property: " . ($inputs['has_property'] ? 'Yes' : 'No') . "\n";
-    echo "\nCredit Score: {$result['credit_score_score']}/100\n";
+    echo "\nCredit Score: {$result['credit_score']}/100\n";
     echo "Decision: {$result['loan_decision']}\n";
     if (isset($result['interest_rate'])) {
         echo "Interest Rate: {$result['interest_rate']}%\n";
@@ -168,7 +168,7 @@ function demo3_blood_pressure() {
                 'as' => 'score'
             ],
             [
-                'id' => 'gender_score',
+                'id' => 'gender',
                 'rules' => [
                     [
                         'var' => 'gender',
@@ -178,7 +178,7 @@ function demo3_blood_pressure() {
                 ]
             ],
             [
-                'id' => 'age_systolic_score',
+                'id' => 'age_systolic',
                 'scoring' => [
                     'ifs' => [
                         'vars' => ['age', 'systolic'],
@@ -231,8 +231,8 @@ function demo3_blood_pressure() {
             ],
             [
                 'id' => 'total_score',
-                'formula' => 'gender_score_score + age_systolic_score_score',
-                'inputs' => ['gender_score_score', 'age_systolic_score_score'],
+                'formula' => 'gender_score + age_systolic_score',
+                'inputs' => ['gender_score', 'age_systolic_score'],
                 'as' => 'final_score'
             ]
         ]
@@ -251,7 +251,7 @@ function demo3_blood_pressure() {
     echo "Patient: {$inputs['gender']}, {$inputs['age']} years old\n";
     echo "Systolic BP: {$inputs['systolic']} mmHg\n";
     echo "Risk Score: {$result['final_score']}\n";
-    echo "Risk Level: {$result['age_systolic_score_risk_level']}\n";
+    echo "Risk Level: {$result['age_systolic_risk_level']}\n";
     if (isset($result['requires_medication'])) {
         echo "Requires Medication: Yes\n";
     }
