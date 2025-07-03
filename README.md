@@ -144,7 +144,6 @@ $phpCode = $engine->generateFunctionAsString($config);
 - **E-commerce** — Dynamic pricing, customer tiers
 - **Business Rules** — Decision workflows
 - **Gaming** — Achievement systems
-- **High Performance** — Pre-compiled rules with generated functions
 
 ## Examples
 
