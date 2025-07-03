@@ -1,6 +1,7 @@
-<?php
 
-require_once "../src/RuleEngine.php";
+<?php 
+
+require_once "../src/RuleFlow.php";
 
 /**
  * Demo 1: Simple BMI Calculator
@@ -12,24 +13,24 @@ function demo1_bmi_calculator() {
         'formulas' => [
             [
                 'id' => 'bmi_calculation',
-                'expression' => 'weight / (height ** 2)',
+                'formula' => 'weight / (height ** 2)',
                 'inputs' => ['weight', 'height'],
-                'store_as' => 'bmi'
+                'as' => 'bmi'
             ],
             [
                 'id' => 'bmi_category',
-                'switch_on' => 'bmi',
-                'cases' => [
+                'switch' => 'bmi',
+                'when' => [
                     [
-                        'condition' => ['operator' => '<', 'value' => 18.5],
+                        'if' => ['op' => '<', 'value' => 18.5],
                         'result' => 'Underweight'
                     ],
                     [
-                        'condition' => ['operator' => 'between', 'value' => [18.5, 24.9]],
+                        'if' => ['op' => 'between', 'value' => [18.5, 24.9]],
                         'result' => 'Normal'
                     ],
                     [
-                        'condition' => ['operator' => 'between', 'value' => [25, 29.9]],
+                        'if' => ['op' => 'between', 'value' => [25, 29.9]],
                         'result' => 'Overweight'
                     ]
                 ],
@@ -50,6 +51,11 @@ function demo1_bmi_calculator() {
     echo "Input: Weight={$inputs['weight']}kg, Height={$inputs['height']}m\n";
     echo "BMI: " . round($result['bmi'], 2) . "\n";
     echo "Category: {$result['bmi_category']}\n";
+
+
+    echo "\n====PHP===\n";
+    echo $ruleFlow->generateFunctionAsString($config,$inputs);
+    echo "\n====END===\n\n";
 }
 
 /**
@@ -62,56 +68,56 @@ function demo2_credit_scoring() {
         'formulas' => [
             [
                 'id' => 'credit_score',
-                'score_rules' => [
+                'rules' => [
                     [
-                        'variable' => 'income',
+                        'var' => 'income',
                         'ranges' => [
-                            ['condition' => ['operator' => '>=', 'value' => 100000], 'score' => 40],
-                            ['condition' => ['operator' => '>=', 'value' => 50000], 'score' => 25],
-                            ['condition' => ['operator' => '>=', 'value' => 30000], 'score' => 15]
+                            ['if' => ['op' => '>=', 'value' => 100000], 'score' => 40],
+                            ['if' => ['op' => '>=', 'value' => 50000], 'score' => 25],
+                            ['if' => ['op' => '>=', 'value' => 30000], 'score' => 15]
                         ]
                     ],
                     [
-                        'variable' => 'age',
+                        'var' => 'age',
                         'ranges' => [
-                            ['condition' => ['operator' => 'between', 'value' => [25, 45]], 'score' => 20],
-                            ['condition' => ['operator' => 'between', 'value' => [46, 60]], 'score' => 15],
-                            ['condition' => ['operator' => '>=', 'value' => 18], 'score' => 10]
+                            ['if' => ['op' => 'between', 'value' => [25, 45]], 'score' => 20],
+                            ['if' => ['op' => 'between', 'value' => [46, 60]], 'score' => 15],
+                            ['if' => ['op' => '>=', 'value' => 18], 'score' => 10]
                         ]
                     ],
                     [
-                        'variable' => 'employment_years',
+                        'var' => 'employment_years',
                         'ranges' => [
-                            ['condition' => ['operator' => '>=', 'value' => 5], 'score' => 20],
-                            ['condition' => ['operator' => '>=', 'value' => 2], 'score' => 15],
-                            ['condition' => ['operator' => '>=', 'value' => 1], 'score' => 10]
+                            ['if' => ['op' => '>=', 'value' => 5], 'score' => 20],
+                            ['if' => ['op' => '>=', 'value' => 2], 'score' => 15],
+                            ['if' => ['op' => '>=', 'value' => 1], 'score' => 10]
                         ]
                     ],
                     [
-                        'variable' => 'has_property',
-                        'condition' => ['operator' => '==', 'value' => 1],
+                        'var' => 'has_property',
+                        'if' => ['op' => '==', 'value' => 1],
                         'score' => 20
                     ]
                 ]
             ],
             [
                 'id' => 'loan_decision',
-                'switch_on' => 'credit_score_score',
-                'cases' => [
+                'switch' => 'credit_score_score',
+                'when' => [
                     [
-                        'condition' => ['operator' => '>=', 'value' => 80],
+                        'if' => ['op' => '>=', 'value' => 80],
                         'result' => 'Approved',
-                        'set_variables' => ['interest_rate' => 5.5, 'max_amount' => 1000000]
+                        'set_vars' => ['interest_rate' => 5.5, 'max_amount' => 1000000]
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 60],
+                        'if' => ['op' => '>=', 'value' => 60],
                         'result' => 'Approved',
-                        'set_variables' => ['interest_rate' => 7.0, 'max_amount' => 500000]
+                        'set_vars' => ['interest_rate' => 7.0, 'max_amount' => 500000]
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 40],
+                        'if' => ['op' => '>=', 'value' => 40],
                         'result' => 'Conditional',
-                        'set_variables' => ['interest_rate' => 9.0, 'max_amount' => 200000]
+                        'set_vars' => ['interest_rate' => 9.0, 'max_amount' => 200000]
                     ]
                 ],
                 'default' => 'Rejected'
@@ -141,6 +147,10 @@ function demo2_credit_scoring() {
         echo "Interest Rate: {$result['interest_rate']}%\n";
         echo "Max Loan Amount: ฿{$result['max_amount']}\n";
     }
+
+    echo "\n====PHP===\n";
+    echo $ruleFlow->generateFunctionAsString($config,$inputs);
+    echo "\n====END===\n\n";
 }
 
 /**
@@ -153,65 +163,65 @@ function demo3_blood_pressure() {
         'formulas' => [
             [
                 'id' => 'initialize_score',
-                'expression' => '0',
+                'formula' => '0',
                 'inputs' => [],
-                'store_as' => 'score'
+                'as' => 'score'
             ],
             [
                 'id' => 'gender_score',
-                'score_rules' => [
+                'rules' => [
                     [
-                        'variable' => 'gender',
-                        'condition' => ['operator' => '==', 'value' => 'female'],
+                        'var' => 'gender',
+                        'if' => ['op' => '==', 'value' => 'female'],
                         'score' => 1
                     ]
                 ]
             ],
             [
                 'id' => 'age_systolic_score',
-                'weight_score' => [
-                    'multi_condition' => [
-                        'variables' => ['age', 'systolic'],
-                        'score_matrix' => [
+                'scoring' => [
+                    'ifs' => [
+                        'vars' => ['age', 'systolic'],
+                        'tree' => [
                             [
-                                'condition' => ['operator' => 'between', 'value' => [30, 50]],
+                                'if' => ['op' => 'between', 'value' => [30, 50]],
                                 'ranges' => [
                                     [
-                                        'condition' => ['operator' => '<', 'value' => 120],
+                                        'if' => ['op' => '<', 'value' => 120],
                                         'score' => 0,
                                         'risk_level' => 'low'
                                     ],
                                     [
-                                        'condition' => ['operator' => 'between', 'value' => [120, 139]],
+                                        'if' => ['op' => 'between', 'value' => [120, 139]],
                                         'score' => 5,
                                         'risk_level' => 'medium'
                                     ],
                                     [
-                                        'condition' => ['operator' => '>=', 'value' => 140],
+                                        'if' => ['op' => '>=', 'value' => 140],
                                         'score' => 10,
                                         'risk_level' => 'high',
-                                        'set_variables' => ['requires_medication' => true]
+                                        'set_vars' => ['requires_medication' => true]
                                     ]
                                 ]
                             ],
                             [
-                                'condition' => ['operator' => '>', 'value' => 50],
+                                'if' => ['op' => '>', 'value' => 50],
                                 'ranges' => [
                                     [
-                                        'condition' => ['operator' => '<', 'value' => 120],
+                                        'if' => ['op' => '<', 'value' => 120],
                                         'score' => 2,
                                         'risk_level' => 'low'
                                     ],
                                     [
-                                        'condition' => ['operator' => 'between', 'value' => [120, 139]],
+                                        'if' => ['op' => 'between', 'value' => [120, 139]],
                                         'score' => 8,
                                         'risk_level' => 'medium'
                                     ],
                                     [
-                                        'condition' => ['operator' => '>=', 'value' => 140],
+                                        'if' => ['op' => '>=', 'value' => 140],
                                         'score' => 15,
                                         'risk_level' => 'high',
-                                        'set_variables' => ['requires_medication' => true]
+                                        'set_vars' => ['requires_medication' => true]
                                     ]
                                 ]
                             ]
@@ -221,9 +231,9 @@ function demo3_blood_pressure() {
             ],
             [
                 'id' => 'total_score',
-                'expression' => 'gender_score_score + age_systolic_score_score',
+                'formula' => 'gender_score_score + age_systolic_score_score',
                 'inputs' => ['gender_score_score', 'age_systolic_score_score'],
-                'store_as' => 'final_score'
+                'as' => 'final_score'
             ]
         ]
     ];
@@ -245,6 +255,10 @@ function demo3_blood_pressure() {
     if (isset($result['requires_medication'])) {
         echo "Requires Medication: Yes\n";
     }
+
+    echo "\n====PHP===\n";
+    echo $ruleFlow->generateFunctionAsString($config,$inputs);
+    echo "\n====END===\n\n";
 }
 
 /**
@@ -257,79 +271,79 @@ function demo4_discount_system() {
         'formulas' => [
             [
                 'id' => 'customer_tier',
-                'switch_on' => 'total_spent',
-                'cases' => [
+                'switch' => 'total_spent',
+                'when' => [
                     [
-                        'condition' => ['operator' => '>=', 'value' => 100000],
+                        'if' => ['op' => '>=', 'value' => 100000],
                         'result' => 'platinum',
-                        'set_variables' => ['base_discount' => 15]
+                        'set_vars' => ['base_discount' => 15]
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 50000],
+                        'if' => ['op' => '>=', 'value' => 50000],
                         'result' => 'gold',
-                        'set_variables' => ['base_discount' => 10]
+                        'set_vars' => ['base_discount' => 10]
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 10000],
+                        'if' => ['op' => '>=', 'value' => 10000],
                         'result' => 'silver',
-                        'set_variables' => ['base_discount' => 5]
+                        'set_vars' => ['base_discount' => 5]
                     ]
                 ],
                 'default' => 'bronze',
-                'default_variables' => ['base_discount' => 0]
+                'default_vars' => ['base_discount' => 0]
             ],
             [
                 'id' => 'set_bronze_discount',
-                'switch_on' => 'customer_tier',
-                'cases' => [
+                'switch' => 'customer_tier',
+                'when' => [
                     [
-                        'condition' => ['operator' => '==', 'value' => 'bronze'],
+                        'if' => ['op' => '==', 'value' => 'bronze'],
                         'result' => 0,
-                        'set_variables' => ['base_discount' => 0]
+                        'set_vars' => ['base_discount' => 0]
                     ]
                 ],
                 'default' => null
             ],
             [
                 'id' => 'bonus_discount',
-                'score_rules' => [
+                'rules' => [
                     [
-                        'variable' => 'is_birthday_month',
-                        'condition' => ['operator' => '==', 'value' => 1],
+                        'var' => 'is_birthday_month',
+                        'if' => ['op' => '==', 'value' => 1],
                         'score' => 5
                     ],
                     [
-                        'variable' => 'order_amount',
+                        'var' => 'order_amount',
                         'ranges' => [
-                            ['condition' => ['operator' => '>=', 'value' => 5000], 'score' => 3],
-                            ['condition' => ['operator' => '>=', 'value' => 2000], 'score' => 2],
-                            ['condition' => ['operator' => '>=', 'value' => 1000], 'score' => 1]
+                            ['if' => ['op' => '>=', 'value' => 5000], 'score' => 3],
+                            ['if' => ['op' => '>=', 'value' => 2000], 'score' => 2],
+                            ['if' => ['op' => '>=', 'value' => 1000], 'score' => 1]
                         ]
                     ],
                     [
-                        'variable' => 'is_first_order',
-                        'condition' => ['operator' => '==', 'value' => 1],
+                        'var' => 'is_first_order',
+                        'if' => ['op' => '==', 'value' => 1],
                         'score' => 10
                     ]
                 ]
             ],
             [
                 'id' => 'final_discount',
-                'expression' => 'min(base_discount + bonus_discount_score, 25)',
+                'formula' => 'min(base_discount + bonus_discount_score, 25)',
                 'inputs' => ['base_discount', 'bonus_discount_score'],
-                'store_as' => 'discount_percent'
+                'as' => 'discount_percent'
             ],
             [
                 'id' => 'discount_amount',
-                'expression' => 'order_amount * discount_percent / 100',
+                'formula' => 'order_amount * discount_percent / 100',
                 'inputs' => ['order_amount', 'discount_percent'],
-                'store_as' => 'discount_amount'
+                'as' => 'discount_amount'
             ],
             [
                 'id' => 'final_price',
-                'expression' => 'order_amount - discount_amount',
+                'formula' => 'order_amount - discount_amount',
                 'inputs' => ['order_amount', 'discount_amount'],
-                'store_as' => 'final_price'
+                'as' => 'final_price'
             ]
         ]
     ];
@@ -354,6 +368,11 @@ function demo4_discount_system() {
     echo "Discount: {$result['discount_percent']}%\n";
     echo "Discount Amount: ฿{$result['discount_amount']}\n";
     echo "Final Price: ฿{$result['final_price']}\n";
+
+
+    echo "\n====PHP===\n";
+    echo $ruleFlow->generateFunctionAsString($config,$inputs);
+    echo "\n====END===\n\n";
 }
 
 /**
@@ -366,70 +385,71 @@ function demo5_grading_system() {
         'formulas' => [
             [
                 'id' => 'weighted_score',
-                'expression' => '(midterm * 0.3) + (final * 0.4) + (assignments * 0.2) + (attendance * 0.1)',
+                'formula' => '(midterm * 0.3) + (final * 0.4) + (assignments * 0.2) + (attendance * 0.1)',
                 'inputs' => ['midterm', 'final', 'assignments', 'attendance'],
-                'store_as' => 'total_score'
+                'as' => 'total_score'
             ],
             [
                 'id' => 'letter_grade',
-                'switch_on' => 'total_score',
-                'cases' => [
+                'switch' => 'total_score',
+                'when' => [
                     [
-                        'condition' => ['operator' => '>=', 'value' => 80],
+                        'if' => ['op' => '>=', 'value' => 80],
                         'result' => 'A',
-                        'set_variables' => ['gpa' => 4.0, 'status' => 'Excellent']
+                        'set_vars' => ['gpa' => 4.0, 'status' => 'Excellent']
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 75],
+                        'if' => ['op' => '>=', 'value' => 75],
                         'result' => 'B+',
-                        'set_variables' => ['gpa' => 3.5, 'status' => 'Very Good']
+                        'set_vars' => ['gpa' => 3.5, 'status' => 'Very Good']
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 70],
+                        'if' => ['op' => '>=', 'value' => 70],
                         'result' => 'B',
-                        'set_variables' => ['gpa' => 3.0, 'status' => 'Good']
+                        'set_vars' => ['gpa' => 3.0, 'status' => 'Good']
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 65],
+                        'if' => ['op' => '>=', 'value' => 65],
                         'result' => 'C+',
-                        'set_variables' => ['gpa' => 2.5, 'status' => 'Fair']
+                        'set_vars' => ['gpa' => 2.5, 'status' => 'Fair']
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 60],
+                        'if' => ['op' => '>=', 'value' => 60],
                         'result' => 'C',
-                        'set_variables' => ['gpa' => 2.0, 'status' => 'Satisfactory']
+                        'set_vars' => ['gpa' => 2.0, 'status' => 'Satisfactory']
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 55],
+                        'if' => ['op' => '>=', 'value' => 55],
                         'result' => 'D+',
-                        'set_variables' => ['gpa' => 1.5, 'status' => 'Pass']
+                        'set_vars' => ['gpa' => 1.5, 'status' => 'Pass']
                     ],
                     [
-                        'condition' => ['operator' => '>=', 'value' => 50],
+                        'if' => ['op' => '>=', 'value' => 50],
                         'result' => 'D',
-                        'set_variables' => ['gpa' => 1.0, 'status' => 'Pass']
+                        'set_vars' => ['gpa' => 1.0, 'status' => 'Pass']
                     ]
                 ],
                 'default' => 'F',
-                'default_variables' => ['gpa' => 0.0, 'status' => 'Fail']
+                'default_vars' => ['gpa' => 0.0, 'status' => 'Fail']
             ],
             [
                 'id' => 'bonus_points',
-                'weight_score' => [
+                'scoring' => [
                     'ranges' => [
                         [
-                            'condition' => ['operator' => '==', 'value' => 100],
+                            'if' => ['op' => '==', 'value' => 100],
                             'score' => 2,
-                            'set_variables' => ['has_bonus' => true]
+                            'set_vars' => ['has_bonus' => true]
                         ],
                         [
-                            'condition' => ['operator' => '>=', 'value' => 95],
+                            'if' => ['op' => '>=', 'value' => 95],
                             'score' => 1,
-                            'set_variables' => ['has_bonus' => true]
+                            'set_vars' => ['has_bonus' => true]
                         ]
                     ],
                     'default' => 0
-                ]
+                ],
+                'as' => 'attendance'  // ระบุตัวแปรที่จะเอามาให้คะแนน
             ]
         ]
     ];
@@ -457,6 +477,11 @@ function demo5_grading_system() {
     if (isset($result['has_bonus'])) {
         echo "Bonus Points: +{$result['bonus_points_score']}\n";
     }
+
+
+    echo "\n====PHP===\n";
+    echo $ruleFlow->generateFunctionAsString($config,$inputs);
+    echo "\n====END===\n\n";
 }
 
 // Run all demos

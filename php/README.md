@@ -26,16 +26,16 @@ $config = [
     "formulas" => [
         [
             "id" => "bmi",
-            "expression" => "round((weight / ((height / 100) ** 2)), 2)",
+            "formula" => "round((weight / ((height / 100) ** 2)), 2)",
             "inputs" => ["weight", "height"]
         ],
         [
             "id" => "category",
-            "switch_on" => "bmi",
-            "cases" => [
-                ["condition" => ["operator" => "<", "value" => 18.5], "result" => "Underweight"],
-                ["condition" => ["operator" => "between", "value" => [18.5, 24.9]], "result" => "Normal"],
-                ["condition" => ["operator" => ">=", "value" => 25], "result" => "Overweight"]
+            "switch" => "bmi",
+            "when" => [
+                ["if" => ["op" => "<", "value" => 18.5], "result" => "Underweight"],
+                ["if" => ["op" => "between", "value" => [18.5, 24.9]], "result" => "Normal"],
+                ["if" => ["op" => ">=", "value" => 25], "result" => "Overweight"]
             ]
         ]
     ]
@@ -60,41 +60,53 @@ $errors = $engine->validateConfig($config);
 $testResult = $engine->testConfig($config, $sampleInputs);
 ```
 
+### Code Generation Methods
+
+```php
+// Generate executable function in memory
+$func = $engine->generateFunction($config);
+$result = $func($inputs);
+
+// Generate PHP code as string
+$code = $engine->generateFunctionAsString($config);
+echo $code; // Shows complete PHP function
+```
+
 ## Configuration Types
 
 ### 1. Expression Formula
 ```json
 {
   "id": "calculation",
-  "expression" => "a + b * 2",
-  "inputs" => ["a", "b"],
-  "store_as" => "result"
+  "formula": "a + b * 2",
+  "inputs": ["a", "b"],
+  "as": "result"
 }
 ```
 
 ### 2. Switch/Case Logic
 ```json
 {
-  "id" => "grade",
-  "switch_on" => "score",
-  "cases" => [
-    {"condition" => {"operator" => ">=", "value" => 80}, "result" => "A"},
-    {"condition" => {"operator" => ">=", "value" => 70}, "result" => "B"}
+  "id": "grade",
+  "switch": "score",
+  "when": [
+    {"if": {"op": ">=", "value": 80}, "result": "A"},
+    {"if": {"op": ">=", "value": 70}, "result": "B"}
   ],
-  "default" => "F"
+  "default": "F"
 }
 ```
 
 ### 3. Scoring System
 ```json
 {
-  "id" => "credit_score",
-  "score_rules" => [
+  "id": "credit_score",
+  "rules": [
     {
-      "variable" => "income",
-      "ranges" => [
-        {"condition" => {"operator" => ">=", "value" => 50000}, "score" => 25},
-        {"condition" => {"operator" => ">=", "value" => 30000}, "score" => 15}
+      "var": "income",
+      "ranges": [
+        {"if": {"op": ">=", "value": 50000}, "score": 25},
+        {"if": {"op": ">=", "value": 30000}, "score": 15}
       ]
     }
   ]
@@ -104,18 +116,18 @@ $testResult = $engine->testConfig($config, $sampleInputs);
 ### 4. Multi-Dimensional Scoring
 ```json
 {
-  "id" => "complex_scoring",
-  "weight_score" => {
-    "multi_condition" => {
-      "variables" => ["age", "income"],
-      "score_matrix" => [
+  "id": "complex_scoring",
+  "scoring": {
+    "ifs": {
+      "vars": ["age", "income"],
+      "tree": [
         {
-          "condition" => {"operator" => "between", "value" => [25, 45]},
-          "ranges" => [
+          "if": {"op": "between", "value": [25, 45]},
+          "ranges": [
             {
-              "condition" => {"operator" => ">=", "value" => 50000},
-              "score" => 100,
-              "set_variables" => {"approved" => true}
+              "if": {"op": ">=", "value": 50000},
+              "score": 100,
+              "set_vars": {"approved": true}
             }
           ]
         }
@@ -130,8 +142,8 @@ $testResult = $engine->testConfig($config, $sampleInputs);
 ### Operators
 - **Math**: `+`, `-`, `*`, `/`, `**` (power)
 - **Comparison**: `<`, `<=`, `>`, `>=`, `==`, `!=`
-- **Range**: `between` → `{"operator": "between", "value": [10, 20]}`
-- **Array**: `in` → `{"operator": "in", "value": ["red", "blue"]}`
+- **Range**: `between` → `{"op": "between", "value": [10, 20]}`
+- **Array**: `in` → `{"op": "in", "value": ["red", "blue"]}`
 
 ### Functions
 - `abs(x)`, `min(a,b,c)`, `max(a,b,c)`
@@ -139,10 +151,77 @@ $testResult = $engine->testConfig($config, $sampleInputs);
 
 ### Variable Setting
 ```json
-"set_variables" => {"status" => "approved", "rate" => 5.5}
+"set_vars": {"status": "approved", "rate": 5.5}
+```
+
+## Code Generation Features
+
+RuleFlow can generate optimized PHP code from your JSON configurations:
+
+### 1. In-Memory Functions
+```php
+// Generate executable closure
+$bmiCalculator = $engine->generateFunction($config);
+$result = $bmiCalculator(['weight' => 70, 'height' => 175]);
+```
+
+### 2. PHP Code as String
+```php
+// Get the generated code
+$phpCode = $engine->generateFunctionAsString($config);
+echo $phpCode;
+/*
+function(array $inputs): array {
+    $context = $inputs;
+    
+    // Formula: bmi_calculation
+    $context['bmi'] = $context['weight'] / pow($context['height'], 2);
+    
+    return $context;
+}
+*/
+```
+
+### 3. Save Individual Functions
+```php
+// Save as standalone PHP file
+$engine->saveFunction($config, 'bmi_calculator.php', 'calculateBMI');
+
+// Generated file content:
+// function calculateBMI(array $inputs): array { ... }
+```
+
+### 4. Generate Class with Multiple Functions
+```php
+$configs = [
+    'bmi' => $bmiConfig,
+    'credit' => $creditConfig,
+    'discount' => $discountConfig
+];
+
+$engine->saveClass($configs, 'BusinessRules.php', 'BusinessRules');
+
+// Usage:
+// $rules = new BusinessRules();
+// $result = $rules->bmi($inputs);
+```
+
+### 5. Create Deployment Package
+```php
+$package = $engine->createDeploymentPackage($configs, './deploy/');
+
+// Creates:
+// - functions/bmiCalculator.php
+// - functions/creditCalculator.php  
+// - GeneratedRules.php (combined class)
+// - autoloader.php
+// - examples.php
+// - README.md
 ```
 
 ## Examples
+
+### Basic Usage Examples
 
 ### Credit Scoring
 ```php
@@ -150,30 +229,30 @@ $config = [
     "formulas" => [
         [
             "id" => "credit_assessment",
-            "score_rules" => [
+            "rules" => [
                 [
-                    "variable" => "income",
+                    "var" => "income",
                     "ranges" => [
-                        ["condition" => ["operator" => ">=", "value" => 100000], "score" => 40],
-                        ["condition" => ["operator" => ">=", "value" => 50000], "score" => 25]
+                        ["if" => ["op" => ">=", "value" => 100000], "score" => 40],
+                        ["if" => ["op" => ">=", "value" => 50000], "score" => 25]
                     ]
                 ],
                 [
-                    "variable" => "employment_years", 
+                    "var" => "employment_years", 
                     "ranges" => [
-                        ["condition" => ["operator" => ">=", "value" => 5], "score" => 20]
+                        ["if" => ["op" => ">=", "value" => 5], "score" => 20]
                     ]
                 ]
             ]
         ],
         [
             "id" => "decision",
-            "switch_on" => "credit_assessment_score",
-            "cases" => [
+            "switch" => "credit_assessment_score",
+            "when" => [
                 [
-                    "condition" => ["operator" => ">=", "value" => 60],
+                    "if" => ["op" => ">=", "value" => 60],
                     "result" => "Approved",
-                    "set_variables" => ["interest_rate" => 5.5]
+                    "set_vars" => ["interest_rate" => 5.5]
                 ]
             ],
             "default" => "Rejected"
@@ -194,20 +273,20 @@ $config = [
     "formulas" => [
         [
             "id" => "bmi",
-            "expression" => "weight / ((height / 100) ** 2)",
+            "formula" => "weight / ((height / 100) ** 2)",
             "inputs" => ["weight", "height"]
         ],
         [
             "id" => "risk_score",
-            "weight_score" => [
-                "multi_condition" => [
-                    "variables" => ["age", "bmi"],
-                    "score_matrix" => [
+            "scoring" => [
+                "ifs" => [
+                    "vars" => ["age", "bmi"],
+                    "tree" => [
                         [
-                            "condition" => ["operator" => ">", "value" => 50],
+                            "if" => ["op" => ">", "value" => 50],
                             "ranges" => [
                                 [
-                                    "condition" => ["operator" => ">=", "value" => 25],
+                                    "if" => ["op" => ">=", "value" => 25],
                                     "score" => 8,
                                     "risk_level" => "high"
                                 ]

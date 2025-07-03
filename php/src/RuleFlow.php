@@ -22,6 +22,559 @@ class RuleFlow
     private array $rightAssociative = ['**' => true];
 
     /**
+     * Generate executable function from configuration
+     */
+    public function generateFunction(array $config): Closure
+    {
+        // Validate configuration first
+        $errors = $this->validateConfig($config);
+        if (!empty($errors)) {
+            throw new Exception("Invalid configuration: " . implode(', ', $errors));
+        }
+
+        // Generate optimized PHP code
+        $functionCode = $this->generateFunctionCode($config);
+        
+        // Create and return executable function
+        return eval("return $functionCode;");
+    }
+
+    /**
+     * Generate PHP function code as string
+     */
+    public function generateFunctionAsString(array $config): string
+    {
+        $errors = $this->validateConfig($config);
+        if (!empty($errors)) {
+            throw new Exception("Invalid configuration: " . implode(', ', $errors));
+        }
+
+        return $this->generateFunctionCode($config);
+    }
+
+    /**
+     * Generate optimized PHP function code
+     */
+    private function generateFunctionCode(array $config): string
+    {
+        $formulas = $config['formulas'];
+        
+        // Analyze dependencies and optimize order
+        $optimizedOrder = $this->optimizeExecutionOrder($formulas);
+        
+        $code = "function(array \$inputs): array {\n";
+        $code .= "    \$context = \$inputs;\n\n";
+        
+        // Generate code for each formula in optimized order
+        foreach ($optimizedOrder as $formula) {
+            $code .= $this->generateFormulaCode($formula);
+        }
+        
+        $code .= "    return \$context;\n";
+        $code .= "}";
+        
+        return $code;
+    }
+
+    /**
+     * Generate code for individual formula
+     */
+    private function generateFormulaCode(array $formula): string
+    {
+        $code = "    // Formula: {$formula['id']}\n";
+        
+        if (isset($formula['formula'])) {
+            $code .= $this->generateExpressionCode($formula);
+        } elseif (isset($formula['switch'])) {
+            $code .= $this->generateSwitchCode($formula);
+        } elseif (isset($formula['rules'])) {
+            $code .= $this->generateScoreRulesCode($formula);
+        } elseif (isset($formula['scoring'])) {
+            $code .= $this->generateWeightScoreCode($formula);
+        }
+        
+        $code .= "\n";
+        return $code;
+    }
+
+    /**
+     * Generate expression formula code
+     */
+    private function generateExpressionCode(array $formula): string
+    {
+        $expr = $formula['formula'];
+        $inputs = $formula['inputs'] ?? [];
+        $storeAs = $formula['as'] ?? $formula['id'];
+        
+        $code = "";
+        
+        // Input validation
+        foreach ($inputs as $input) {
+            $code .= "    if (!isset(\$context['$input'])) {\n";
+            $code .= "        throw new Exception('Missing input: $input');\n";
+            $code .= "    }\n";
+        }
+        
+        // Convert expression to PHP code
+        $phpExpr = $this->convertExpressionToPhp($expr, $inputs);
+        
+        $code .= "    \$context['$storeAs'] = $phpExpr;\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate switch/case code
+     */
+    private function generateSwitchCode(array $formula): string
+    {
+        $switchVar = $formula['switch'];
+        $id = $formula['id'];
+        $cases = $formula['when'];
+        $default = $formula['default'] ?? 'null';
+        
+        $code = "    \$switchValue = \$context['$switchVar'] ?? null;\n";
+        $code .= "    if (\$switchValue === null) {\n";
+        $code .= "        throw new Exception('Switch value \\'$switchVar\\' not found');\n";
+        $code .= "    }\n";
+        
+        foreach ($cases as $i => $case) {
+            $condition = $this->generateConditionCode('$switchValue', $case['if']);
+            $result = $this->escapePhpValue($case['result']);
+            
+            if ($i === 0) {
+                $code .= "    if ($condition) {\n";
+            } else {
+                $code .= "    } elseif ($condition) {\n";
+            }
+            
+            $code .= "        \$context['$id'] = $result;\n";
+            
+            // Handle set_vars
+            if (isset($case['set_vars'])) {
+                foreach ($case['set_vars'] as $varName => $varValue) {
+                    $phpValue = $this->escapePhpValue($varValue);
+                    $code .= "        \$context['$varName'] = $phpValue;\n";
+                }
+            }
+        }
+        
+        // Default case
+        $code .= "    } else {\n";
+        $code .= "        \$context['$id'] = " . $this->escapePhpValue($default) . ";\n";
+        
+        // Handle default_vars
+        if (isset($formula['default_vars'])) {
+            foreach ($formula['default_vars'] as $varName => $varValue) {
+                $phpValue = $this->escapePhpValue($varValue);
+                $code .= "        \$context['$varName'] = $phpValue;\n";
+            }
+        }
+        
+        $code .= "    }\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate score rules code
+     */
+    private function generateScoreRulesCode(array $formula): string
+    {
+        $id = $formula['id'];
+        $rules = $formula['rules'];
+        
+        $code = "    \$score = 0;\n";
+        
+        foreach ($rules as $rule) {
+            $variable = $rule['var'];
+            $code .= "    \$value = \$context['$variable'] ?? null;\n";
+            $code .= "    if (\$value !== null) {\n";
+            
+            if (isset($rule['ranges'])) {
+                foreach ($rule['ranges'] as $i => $range) {
+                    $condition = $this->generateConditionCode('$value', $range['if']);
+                    
+                    if ($i === 0) {
+                        $code .= "        if ($condition) {\n";
+                    } else {
+                        $code .= "        } elseif ($condition) {\n";
+                    }
+                    
+                    $code .= "            \$score += {$range['score']};\n";
+                }
+                $code .= "        }\n";
+            } elseif (isset($rule['if'])) {
+                $condition = $this->generateConditionCode('$value', $rule['if']);
+                $code .= "        if ($condition) {\n";
+                $code .= "            \$score += {$rule['score']};\n";
+                $code .= "        }\n";
+            }
+            
+            $code .= "    }\n";
+        }
+        
+        $code .= "    \$context['{$id}_score'] = \$score;\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate weight score code
+     */
+    private function generateWeightScoreCode(array $formula): string
+    {
+        $id = $formula['id'];
+        $weightScore = $formula['scoring'];
+        
+        if (isset($weightScore['ranges'])) {
+            return $this->generateRangeBasedScoring($formula);
+        } elseif (isset($weightScore['if'])) {
+            return $this->generateSimpleWeightScore($formula);
+        } elseif (isset($weightScore['ifs'])) {
+            return $this->generateMultiConditionCode($formula);
+        }
+        
+        // Fallback for unknown weight score types
+        $code = "    // Unknown weight score type - using default\n";
+        $code .= "    \$context['{$id}_score'] = 0;\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate optimized multi-condition code
+     */
+    private function generateMultiConditionCode(array $formula): string
+    {
+        $id = $formula['id'];
+        $multiCondition = $formula['scoring']['ifs'];
+        $variables = $multiCondition['vars'];
+        $matrix = $multiCondition['tree'];
+        
+        $code = "    // Multi-condition scoring for {$id}\n";
+        
+        // Check if all variables exist
+        foreach ($variables as $var) {
+            $code .= "    if (!isset(\$context['$var'])) {\n";
+            $code .= "        \$context['{$id}_score'] = 0;\n";
+            $code .= "        return \$context;\n";
+            $code .= "    }\n";
+        }
+        
+        // Get variable values
+        foreach ($variables as $i => $var) {
+            $code .= "    \$var$i = \$context['$var'];\n";
+        }
+        
+        $code .= "    \$matched = false;\n";
+        $code .= "\n";
+        
+        // Generate nested conditions
+        $code .= $this->generateMatrixCode($matrix, $variables, 0, $id);
+        
+        // Default case
+        $code .= "    if (!\$matched) {\n";
+        $code .= "        \$context['{$id}_score'] = 0;\n";
+        $code .= "    }\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate code for matrix navigation
+     */
+    private function generateMatrixCode(array $matrix, array $variables, int $depth, string $formulaId): string
+    {
+        $code = "";
+        $varName = "\$var$depth";
+        
+        foreach ($matrix as $i => $item) {
+            $condition = $this->generateConditionCode($varName, $item['if']);
+            
+            if ($i === 0) {
+                $code .= "    if ($condition) {\n";
+            } else {
+                $code .= "    } elseif ($condition) {\n";
+            }
+            
+            // If there are more levels (ranges), recurse
+            if (isset($item['ranges']) && ($depth + 1) < count($variables)) {
+                $code .= $this->generateMatrixCode($item['ranges'], $variables, $depth + 1, $formulaId);
+            } else {
+                // Final level - set result
+                $score = $item['score'] ?? 0;
+                $code .= "        \$context['{$formulaId}_score'] = $score;\n";
+                $code .= "        \$matched = true;\n";
+                
+                // Handle additional result data
+                foreach ($item as $key => $value) {
+                    if (!in_array($key, ['if', 'ranges', 'score'])) {
+                        $phpValue = $this->escapePhpValue($value);
+                        $code .= "        \$context['{$formulaId}_$key'] = $phpValue;\n";
+                    }
+                }
+                
+                // Handle set_vars
+                if (isset($item['set_vars'])) {
+                    foreach ($item['set_vars'] as $varName => $varValue) {
+                        $phpValue = $this->escapePhpValue($varValue);
+                        $code .= "        \$context['$varName'] = $phpValue;\n";
+                    }
+                }
+            }
+        }
+        
+        $code .= "    }\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate range-based scoring code
+     */
+    private function generateRangeBasedScoring(array $formula): string
+    {
+        $id = $formula['id'];
+        $storeAs = $formula['as'] ?? $id;
+        $ranges = $formula['scoring']['ranges'];
+        $default = $formula['scoring']['default'] ?? 0;
+        
+        $code = "    \$value = \$context['$storeAs'] ?? null;\n";
+        $code .= "    if (\$value === null) {\n";
+        $code .= "        \$context['{$id}_score'] = 0;\n";
+        $code .= "    } else {\n";
+        
+        foreach ($ranges as $i => $range) {
+            $condition = $this->generateConditionCode('$value', $range['if']);
+            
+            if ($i === 0) {
+                $code .= "        if ($condition) {\n";
+            } else {
+                $code .= "        } elseif ($condition) {\n";
+            }
+            
+            $code .= "            \$context['{$id}_score'] = {$range['score']};\n";
+            
+            // Handle set_vars
+            if (isset($range['set_vars'])) {
+                foreach ($range['set_vars'] as $varName => $varValue) {
+                    $phpValue = $this->escapePhpValue($varValue);
+                    $code .= "            \$context['$varName'] = $phpValue;\n";
+                }
+            }
+        }
+        
+        $code .= "        } else {\n";
+        $code .= "            \$context['{$id}_score'] = $default;\n";
+        $code .= "        }\n";
+        $code .= "    }\n";
+        
+        return $code;
+    }
+
+    /**
+     * Generate simple weight score code
+     */
+    private function generateSimpleWeightScore(array $formula): string
+    {
+        $id = $formula['id'];
+        $storeAs = $formula['as'] ?? $id;
+        $condition = $formula['scoring']['if'];
+        $score = $formula['scoring']['score'];
+        
+        $code = "    \$value = \$context['$storeAs'] ?? null;\n";
+        $code .= "    if (\$value !== null && " . 
+                 $this->generateConditionCode('$value', $condition) . ") {\n";
+        $code .= "        \$context['{$id}_score'] = $score;\n";
+        $code .= "    } else {\n";
+        $code .= "        \$context['{$id}_score'] = 0;\n";
+        $code .= "    }\n";
+        
+        return $code;
+    }
+
+    /**
+     * Convert mathematical expression to PHP code
+     */
+    private function convertExpressionToPhp(string $expr, array $inputs): string
+    {
+        // Replace variables with context access
+        foreach ($inputs as $input) {
+            $expr = preg_replace('/\b' . preg_quote($input, '/') . '\b/', "\$context['$input']", $expr);
+        }
+        
+        // Replace ** with pow() - handle parentheses correctly
+        $expr = preg_replace_callback('/(\([^)]+\)|[^\s\*\(\)]+)\s*\*\*\s*(\([^)]+\)|[^\s\*\(\)]+)/', function($matches) {
+            $base = trim($matches[1]);
+            $exponent = trim($matches[2]);
+            
+            // Remove outer parentheses if they exist
+            if (substr($base, 0, 1) === '(' && substr($base, -1) === ')') {
+                $base = substr($base, 1, -1);
+            }
+            if (substr($exponent, 0, 1) === '(' && substr($exponent, -1) === ')') {
+                $exponent = substr($exponent, 1, -1);
+            }
+            
+            return "pow({$base}, {$exponent})";
+        }, $expr);
+        
+        return $expr;
+    }
+
+    /**
+     * Generate condition code for PHP
+     */
+    private function generateConditionCode(string $variable, array $condition): string
+    {
+        $operator = $condition['op'];
+        $value = $condition['value'];
+        
+        return match ($operator) {
+            '<' => "$variable < " . $this->formatValue($value),
+            '<=' => "$variable <= " . $this->formatValue($value),
+            '>' => "$variable > " . $this->formatValue($value),
+            '>=' => "$variable >= " . $this->formatValue($value),
+            '==' => "$variable == " . $this->escapePhpValue($value),
+            '!=' => "$variable != " . $this->escapePhpValue($value),
+            'between' => "$variable >= " . $this->formatValue($value[0]) . " && $variable <= " . $this->formatValue($value[1]),
+            'in' => "in_array($variable, " . var_export($value, true) . ", true)",
+            default => throw new Exception("Unsupported operator: $operator")
+        };
+    }
+
+    /**
+     * Format value for PHP code generation
+     */
+    private function formatValue($value): string
+    {
+        if (is_numeric($value)) {
+            return (string)$value;
+        } elseif (is_string($value)) {
+            return "'" . addslashes($value) . "'";
+        } elseif (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        } elseif (is_null($value)) {
+            return 'null';
+        } elseif (is_array($value)) {
+            return var_export($value, true);
+        } else {
+            return var_export($value, true);
+        }
+    }
+
+    /**
+     * Escape PHP value for code generation
+     */
+    private function escapePhpValue($value): string
+    {
+        if (is_string($value)) {
+            return "'" . addslashes($value) . "'";
+        } elseif (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        } elseif (is_null($value)) {
+            return 'null';
+        } elseif (is_array($value)) {
+            return var_export($value, true);
+        } elseif (is_numeric($value)) {
+            return (string)$value;
+        } else {
+            return var_export($value, true);
+        }
+    }
+
+    /**
+     * Optimize execution order based on dependencies
+     */
+    private function optimizeExecutionOrder(array $formulas): array
+    {
+        // Simple dependency resolution with infinite loop prevention
+        $ordered = [];
+        $processed = [];
+        $dependencies = [];
+        $maxIterations = count($formulas) * 2; // Prevent infinite loops
+        $iteration = 0;
+        
+        // Build dependency map
+        foreach ($formulas as $formula) {
+            $id = $formula['id'];
+            $deps = [];
+            
+            if (isset($formula['inputs'])) {
+                $deps = array_merge($deps, $formula['inputs']);
+            }
+            if (isset($formula['switch'])) {
+                $deps[] = $formula['switch'];
+            }
+            
+            $dependencies[$id] = $deps;
+        }
+        
+        // Topological sort with safety check
+        while (count($ordered) < count($formulas) && $iteration < $maxIterations) {
+            $iteration++;
+            $progressMade = false;
+            
+            foreach ($formulas as $formula) {
+                $id = $formula['id'];
+                
+                if (in_array($id, $processed)) {
+                    continue;
+                }
+                
+                $canProcess = true;
+                foreach ($dependencies[$id] as $dep) {
+                    // Check if dependency is satisfied by input or processed formula
+                    $depSatisfied = false;
+                    
+                    // Check if it's an input variable (not produced by another formula)
+                    $isInput = true;
+                    foreach ($formulas as $f) {
+                        if (($f['as'] ?? $f['id']) === $dep) {
+                            $isInput = false;
+                            if (in_array($f['id'], $processed)) {
+                                $depSatisfied = true;
+                            }
+                            break;
+                        }
+                    }
+                    
+                    // If it's an input variable, it's always satisfied
+                    if ($isInput) {
+                        $depSatisfied = true;
+                    }
+                    
+                    if (!$depSatisfied) {
+                        $canProcess = false;
+                        break;
+                    }
+                }
+                
+                if ($canProcess) {
+                    $ordered[] = $formula;
+                    $processed[] = $id;
+                    $progressMade = true;
+                }
+            }
+            
+            // If no progress was made in this iteration, we might have circular dependencies
+            if (!$progressMade) {
+                // Add remaining formulas in original order to prevent infinite loop
+                foreach ($formulas as $formula) {
+                    if (!in_array($formula['id'], $processed)) {
+                        $ordered[] = $formula;
+                        $processed[] = $formula['id'];
+                    }
+                }
+                break;
+            }
+        }
+        
+        return $ordered;
+    }
+
+    /**
      * Validate JSON configuration format
      */
     public function validateConfig(array $config): array
@@ -116,22 +669,22 @@ class RuleFlow
     private function processFormula(array $formula, array &$context): void
     {
         // Process expression formulas
-        if (isset($formula['expression'])) {
+        if (isset($formula['formula'])) {
             $this->processExpressionFormula($formula, $context);
         }
 
         // Process switch/case formulas
-        if (isset($formula['switch_on'])) {
+        if (isset($formula['switch'])) {
             $this->processSwitchFormula($formula, $context);
         }
 
         // Process weight/score calculation
-        if (isset($formula['weight_score'])) {
+        if (isset($formula['scoring'])) {
             $this->processWeightScore($formula, $context);
         }
         
         // Process accumulative scoring
-        if (isset($formula['score_rules'])) {
+        if (isset($formula['rules'])) {
             $this->processAccumulativeScore($formula, $context);
         }
     }
@@ -156,8 +709,8 @@ class RuleFlow
             }
 
             // Calculate and store result
-            $result = $this->safeEval($formula['expression'], $vars);
-            $storeKey = $formula['store_as'] ?? $formula['id'];
+            $result = $this->safeEval($formula['formula'], $vars);
+            $storeKey = $formula['as'] ?? $formula['id'];
             $context[$storeKey] = $result;
         } catch (Exception $e) {
             throw new Exception("Error evaluating formula '{$formula['id']}': " . $e->getMessage());
@@ -169,20 +722,20 @@ class RuleFlow
      */
     private function processSwitchFormula(array $formula, array &$context): void
     {
-        $switchValue = $context[$formula['switch_on']] ?? null;
+        $switchValue = $context[$formula['switch']] ?? null;
 
         if ($switchValue === null) {
-            throw new Exception("Switch value '{$formula['switch_on']}' not found in context");
+            throw new Exception("Switch value '{$formula['switch']}' not found in context");
         }
 
         $matched = false;
-        foreach ($formula['cases'] as $case) {
-            if ($this->evaluateCondition($switchValue, $case['condition'])) {
+        foreach ($formula['when'] as $case) {
+            if ($this->evaluateCondition($switchValue, $case['if'])) {
                 $context[$formula['id']] = $case['result'];
                 
                 // Set additional variables if specified
-                if (isset($case['set_variables'])) {
-                    foreach ($case['set_variables'] as $varName => $varValue) {
+                if (isset($case['set_vars'])) {
+                    foreach ($case['set_vars'] as $varName => $varValue) {
                         $context[$varName] = $varValue;
                     }
                 }
@@ -196,8 +749,8 @@ class RuleFlow
             $context[$formula['id']] = $formula['default'] ?? null;
             
             // Set default variables if specified
-            if (isset($formula['default_variables'])) {
-                foreach ($formula['default_variables'] as $varName => $varValue) {
+            if (isset($formula['default_vars'])) {
+                foreach ($formula['default_vars'] as $varName => $varValue) {
                     $context[$varName] = $varValue;
                 }
             }
@@ -209,23 +762,23 @@ class RuleFlow
      */
     private function processWeightScore(array $formula, array &$context): void
     {
-        $weightScore = $formula['weight_score'];
+        $weightScore = $formula['scoring'];
         
         // รองรับ multiple scoring ranges
         if (isset($weightScore['ranges'])) {
-            $value = $context[$formula['store_as'] ?? $formula['id']] ?? null;
+            $value = $context[$formula['as'] ?? $formula['id']] ?? null;
             if ($value === null) {
                 $context[$formula['id'] . '_score'] = 0;
                 return;
             }
             
             foreach ($weightScore['ranges'] as $range) {
-                if ($this->evaluateCondition($value, $range['condition'])) {
+                if ($this->evaluateCondition($value, $range['if'])) {
                     $context[$formula['id'] . '_score'] = $range['score'];
                     
                     // Set additional variables if specified
-                    if (isset($range['set_variables'])) {
-                        foreach ($range['set_variables'] as $varName => $varValue) {
+                    if (isset($range['set_vars'])) {
+                        foreach ($range['set_vars'] as $varName => $varValue) {
                             $context[$varName] = $varValue;
                         }
                     }
@@ -235,8 +788,8 @@ class RuleFlow
             $context[$formula['id'] . '_score'] = $weightScore['default'] ?? 0;
         }
         // รองรับ multi-variable scoring
-        elseif (isset($weightScore['multi_condition'])) {
-            $result = $this->evaluateMultiConditionScore($weightScore['multi_condition'], $context);
+        elseif (isset($weightScore['ifs'])) {
+            $result = $this->evaluateMultiConditionScore($weightScore['ifs'], $context);
             $context[$formula['id'] . '_score'] = $result['score'] ?? 0;
             
             // Store additional result data
@@ -250,13 +803,13 @@ class RuleFlow
         }
         // เก็บแบบเดิม
         else {
-            $value = $context[$formula['store_as'] ?? $formula['id']] ?? null;
+            $value = $context[$formula['as'] ?? $formula['id']] ?? null;
             if ($value === null) {
                 $context[$formula['id'] . '_score'] = 0;
                 return;
             }
             
-            if ($this->evaluateCondition($value, $weightScore['condition'])) {
+            if ($this->evaluateCondition($value, $weightScore['if'])) {
                 $context[$formula['id'] . '_score'] = $weightScore['score'];
             } else {
                 $context[$formula['id'] . '_score'] = 0;
@@ -269,8 +822,8 @@ class RuleFlow
      */
     private function evaluateMultiConditionScore(array $multiCondition, array &$context): array
     {
-        $variables = $multiCondition['variables'];
-        $matrix = $multiCondition['score_matrix'];
+        $variables = $multiCondition['vars'];
+        $matrix = $multiCondition['tree'];
         
         // Get values for all variables
         $values = [];
@@ -302,10 +855,10 @@ class RuleFlow
         
         // Look for matching condition at current level
         foreach ($currentLevel as $item) {
-            if (isset($item['condition']) && $this->evaluateCondition($currentValue, $item['condition'])) {
+            if (isset($item['if']) && $this->evaluateCondition($currentValue, $item['if'])) {
                 // Set any variables specified at this level
-                if (isset($item['set_variables'])) {
-                    foreach ($item['set_variables'] as $varName => $varValue) {
+                if (isset($item['set_vars'])) {
+                    foreach ($item['set_vars'] as $varName => $varValue) {
                         $context[$varName] = $varValue;
                     }
                 }
@@ -337,13 +890,13 @@ class RuleFlow
             $score = $context[$scoreKey];
         }
         
-        foreach ($formula['score_rules'] as $rule) {
+        foreach ($formula['rules'] as $rule) {
             $ruleScore = $this->evaluateScoreRule($rule, $context);
             $score += $ruleScore;
             
             // Set additional variables if specified
-            if (isset($rule['set_variables'])) {
-                foreach ($rule['set_variables'] as $varName => $varValue) {
+            if (isset($rule['set_vars'])) {
+                foreach ($rule['set_vars'] as $varName => $varValue) {
                     if ($ruleScore > 0 || !isset($rule['only_if_scored']) || !$rule['only_if_scored']) {
                         $context[$varName] = $varValue;
                     }
@@ -359,7 +912,7 @@ class RuleFlow
      */
     private function evaluateScoreRule(array $rule, array $context): int
     {
-        $variable = $rule['variable'];
+        $variable = $rule['var'];
         $value = $context[$variable] ?? null;
         
         if ($value === null) {
@@ -368,12 +921,12 @@ class RuleFlow
         
         if (isset($rule['ranges'])) {
             foreach ($rule['ranges'] as $range) {
-                if ($this->evaluateCondition($value, $range['condition'])) {
+                if ($this->evaluateCondition($value, $range['if'])) {
                     return $range['score'];
                 }
             }
-        } elseif (isset($rule['condition'])) {
-            if ($this->evaluateCondition($value, $rule['condition'])) {
+        } elseif (isset($rule['if'])) {
+            if ($this->evaluateCondition($value, $rule['if'])) {
                 return $rule['score'];
             }
         }
@@ -386,7 +939,7 @@ class RuleFlow
      */
     private function evaluateCondition($value, array $condition): bool
     {
-        $operator = $condition['operator'];
+        $operator = $condition['op'];
         $condValue = $condition['value'];
 
         return match ($operator) {
@@ -581,17 +1134,6 @@ class RuleFlow
     }
 
     /**
-     * Validate expression format
-     */
-    private function validateExpression(string $expr): void
-    {
-        // Allow alphanumeric variables, numbers, operators, parentheses, commas, and spaces
-        if (!preg_match('/^[a-zA-Z_0-9\+\-\*\/\(\)\s\.\*,]+$/', $expr)) {
-            throw new Exception("Invalid expression: contains unsafe characters");
-        }
-    }
-
-    /**
      * Replace variables with their values
      */
     private function replaceVariables(string $expr, array $vars): string
@@ -736,15 +1278,12 @@ class RuleFlow
         return $a / $b;
     }
 
-    /**
-     * Validate individual formula structure
-     */
+    // Validation methods continue...
     private function validateFormula(array $formula, int $index): array
     {
         $errors = [];
         $prefix = "Formula[$index]";
 
-        // Check required 'id' field
         if (!isset($formula['id'])) {
             $errors[] = "$prefix: Missing required 'id' field";
             return $errors;
@@ -754,332 +1293,106 @@ class RuleFlow
             $errors[] = "$prefix: 'id' must be a non-empty string";
         }
 
-        // Validate expression formula
-        if (isset($formula['expression'])) {
+        if (isset($formula['formula'])) {
             $expressionErrors = $this->validateExpressionFormula($formula, $prefix);
             $errors = array_merge($errors, $expressionErrors);
         }
 
-        // Validate switch formula
-        if (isset($formula['switch_on'])) {
+        if (isset($formula['switch'])) {
             $switchErrors = $this->validateSwitchFormula($formula, $prefix);
             $errors = array_merge($errors, $switchErrors);
         }
 
-        // Validate weight_score
-        if (isset($formula['weight_score'])) {
-            $scoreErrors = $this->validateWeightScore($formula['weight_score'], $prefix);
+        if (isset($formula['scoring'])) {
+            $scoreErrors = $this->validateWeightScore($formula['scoring'], $prefix);
             $errors = array_merge($errors, $scoreErrors);
         }
         
-        // Validate score_rules
-        if (isset($formula['score_rules'])) {
-            $rulesErrors = $this->validateScoreRules($formula['score_rules'], $prefix);
+        if (isset($formula['rules'])) {
+            $rulesErrors = $this->validateScoreRules($formula['rules'], $prefix);
             $errors = array_merge($errors, $rulesErrors);
         }
 
-        // Check that formula has at least one action
-        if (!isset($formula['expression']) && !isset($formula['switch_on']) && 
-            !isset($formula['weight_score']) && !isset($formula['score_rules'])) {
-            $errors[] = "$prefix: Formula must have at least one action (expression, switch_on, weight_score, or score_rules)";
+        if (!isset($formula['formula']) && !isset($formula['switch']) && 
+            !isset($formula['scoring']) && !isset($formula['rules'])) {
+            $errors[] = "$prefix: Formula must have at least one action";
         }
 
         return $errors;
     }
 
-    /**
-     * Validate expression formula structure
-     */
     private function validateExpressionFormula(array $formula, string $prefix): array
     {
         $errors = [];
 
-        if (!isset($formula['expression']) || !is_string($formula['expression']) || trim($formula['expression']) === '') {
-            $errors[] = "$prefix: 'expression' must be a non-empty string";
+        if (!isset($formula['formula']) || !is_string($formula['formula']) || trim($formula['formula']) === '') {
+            $errors[] = "$prefix: 'formula' must be a non-empty string";
         }
 
         if (!isset($formula['inputs']) || !is_array($formula['inputs'])) {
             $errors[] = "$prefix: 'inputs' must be an array";
-        } elseif (empty($formula['inputs']) && isset($formula['expression']) && $formula['expression'] !== '0') {
-            // Allow empty inputs only for constant expressions like '0'
+        } elseif (empty($formula['inputs']) && isset($formula['formula']) && $formula['formula'] !== '0') {
             $errors[] = "$prefix: 'inputs' cannot be empty for expression formula";
-        }
-
-        // Validate expression syntax
-        if (isset($formula['expression']) && is_string($formula['expression']) && trim($formula['expression']) !== '') {
-            try {
-                $this->validateExpressionSyntax($formula['expression']);
-            } catch (Exception $e) {
-                $errors[] = "$prefix: Invalid expression syntax - " . $e->getMessage();
-            }
         }
 
         return $errors;
     }
 
-    /**
-     * Validate switch formula structure
-     */
     private function validateSwitchFormula(array $formula, string $prefix): array
     {
         $errors = [];
 
-        if (!isset($formula['switch_on']) || !is_string($formula['switch_on'])) {
-            $errors[] = "$prefix: 'switch_on' must be a string";
+        if (!isset($formula['switch']) || !is_string($formula['switch'])) {
+            $errors[] = "$prefix: 'switch' must be a string";
         }
 
-        if (!isset($formula['cases']) || !is_array($formula['cases'])) {
-            $errors[] = "$prefix: 'cases' must be an array";
-        } elseif (empty($formula['cases'])) {
-            $errors[] = "$prefix: 'cases' cannot be empty for switch formula";
-        } else {
-            foreach ($formula['cases'] as $caseIndex => $case) {
-                $caseErrors = $this->validateCase($case, "$prefix.cases[$caseIndex]");
-                $errors = array_merge($errors, $caseErrors);
-            }
+        if (!isset($formula['when']) || !is_array($formula['when'])) {
+            $errors[] = "$prefix: 'when' must be an array";
+        } elseif (empty($formula['when'])) {
+            $errors[] = "$prefix: 'when' cannot be empty for switch formula";
         }
 
         return $errors;
     }
 
-    /**
-     * Validate case structure
-     */
-    private function validateCase(array $case, string $prefix): array
-    {
-        $errors = [];
-
-        if (!isset($case['condition'])) {
-            $errors[] = "$prefix: Missing 'condition'";
-        } else {
-            $conditionErrors = $this->validateCondition($case['condition'], "$prefix.condition");
-            $errors = array_merge($errors, $conditionErrors);
-        }
-
-        if (!isset($case['result'])) {
-            $errors[] = "$prefix: Missing 'result'";
-        }
-
-        return $errors;
-    }
-
-    /**
-     * Validate condition structure
-     */
-    private function validateCondition(array $condition, string $prefix): array
-    {
-        $errors = [];
-
-        if (!isset($condition['operator'])) {
-            $errors[] = "$prefix: Missing 'operator'";
-        } elseif (!in_array($condition['operator'], ['<', '<=', '>', '>=', '==', '!=', 'between', 'in'], true)) {
-            $errors[] = "$prefix: Invalid operator '{$condition['operator']}'";
-        }
-
-        if (!isset($condition['value'])) {
-            $errors[] = "$prefix: Missing 'value'";
-        } elseif ($condition['operator'] === 'between') {
-            if (!is_array($condition['value']) || count($condition['value']) !== 2) {
-                $errors[] = "$prefix: 'between' operator requires array with exactly 2 values";
-            } elseif (!is_numeric($condition['value'][0]) || !is_numeric($condition['value'][1])) {
-                $errors[] = "$prefix: 'between' values must be numeric";
-            } elseif ($condition['value'][0] > $condition['value'][1]) {
-                $errors[] = "$prefix: 'between' first value must be <= second value";
-            }
-        } elseif ($condition['operator'] === 'in') {
-            if (!is_array($condition['value'])) {
-                $errors[] = "$prefix: 'in' operator requires array value";
-            }
-        } elseif (in_array($condition['operator'], ['==', '!='], true)) {
-            // Allow any type for equality operators
-        } elseif (!is_numeric($condition['value'])) {
-            $errors[] = "$prefix: 'value' must be numeric for operator '{$condition['operator']}'";
-        }
-
-        return $errors;
-    }
-
-    /**
-     * Validate weight_score structure
-     */
     private function validateWeightScore(array $weightScore, string $prefix): array
     {
         $errors = [];
 
-        // Check for multi_condition
-        if (isset($weightScore['multi_condition'])) {
-            $multiErrors = $this->validateMultiCondition($weightScore['multi_condition'], "$prefix.weight_score.multi_condition");
-            $errors = array_merge($errors, $multiErrors);
-        }
-        // Check for ranges
-        elseif (isset($weightScore['ranges'])) {
+        if (isset($weightScore['ifs'])) {
+            if (!isset($weightScore['ifs']['vars']) || !is_array($weightScore['ifs']['vars'])) {
+                $errors[] = "$prefix.scoring: 'vars' must be an array";
+            }
+            if (!isset($weightScore['ifs']['tree']) || !is_array($weightScore['ifs']['tree'])) {
+                $errors[] = "$prefix.scoring: 'tree' must be an array";
+            }
+        } elseif (isset($weightScore['ranges'])) {
             if (!is_array($weightScore['ranges']) || empty($weightScore['ranges'])) {
-                $errors[] = "$prefix.weight_score: 'ranges' must be a non-empty array";
-            } else {
-                foreach ($weightScore['ranges'] as $index => $range) {
-                    $rangeErrors = $this->validateRange($range, "$prefix.weight_score.ranges[$index]");
-                    $errors = array_merge($errors, $rangeErrors);
-                }
+                $errors[] = "$prefix.scoring: 'ranges' must be a non-empty array";
             }
-        }
-        // Original format
-        else {
-            if (!isset($weightScore['condition'])) {
-                $errors[] = "$prefix.weight_score: Missing 'condition'";
-            } else {
-                $conditionErrors = $this->validateCondition($weightScore['condition'], "$prefix.weight_score.condition");
-                $errors = array_merge($errors, $conditionErrors);
-            }
-
-            if (!isset($weightScore['score'])) {
-                $errors[] = "$prefix.weight_score: Missing 'score'";
-            } elseif (!is_numeric($weightScore['score'])) {
-                $errors[] = "$prefix.weight_score: 'score' must be numeric";
-            }
-        }
-
-        return $errors;
-    }
-    
-    /**
-     * Validate multi_condition structure
-     */
-    private function validateMultiCondition(array $multiCondition, string $prefix): array
-    {
-        $errors = [];
-        
-        if (!isset($multiCondition['variables']) || !is_array($multiCondition['variables'])) {
-            $errors[] = "$prefix: 'variables' must be an array";
-        } elseif (empty($multiCondition['variables'])) {
-            $errors[] = "$prefix: 'variables' cannot be empty";
-        }
-        
-        if (!isset($multiCondition['score_matrix']) || !is_array($multiCondition['score_matrix'])) {
-            $errors[] = "$prefix: 'score_matrix' must be an array";
-        } elseif (empty($multiCondition['score_matrix'])) {
-            $errors[] = "$prefix: 'score_matrix' cannot be empty";
-        }
-        
-        return $errors;
-    }
-    
-    /**
-     * Validate range structure
-     */
-    private function validateRange(array $range, string $prefix): array
-    {
-        $errors = [];
-        
-        if (!isset($range['condition'])) {
-            $errors[] = "$prefix: Missing 'condition'";
         } else {
-            $conditionErrors = $this->validateCondition($range['condition'], "$prefix.condition");
-            $errors = array_merge($errors, $conditionErrors);
+            if (!isset($weightScore['if'])) {
+                $errors[] = "$prefix.scoring: Missing 'if'";
+            }
+            if (!isset($weightScore['score'])) {
+                $errors[] = "$prefix.scoring: Missing 'score'";
+            }
         }
-        
-        if (!isset($range['score'])) {
-            $errors[] = "$prefix: Missing 'score'";
-        } elseif (!is_numeric($range['score'])) {
-            $errors[] = "$prefix: 'score' must be numeric";
-        }
-        
+
         return $errors;
     }
-    
-    /**
-     * Validate score_rules structure
-     */
+
     private function validateScoreRules(array $scoreRules, string $prefix): array
     {
         $errors = [];
         
         if (empty($scoreRules)) {
-            $errors[] = "$prefix.score_rules: cannot be empty";
-            return $errors;
-        }
-        
-        foreach ($scoreRules as $index => $rule) {
-            $ruleErrors = $this->validateScoreRule($rule, "$prefix.score_rules[$index]");
-            $errors = array_merge($errors, $ruleErrors);
-        }
-        
-        return $errors;
-    }
-    
-    /**
-     * Validate individual score rule structure
-     */
-    private function validateScoreRule(array $rule, string $prefix): array
-    {
-        $errors = [];
-        
-        if (!isset($rule['variable'])) {
-            $errors[] = "$prefix: Missing 'variable'";
-        } elseif (!is_string($rule['variable'])) {
-            $errors[] = "$prefix: 'variable' must be a string";
-        }
-        
-        // Must have either 'ranges' or 'condition'
-        if (!isset($rule['ranges']) && !isset($rule['condition'])) {
-            $errors[] = "$prefix: Must have either 'ranges' or 'condition'";
-        }
-        
-        if (isset($rule['ranges'])) {
-            if (!is_array($rule['ranges']) || empty($rule['ranges'])) {
-                $errors[] = "$prefix: 'ranges' must be a non-empty array";
-            } else {
-                foreach ($rule['ranges'] as $index => $range) {
-                    $rangeErrors = $this->validateRange($range, "$prefix.ranges[$index]");
-                    $errors = array_merge($errors, $rangeErrors);
-                }
-            }
-        }
-        
-        if (isset($rule['condition'])) {
-            $conditionErrors = $this->validateCondition($rule['condition'], "$prefix.condition");
-            $errors = array_merge($errors, $conditionErrors);
-            
-            if (!isset($rule['score'])) {
-                $errors[] = "$prefix: Missing 'score' when using 'condition'";
-            } elseif (!is_numeric($rule['score'])) {
-                $errors[] = "$prefix: 'score' must be numeric";
-            }
+            $errors[] = "$prefix.rules: cannot be empty";
         }
         
         return $errors;
     }
 
-    /**
-     * Validate expression syntax without executing
-     */
-    private function validateExpressionSyntax(string $expr): void
-    {
-        // Check for allowed characters including function names, variables, numbers, operators
-        if (!preg_match('/^[a-zA-Z_0-9\+\-\*\/\(\)\s\.\,\*]+$/', $expr)) {
-            throw new Exception("Expression contains invalid characters");
-        }
-
-        // Check for balanced parentheses
-        $openCount = substr_count($expr, '(');
-        $closeCount = substr_count($expr, ')');
-        if ($openCount !== $closeCount) {
-            throw new Exception("Unbalanced parentheses");
-        }
-
-        // Check for valid function calls
-        foreach ($this->allowedFunctions as $func) {
-            if (strpos($expr, $func) !== false) {
-                $pattern = '/\b' . $func . '\s*\([^)]*\)/';
-                if (!preg_match($pattern, $expr)) {
-                    throw new Exception("Invalid function call: $func");
-                }
-            }
-        }
-    }
-
-    /**
-     * Check for circular dependencies in formulas
-     */
     private function checkCircularDependencies(array $formulas): array
     {
         $errors = [];
@@ -1089,19 +1402,22 @@ class RuleFlow
         // Build dependency graph
         foreach ($formulas as $formula) {
             $id = $formula['id'];
-            $storeAs = $formula['store_as'] ?? $id;
+            $storeAs = $formula['as'] ?? $id;
             $outputs[$id] = $storeAs;
 
+            $deps = [];
             if (isset($formula['inputs'])) {
-                $dependencies[$id] = $formula['inputs'];
-            } elseif (isset($formula['switch_on'])) {
-                $dependencies[$id] = [$formula['switch_on']];
+                $deps = array_merge($deps, $formula['inputs']);
             }
+            if (isset($formula['switch'])) {
+                $deps[] = $formula['switch'];
+            }
+            $dependencies[$id] = $deps;
         }
 
-        // Check for circular dependencies using DFS
+        // Check for circular dependencies using DFS with recursion limit
         foreach ($dependencies as $formulaId => $deps) {
-            if ($this->hasCircularDependency($formulaId, $deps, $dependencies, $outputs, [])) {
+            if ($this->hasCircularDependency($formulaId, $deps, $dependencies, $outputs, [], 0, 100)) {
                 $errors[] = "Circular dependency detected involving formula '$formulaId'";
             }
         }
@@ -1110,15 +1426,22 @@ class RuleFlow
     }
 
     /**
-     * Helper method to detect circular dependencies
+     * Helper method to detect circular dependencies with recursion limit
      */
     private function hasCircularDependency(
         string $currentId,
         array $dependencies,
         array $allDependencies,
         array $outputs,
-        array $visited
+        array $visited,
+        int $depth = 0,
+        int $maxDepth = 100
     ): bool {
+        // Prevent infinite recursion
+        if ($depth > $maxDepth) {
+            return true; // Assume circular dependency if too deep
+        }
+        
         if (in_array($currentId, $visited, true)) {
             return true;
         }
@@ -1141,7 +1464,9 @@ class RuleFlow
                     $allDependencies[$producingFormula],
                     $allDependencies,
                     $outputs,
-                    $visited
+                    $visited,
+                    $depth + 1,
+                    $maxDepth
                 )) {
                     return true;
                 }
@@ -1151,9 +1476,6 @@ class RuleFlow
         return false;
     }
 
-    /**
-     * Check for potential warnings in configuration
-     */
     private function checkForWarnings(array $config): array
     {
         $warnings = [];
@@ -1162,8 +1484,8 @@ class RuleFlow
             $id = $formula['id'] ?? "Formula[$index]";
 
             // Check for unused stored values
-            if (isset($formula['store_as'])) {
-                $storeAs = $formula['store_as'];
+            if (isset($formula['as'])) {
+                $storeAs = $formula['as'];
                 $isUsed = false;
 
                 foreach ($config['formulas'] as $otherFormula) {
@@ -1171,7 +1493,7 @@ class RuleFlow
                         $isUsed = true;
                         break;
                     }
-                    if (isset($otherFormula['switch_on']) && $otherFormula['switch_on'] === $storeAs) {
+                    if (isset($otherFormula['switch']) && $otherFormula['switch'] === $storeAs) {
                         $isUsed = true;
                         break;
                     }
@@ -1183,50 +1505,11 @@ class RuleFlow
             }
 
             // Check for potential division by zero
-            if (isset($formula['expression']) && strpos($formula['expression'], '/') !== false) {
+            if (isset($formula['formula']) && strpos($formula['formula'], '/') !== false) {
                 $warnings[] = "Formula '$id' contains division - ensure no division by zero";
             }
-
-            // Check for overlapping switch cases
-            if (isset($formula['cases'])) {
-                $warnings = array_merge($warnings, $this->checkOverlappingCases($formula, $id));
-            }
         }
 
         return $warnings;
-    }
-
-    /**
-     * Check for overlapping switch cases
-     */
-    private function checkOverlappingCases(array $formula, string $formulaId): array
-    {
-        $warnings = [];
-        $cases = $formula['cases'];
-
-        for ($i = 0; $i < count($cases) - 1; $i++) {
-            for ($j = $i + 1; $j < count($cases); $j++) {
-                if ($this->casesOverlap($cases[$i]['condition'], $cases[$j]['condition'])) {
-                    $warnings[] = "Formula '$formulaId' has overlapping cases at positions $i and $j";
-                }
-            }
-        }
-
-        return $warnings;
-    }
-
-    /**
-     * Check if two conditions overlap
-     */
-    private function casesOverlap(array $cond1, array $cond2): bool
-    {
-        // Simple overlap detection for between operators
-        if ($cond1['operator'] === 'between' && $cond2['operator'] === 'between') {
-            $range1 = $cond1['value'];
-            $range2 = $cond2['value'];
-            return !($range1[1] < $range2[0] || $range2[1] < $range1[0]);
-        }
-
-        return false; // More complex overlap detection can be added
     }
 }
