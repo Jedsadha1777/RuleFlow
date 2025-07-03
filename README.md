@@ -217,7 +217,7 @@ ruleflow/
 
 ## Author
 
-Created by [๋Jedsadha Rojanaphan](https://github.com/Jedsadha1777)
+Created by [Jedsadha Rojanaphan](https://github.com/Jedsadha1777)
 
 ## License
 
