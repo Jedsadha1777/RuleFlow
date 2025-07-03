@@ -174,7 +174,7 @@ cd php && php examples/demo.php
 - Variable setting
 - All operators and functions
 - Comprehensive validation
-- **Basic code generation (in-memory functions)**
+- **Basic code generation**
 
 ## Project Structure
 
