@@ -63,10 +63,6 @@ $testResult = $engine->testConfig($config, $sampleInputs);
 ### Code Generation Methods
 
 ```php
-// Generate executable function in memory
-$func = $engine->generateFunction($config);
-$result = $func($inputs);
-
 // Generate PHP code as string
 $code = $engine->generateFunctionAsString($config);
 echo $code; // Shows complete PHP function
