@@ -86,7 +86,7 @@ $result = $engine->evaluate($config, $inputs);
 
 ### PHP - Code Generation
 ```php
-// Or get PHP code as string
+// Get PHP code as string
 $phpCode = $engine->generateFunctionAsString($config);
 ```
 
