@@ -214,6 +214,11 @@ ruleflow/
 - Basic expression evaluation
 - Switch/case logic
 
+
+## Author
+
+Created by [๋Jedsadha Rojanaphan](https://github.com/Jedsadha1777)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
