@@ -265,175 +265,244 @@ function(array $inputs): array {
 - **Type Safety**: Proper type checking and conversion
 - **Performance**: Optimized code without runtime overhead
 
-## Examples
+## Examples & Demos
 
-### Basic Usage Examples
+## Template System
 
-### Credit Scoring System
-```php
-$config = [
-    "formulas" => [
-        [
-            "id" => "credit_assessment",
-            "rules" => [
-                [
-                    "var" => "income",
-                    "ranges" => [
-                        ["if" => ["op" => ">=", "value" => 100000], "score" => 40],
-                        ["if" => ["op" => ">=", "value" => 50000], "score" => 25]
-                    ]
-                ],
-                [
-                    "var" => "employment_years", 
-                    "ranges" => [
-                        ["if" => ["op" => ">=", "value" => 5], "score" => 20]
-                    ]
-                ]
-            ]
-        ],
-        [
-            "id" => "decision",
-            "switch" => "credit_assessment",
-            "when" => [
-                [
-                    "if" => ["op" => ">=", "value" => 60],
-                    "result" => "Approved",
-                    "set_vars" => ["$interest_rate" => 5.5]
-                ]
-            ],
-            "default" => "Rejected"
-        ]
-    ]
-];
+RuleFlow includes a template system for common business scenarios with automatic loading from provider files.
 
-$result = $engine->evaluate($config, [
-    "income" => 75000,
-    "employment_years" => 8
-]);
-// Result: credit_assessment = 45, decision = "Rejected"
+### How Templates Work
+
+Templates are pre-built configurations loaded from PHP classes in the `/src/Providers/` directory:
+
+```
+php/src/Templates/Providers/
+├── FinancialTemplates.php    — Loan applications, credit card approval
+├── HealthcareTemplates.php   — BMI health assessment
+├── HRTemplates.php           — Performance reviews, candidate scoring
+├── EcommerceTemplates.php    — Dynamic pricing, customer LTV
+├── EducationTemplates.php    — Student grading systems
+├── InsuranceTemplates.php    — Auto insurance risk assessment
+└── RealEstateTemplates.php   — Property valuation models
 ```
 
-### Healthcare Assessment with $ Variables
+### Using Templates
+
 ```php
-$config = [
-    "formulas" => [
-        [
-            "id" => "bmi_calc",
-            "formula" => "weight / ((height / 100) ** 2)",
-            "inputs" => ["weight", "height"],
-            "as" => "$bmi"
-        ],
-        [
-            "id" => "risk_assessment",
-            "scoring" => [
-                "ifs" => [
-                    "vars" => ["age", "$bmi"],
-                    "tree" => [
-                        [
-                            "if" => ["op" => ">", "value" => 50],
-                            "ranges" => [
-                                [
-                                    "if" => ["op" => ">=", "value" => 25],
-                                    "score" => 8,
-                                    "risk_level" => "high",
-                                    "set_vars" => {"$requires_consultation" => true}
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ]
-    ]
-];
+$ruleFlow = new RuleFlow();
+
+// List available templates
+$templates = $ruleFlow->getTemplates();
+echo "Available: " . implode(', ', $templates['available_templates']);
+
+// Get specific template
+$bmiTemplate = $ruleFlow->getTemplate('bmi_health_assessment');
+$result = $ruleFlow->evaluate($bmiTemplate['config'], $inputs);
+
+// Get templates by category
+$financialTemplates = $ruleFlow->getTemplates('financial');
 ```
 
-### Dynamic Pricing with Complex $ Expressions
+### Available Templates
+
+**Financial Category:**
+- `loan_application` — Credit scoring with income, debt, employment evaluation
+- `credit_card_approval` — Credit card limits based on credit score and utilization
+
+**Education Category:**
+- `student_grading` — Weighted scoring with letter grades and GPA calculation
+
+**E-commerce Category:**
+- `dynamic_pricing` — Market-based pricing with demand and inventory factors
+- `customer_ltv` — Customer lifetime value calculation with retention modeling
+
+### Template Structure
+
+Each template contains:
+- **config** — RuleFlow formula configuration
+- **metadata** — Name, description, inputs, outputs, version info
+
+### Creating Custom Templates
+
+Templates are loaded automatically from any PHP class implementing `TemplateProviderInterface`:
+
 ```php
-$config = [
-    "formulas" => [
-        [
-            "id" => "base_price_calc",
-            "formula" => "cost * markup_multiplier",
-            "inputs" => ["cost", "markup_multiplier"],
-            "as" => "$base_price"
-        ],
-        [
-            "id" => "demand_adjustment",
-            "switch" => "demand_level",
-            "when" => [
-                [
-                    "if" => ["op" => "==", "value" => "high"],
-                    "result" => "surge",
-                    "set_vars" => [
-                        "$demand_multiplier" => 1.2,
-                        "$priority_fee" => "$base_price * 0.1"
-                    ]
-                ]
-            ],
-            "default" => "normal",
-            "default_vars" => [
-                "$demand_multiplier" => 1.0,
-                "$priority_fee" => 0
+class CustomTemplates implements TemplateProviderInterface
+{
+    public function getCategory(): string { return 'custom'; }
+    
+    public function getTemplates(): array
+    {
+        return [
+            'my_template' => [
+                'config' => [ /* RuleFlow config */ ],
+                'metadata' => [ /* Template info */ ]
             ]
-        ],
-        [
-            "id" => "final_price_calc",
-            "formula" => "(base_price * demand_multiplier) + priority_fee",
-            "inputs" => ["base_price", "demand_multiplier", "priority_fee"],
-            "as" => "$final_price"
-        ]
-    ]
-];
+        ];
+    }
+}
 ```
 
-## Comprehensive Examples
+### Template Caching
 
-The PHP implementation includes three main example files:
+Templates are automatically cached for performance:
+- Cache location: `/src/Providers/cache/.template_cache.json`
+- Auto-refresh when provider files change
+- Can be disabled in constructor: `new RuleFlow(enableCache: false)`
 
-### demo.php - Basic Functionality
-Run with: `php examples/demo.php`
+## Examples & Demos
 
-1. **BMI Calculator** — Basic expressions and categorization
-2. **Credit Scoring** — Accumulative scoring system
-3. **Blood Pressure Assessment** — Multi-dimensional health evaluation
-4. **E-commerce Discounts** — Dynamic pricing and customer tiers
-5. **Academic Grading** — Weighted scoring with bonuses
-6. **Dynamic Pricing** — Complex pricing with $ variables
+### Basic Usage
 
-### demo-converter.php - Unit Conversion Systems
-Run with: `php examples/demo-converter.php`
+#### demo1-basic.php
+- Math expressions with price calculations
+- Switch/case logic for discounts  
+- Built-in functions for grade calculation
+- Error handling for missing inputs
 
-1. **Length Converter** — mm, cm, m, km, inch, ft, yard, mile
-2. **Weight Converter** — mg, g, kg, ton, oz, lb
-3. **Temperature Converter** — Celsius, Fahrenheit, Kelvin, Rankine
-4. **Area Converter** — Square units and land measurements
-5. **Volume Converter** — Metric and imperial liquid measurements
-6. **Time Converter** — ms, seconds, minutes, hours, days, weeks
+#### demo2-templates.php  
+- BMI health assessment template
+- Loan application with credit scoring
+- Employee performance reviews
+- Template browsing by category
 
-### demo-futures-analysis.php - Advanced Trading Systems
-Run with: `php examples/demo-futures-analysis.php`
+#### demo3-validation.php
+- Configuration validation and error checking
+- Individual field validation with type conversion
+- Partial form validation with progress tracking
+- Live preview with estimated values
 
-1. **Portfolio Stop Loss** — Risk management with asset-specific thresholds
-2. **Market Trend Analysis** — Technical indicator evaluation
-3. **Grid Position Management** — Automated position sizing
-4. **Performance Evaluation** — Win rate and profit analysis
-5. **Complete Trading Flow** — Integrated decision-making system
+### Real-World Applications
+
+#### demo4-loan-application.php
+- Three credit scenarios: excellent, marginal, poor
+- Income, debt-to-income, employment scoring
+- Batch processing of multiple applications
+- Interest rates and payment calculations
+
+#### demo5-bmi-calculator.php
+- BMI calculation with health categories
+- Personalized health recommendations
+- HTML form generation from config
+- JSON schema for API integration
+
+#### demo6-employee-review.php
+- Multi-factor employee performance evaluation
+- Candidate assessment with education/experience
+- Salary increase recommendations
+- Rating scales from exceptional to unsatisfactory
+
+#### demo7-dynamic-pricing.php
+- Market conditions: demand, inventory, competition
+- Customer tier discounts (VIP, Gold, Silver)
+- Customer lifetime value analysis
+- Multiple pricing scenario testing
+
+### Advanced Features
+
+#### demo8-dollar-notation.php
+- Variable storage with $ notation
+- Multi-step calculations using $ variables
+- Customer segmentation with tier-based benefits
+- Complex expression chaining
+
+#### demo9-custom-functions.php
+- Custom shipping cost calculator
+- Customer LTV with churn rate modeling
+- Credit risk scoring functions
+- Inventory turnover and reorder calculations
+
+#### demo10-multi-dimensional.php
+- Employee bonus matrix (performance vs tenure)
+- Credit card limits (income vs credit score)
+- Dynamic pricing (demand vs competition)
+- Real business decision matrices
+
+#### demo11-code-generation.php
+- Generate optimized PHP functions
+- Performance comparison: runtime vs cached
+- Production-ready code output
+- Memory usage optimization
+
+### Collections
+
+#### demo12-multi_demo_collection.php
+Six business scenarios in one file:
+- BMI Calculator — Health assessment
+- Credit Scoring — Financial evaluation  
+- Blood Pressure — Medical risk evaluation
+- E-commerce Discounts — Customer tier management
+- Academic Grading — Student performance
+- Dynamic Pricing — Advanced e-commerce pricing
+
+#### demo13-converter.php
+Unit conversion with performance testing:
+- Length, weight, temperature, area, volume, time
+- Error handling and input validation
+- Performance benchmarks
+- Production function generation
+
+#### demo14-futures-analysis.php
+Trading analysis tools:
+- Stop loss portfolio protection
+- Multi-factor risk assessment
+- Dynamic position sizing
+- Trading performance analysis
 
 ## Testing
 
-```bash
-# Run all examples
-php examples/demo.php
-php examples/demo-converter.php
-php examples/demo-futures-analysis.php
+### Running Tests
 
-# Or run individual examples
-cd examples && php demo.php
+```bash
+# Run all available tests
+php RunAllTests.php
+
+# Run specific test suite
+php RunAllTests.php --test=basic
+
+# Check test environment
+php RunAllTests.php --check
+
+# List available tests
+php RunAllTests.php --list
 ```
+
+### Test Coverage Overview
+
+The test suite includes:
+
+- **Basic Functionality Tests** — Expression evaluation, operators, functions
+- **$ Notation Tests** — Variable storage, referencing, complex expressions
+- **Multi-dimensional Scoring** — Nested conditions, range evaluations
+- **Switch/Case Logic** — Conditional branching, default handling
+- **Error Handling** — Input validation, configuration errors
+- **Code Generation** — Function optimization, safety checks
+
+### Test Limitations
+
+**Current test coverage: ~80%**
+- Some edge cases in complex multi-dimensional scoring
+- Limited performance testing under high load
+- Incomplete testing of all operator combinations
+- Basic validation of generated code functionality
+
+### Known Issues in Testing
+
+- **Expression precedence**: `-2 ** 2` evaluation tests may fail
+- **Memory testing**: Large dataset performance not thoroughly tested
+- **Circular dependency**: Detection may not catch all cases
+
+### Debugging Failed Tests
+
+If tests fail:
+1. Check PHP version (requires 8.0+)
+2. Verify all source files are present
+3. Run `--check` to validate test environment
+4. Review specific test output for error details
 
 ## Error Handling
 
+### Basic Error Handling
 ```php
 try {
     $errors = $engine->validateConfig($config);
@@ -447,8 +516,7 @@ try {
 }
 ```
 
-## Validation Features
-
+### Validation Features
 ```php
 // Validate configuration
 $errors = $engine->validateConfig($config);
@@ -472,13 +540,87 @@ if (!empty($testResult['warnings'])) {
 }
 ```
 
+### Common Error Types
+
+- **Configuration errors**: Invalid JSON structure, missing required fields
+- **Input validation**: Missing required inputs, type mismatches
+- **Expression errors**: Invalid syntax, undefined variables
+- **Dependency errors**: Circular references, missing dependencies
+
+## Known Limitations
+
+### Expression Parser Limitations
+
+1. **Operator Precedence Issue**
+   - Problem: `-2 ** 2` returns `-4` instead of `4`
+   - Cause: Unary minus has higher precedence than exponentiation
+   - **Workaround**: Use parentheses: `(-2) ** 2` or `-(2 ** 2)`
+
+2. **Complex Expression Parsing**
+   - Very long formulas may hit parsing limits
+   - Deeply nested parentheses can cause performance issues
+   - **Workaround**: Break complex expressions into smaller formulas
+
+3. **Variable Scoping**
+   - $ variables are global within formula execution
+   - No local scope or variable shadowing
+   - **Workaround**: Use unique variable names
+
+### Performance Limitations
+
+1. **Large Dataset Processing**
+   - Not optimized for processing thousands of records simultaneously
+   - Memory usage scales with dataset size
+   - **Workaround**: Process in batches or use code generation
+
+2. **Deep Multi-dimensional Scoring**
+   - Very deep nesting can impact performance
+   - Complex trees with many branches slow down evaluation
+   - **Workaround**: Simplify logic or use alternative approaches
+
+3. **Runtime vs Generated Code**
+   - Runtime evaluation is 2-5x slower than generated functions
+   - **Workaround**: Use code generation for production environments
+
+### Configuration Limitations
+
+1. **Runtime Error Detection**
+   - Some invalid configurations only fail during execution
+   - Limited static analysis of configuration validity
+   - **Workaround**: Thorough testing with representative data
+
+2. **Type System**
+   - Limited type checking for input variables
+   - No compile-time type validation
+   - **Workaround**: Implement input validation in your application
+
+3. **Circular Dependencies**
+   - Detection may not catch all circular reference patterns
+   - **Workaround**: Design formulas with clear dependency chains
+
 ## Performance Considerations
+
+### Optimization Strategies
 
 - **Code Generation**: Use `generateFunctionAsString()` for production environments
 - **Validation**: Validate configurations during development, not runtime
 - **Dependencies**: Automatic formula ordering for optimal execution
 - **Memory**: Minimal overhead with efficient context management
 - **Safety**: No eval() usage, custom secure expression parser
+
+### Performance Expectations
+
+- **Small datasets** (< 100 records): Excellent performance
+- **Medium datasets** (100-1000 records): Good performance with code generation
+- **Large datasets** (> 1000 records): Consider batch processing
+- **Complex rules**: Performance decreases with nesting depth
+
+### Benchmarking
+
+Basic performance characteristics:
+- Simple expressions: ~10,000 evaluations/second
+- Complex multi-dimensional scoring: ~1,000 evaluations/second
+- Code generation provides 2-5x improvement
 
 ## Best Practices
 
@@ -500,6 +642,12 @@ if (!empty($testResult['warnings'])) {
 - Use code generation for production
 - Minimize complex nested scoring
 - Cache frequently used configurations
+
+### Error Prevention
+- Validate configurations during development
+- Test with representative data
+- Use parentheses for complex expressions
+- Implement proper input validation
 
 ## License
 

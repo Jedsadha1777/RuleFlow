@@ -1,5 +1,5 @@
 <?php 
-require_once "../src/RuleFlow.php";
+require_once __DIR__ . "/../src/RuleFlow.php";
 
 /**
  * Demo 1: Length Unit Converter
@@ -126,6 +126,9 @@ function demo1_length_converter() {
         $result = $ruleFlow->evaluate($config, $inputs);
         echo "Result: " . round($result['result'], 4) . " {$result['unit_name']}\n\n";
     }
+    
+    // Return config for code generation
+    return $config;
 }
 
 /**
@@ -232,6 +235,8 @@ function demo2_weight_converter() {
         $result = $ruleFlow->evaluate($config, $inputs);
         echo "Result: " . round($result['result'], 4) . " {$result['unit_name']}\n\n";
     }
+    
+    return $config;
 }
 
 /**
@@ -319,6 +324,8 @@ function demo3_temperature_converter() {
         $result = $ruleFlow->evaluate($config, $inputs);
         echo "Result: " . round($result['result'], 2) . " {$result['unit_name']} ({$result['unit_desc']})\n\n";
     }
+    
+    return $config;
 }
 
 /**
@@ -445,6 +452,8 @@ function demo4_area_converter() {
         $result = $ruleFlow->evaluate($config, $inputs);
         echo "Result: " . round($result['result'], 4) . " {$result['unit_name']}\n\n";
     }
+    
+    return $config;
 }
 
 /**
@@ -571,145 +580,421 @@ function demo5_volume_converter() {
         $result = $ruleFlow->evaluate($config, $inputs);
         echo "Result: " . round($result['result'], 4) . " {$result['unit_name']}\n\n";
     }
+    
+    return $config;
 }
 
-/*
-* Demo 6: Time Unit Converter (Fixed)
-*/
+/**
+ * Demo 6: Time Unit Converter (Fixed)
+ */
 function demo6_time_converter() {
-   echo "\n=== DEMO 6: Time Unit Converter ===\n";
-   
-   $config = [
-       'formulas' => [
-           // Convert to seconds (base unit)
-           [
-               'id' => 'to_seconds',
-               'switch' => 'from_unit',
-               'when' => [
-                   [
-                       'if' => ['op' => '==', 'value' => 'ms'],
-                       'result' => 'millisecond',
-                       'set_vars' => ['$seconds' => '$value * 0.001']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 's'],
-                       'result' => 'second',
-                       'set_vars' => ['$seconds' => '$value']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'min'],
-                       'result' => 'minute',
-                       'set_vars' => ['$seconds' => '$value * 60']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'hr'],
-                       'result' => 'hour',
-                       'set_vars' => ['$seconds' => '$value * 3600']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'day'],
-                       'result' => 'day',
-                       'set_vars' => ['$seconds' => '$value * 86400']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'week'],
-                       'result' => 'week',
-                       'set_vars' => ['$seconds' => '$value * 604800']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'month'],
-                       'result' => 'month',
-                       'set_vars' => ['$seconds' => '$value * 2629800'] // approx. 30.44 days
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'year'],
-                       'result' => 'year',
-                       'set_vars' => ['$seconds' => '$value * 31557600'] // approx. 365.25 days
-                   ]
-               ],
-               'default' => 'unknown',
-               'default_vars' => ['$seconds' => '$value']
-           ],
-           
-           // Convert from seconds to target unit
-           [
-               'id' => 'time_result',
-               'switch' => 'to_unit',
-               'when' => [
-                   [
-                       'if' => ['op' => '==', 'value' => 'ms'],
-                       'result' => 'millisecond',
-                       'set_vars' => ['$result' => '$seconds * 1000', '$unit_name' => 'milliseconds']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 's'],
-                       'result' => 'second',
-                       'set_vars' => ['$result' => '$seconds', '$unit_name' => 'seconds']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'min'],
-                       'result' => 'minute',
-                       'set_vars' => ['$result' => '$seconds / 60', '$unit_name' => 'minutes']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'hr'],
-                       'result' => 'hour',
-                       'set_vars' => ['$result' => '$seconds / 3600', '$unit_name' => 'hours']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'day'],
-                       'result' => 'day',
-                       'set_vars' => ['$result' => '$seconds / 86400', '$unit_name' => 'days']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'week'],
-                       'result' => 'week',
-                       'set_vars' => ['$result' => '$seconds / 604800', '$unit_name' => 'weeks']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'month'],
-                       'result' => 'month',
-                       'set_vars' => ['$result' => '$seconds / 2629800', '$unit_name' => 'months']
-                   ],
-                   [
-                       'if' => ['op' => '==', 'value' => 'year'],
-                       'result' => 'year',
-                       'set_vars' => ['$result' => '$seconds / 31557600', '$unit_name' => 'years']
-                   ]
-               ],
-               'default' => 'unknown',
-               'default_vars' => ['$result' => '$seconds', '$unit_name' => 'seconds']
-           ]
-       ]
-   ];
+    echo "\n=== DEMO 6: Time Unit Converter ===\n";
+    
+    $config = [
+        'formulas' => [
+            // Convert to seconds (base unit)
+            [
+                'id' => 'to_seconds',
+                'switch' => 'from_unit',
+                'when' => [
+                    [
+                        'if' => ['op' => '==', 'value' => 'ms'],
+                        'result' => 'millisecond',
+                        'set_vars' => ['$seconds' => '$value * 0.001']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 's'],
+                        'result' => 'second',
+                        'set_vars' => ['$seconds' => '$value']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'min'],
+                        'result' => 'minute',
+                        'set_vars' => ['$seconds' => '$value * 60']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'hr'],
+                        'result' => 'hour',
+                        'set_vars' => ['$seconds' => '$value * 3600']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'day'],
+                        'result' => 'day',
+                        'set_vars' => ['$seconds' => '$value * 86400']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'week'],
+                        'result' => 'week',
+                        'set_vars' => ['$seconds' => '$value * 604800']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'month'],
+                        'result' => 'month',
+                        'set_vars' => ['$seconds' => '$value * 2629800'] // approx. 30.44 days
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'year'],
+                        'result' => 'year',
+                        'set_vars' => ['$seconds' => '$value * 31557600'] // approx. 365.25 days
+                    ]
+                ],
+                'default' => 'unknown',
+                'default_vars' => ['$seconds' => '$value']
+            ],
+            
+            // Convert from seconds to target unit
+            [
+                'id' => 'time_result',
+                'switch' => 'to_unit',
+                'when' => [
+                    [
+                        'if' => ['op' => '==', 'value' => 'ms'],
+                        'result' => 'millisecond',
+                        'set_vars' => ['$result' => '$seconds * 1000', '$unit_name' => 'milliseconds']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 's'],
+                        'result' => 'second',
+                        'set_vars' => ['$result' => '$seconds', '$unit_name' => 'seconds']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'min'],
+                        'result' => 'minute',
+                        'set_vars' => ['$result' => '$seconds / 60', '$unit_name' => 'minutes']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'hr'],
+                        'result' => 'hour',
+                        'set_vars' => ['$result' => '$seconds / 3600', '$unit_name' => 'hours']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'day'],
+                        'result' => 'day',
+                        'set_vars' => ['$result' => '$seconds / 86400', '$unit_name' => 'days']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'week'],
+                        'result' => 'week',
+                        'set_vars' => ['$result' => '$seconds / 604800', '$unit_name' => 'weeks']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'month'],
+                        'result' => 'month',
+                        'set_vars' => ['$result' => '$seconds / 2629800', '$unit_name' => 'months']
+                    ],
+                    [
+                        'if' => ['op' => '==', 'value' => 'year'],
+                        'result' => 'year',
+                        'set_vars' => ['$result' => '$seconds / 31557600', '$unit_name' => 'years']
+                    ]
+                ],
+                'default' => 'unknown',
+                'default_vars' => ['$result' => '$seconds', '$unit_name' => 'seconds']
+            ]
+        ]
+    ];
 
-   $ruleFlow = new RuleFlow();
+    $ruleFlow = new RuleFlow();
 
-   $testCases = [
-       ['value' => 2, 'from_unit' => 'day', 'to_unit' => 'hr'],
-       ['value' => 90, 'from_unit' => 'min', 'to_unit' => 'hr'],
-       ['value' => 1, 'from_unit' => 'year', 'to_unit' => 'month'],
-       ['value' => 3600000, 'from_unit' => 'ms', 'to_unit' => 'hr'],
-       ['value' => 1, 'from_unit' => 'week', 'to_unit' => 's']
-   ];
+    $testCases = [
+        ['value' => 2, 'from_unit' => 'day', 'to_unit' => 'hr'],
+        ['value' => 90, 'from_unit' => 'min', 'to_unit' => 'hr'],
+        ['value' => 1, 'from_unit' => 'year', 'to_unit' => 'month'],
+        ['value' => 3600000, 'from_unit' => 'ms', 'to_unit' => 'hr'],
+        ['value' => 1, 'from_unit' => 'week', 'to_unit' => 's']
+    ];
 
-   foreach ($testCases as $i => $inputs) {
-       echo "Test Case " . ($i + 1) . ": Convert {$inputs['value']} {$inputs['from_unit']} → {$inputs['to_unit']}\n";
-       $result = $ruleFlow->evaluate($config, $inputs);
-       echo "Result: " . round($result['result'], 4) . " {$result['unit_name']}\n\n";
-   }
+    foreach ($testCases as $i => $inputs) {
+        echo "Test Case " . ($i + 1) . ": Convert {$inputs['value']} {$inputs['from_unit']} → {$inputs['to_unit']}\n";
+        $result = $ruleFlow->evaluate($config, $inputs);
+        echo "Result: " . round($result['result'], 4) . " {$result['unit_name']}\n\n";
+    }
+    
+    return $config;
 }
 
+/**
+ * Performance Benchmarks (NEW!)
+ */
+function benchmark_converters() {
+    echo "\n=== PERFORMANCE BENCHMARKS ===\n";
+    
+    $ruleFlow = new RuleFlow();
+    
+    // Simple length conversion config
+    $lengthConfig = [
+        'formulas' => [
+            [
+                'id' => 'meters',
+                'formula' => 'value * 0.01',
+                'inputs' => ['value'],
+                'as' => '$meters'
+            ],
+            [
+                'id' => 'result',
+                'formula' => 'meters / 0.0254',
+                'inputs' => ['meters'],
+                'as' => '$inches'
+            ]
+        ]
+    ];
+    
+    $testInput = ['value' => 100];
+    
+    // Benchmark 1: Simple conversions
+    $iterations = 1000;
+    $start = microtime(true);
+    
+    for ($i = 0; $i < $iterations; $i++) {
+        $ruleFlow->evaluate($lengthConfig, $testInput);
+    }
+    
+    $end = microtime(true);
+    $simpleTime = ($end - $start) * 1000; // Convert to milliseconds
+    
+    echo "Simple Conversions ($iterations iterations):\n";
+    echo "  Total: " . round($simpleTime, 2) . "ms\n";
+    echo "  Average: " . round($simpleTime / $iterations, 4) . "ms per conversion\n";
+    echo "  Rate: " . round($iterations / ($simpleTime / 1000)) . " conversions/second\n\n";
+    
+    // Benchmark 2: Complex conversions (with switch logic)
+    $complexConfig = [
+        'formulas' => [
+            [
+                'id' => 'conversion',
+                'switch' => 'from_unit',
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'cm'], 'result' => 'cm', 'set_vars' => ['$meters' => '$value * 0.01']],
+                    ['if' => ['op' => '==', 'value' => 'mm'], 'result' => 'mm', 'set_vars' => ['$meters' => '$value * 0.001']],
+                    ['if' => ['op' => '==', 'value' => 'm'], 'result' => 'm', 'set_vars' => ['$meters' => '$value']],
+                    ['if' => ['op' => '==', 'value' => 'km'], 'result' => 'km', 'set_vars' => ['$meters' => '$value * 1000']]
+                ],
+                'default' => 'unknown'
+            ],
+            [
+                'id' => 'result',
+                'switch' => 'to_unit',
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'inch'], 'result' => 'inch', 'set_vars' => ['$result' => '$meters / 0.0254']],
+                    ['if' => ['op' => '==', 'value' => 'ft'], 'result' => 'ft', 'set_vars' => ['$result' => '$meters / 0.3048']],
+                    ['if' => ['op' => '==', 'value' => 'm'], 'result' => 'm', 'set_vars' => ['$result' => '$meters']]
+                ],
+                'default' => 'unknown'
+            ]
+        ]
+    ];
+    
+    $complexInput = ['value' => 100, 'from_unit' => 'cm', 'to_unit' => 'inch'];
+    
+    $iterations = 500;
+    $start = microtime(true);
+    
+    for ($i = 0; $i < $iterations; $i++) {
+        $ruleFlow->evaluate($complexConfig, $complexInput);
+    }
+    
+    $end = microtime(true);
+    $complexTime = ($end - $start) * 1000;
+    
+    echo "Complex Conversions ($iterations iterations):\n";
+    echo "  Total: " . round($complexTime, 2) . "ms\n";
+    echo "  Average: " . round($complexTime / $iterations, 4) . "ms per conversion\n";
+    echo "  Rate: " . round($iterations / ($complexTime / 1000)) . " conversions/second\n\n";
+    
+    // Memory usage
+    $memoryUsage = memory_get_peak_usage(true) / 1024 / 1024;
+    echo "Peak Memory Usage: " . round($memoryUsage, 2) . " MB\n";
+}
+
+/**
+ * Error Handling Examples (NEW!)
+ */
+function demonstrate_error_handling() {
+    echo "\n=== ERROR HANDLING EXAMPLES ===\n";
+    
+    $ruleFlow = new RuleFlow();
+    
+    // Valid config
+    $config = [
+        'formulas' => [
+            [
+                'id' => 'conversion',
+                'switch' => 'from_unit',
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'cm'], 'result' => 'centimeter', 'set_vars' => ['$result' => '$value * 0.01']]
+                ],
+                'default' => 'unknown'
+            ]
+        ]
+    ];
+    
+    echo "1. Valid Conversion:\n";
+    try {
+        $result = $ruleFlow->evaluate($config, ['value' => 100, 'from_unit' => 'cm']);
+        echo "   ✅ Success: {$result['result']}\n\n";
+    } catch (Exception $e) {
+        echo "   ❌ Error: " . $e->getMessage() . "\n\n";
+    }
+    
+    echo "2. Missing Required Input:\n";
+    try {
+        $result = $ruleFlow->evaluate($config, ['from_unit' => 'cm']); // Missing 'value'
+        echo "   ✅ Success: {$result['result']}\n\n";
+    } catch (Exception $e) {
+        echo "   ❌ Expected Error: " . $e->getMessage() . "\n\n";
+    }
+    
+    echo "3. Invalid Configuration:\n";
+    try {
+        $invalidConfig = [
+            'formulas' => [
+                [
+                    // Missing 'id' field
+                    'switch' => 'from_unit',
+                    'when' => []
+                ]
+            ]
+        ];
+        $result = $ruleFlow->evaluate($invalidConfig, ['value' => 100, 'from_unit' => 'cm']);
+        echo "   ✅ Success: {$result['result']}\n\n";
+    } catch (Exception $e) {
+        echo "   ❌ Expected Error: " . $e->getMessage() . "\n\n";
+    }
+    
+    echo "4. Division by Zero Protection:\n";
+    try {
+        $divisionConfig = [
+            'formulas' => [
+                [
+                    'id' => 'division_test',
+                    'formula' => 'numerator / denominator',
+                    'inputs' => ['numerator', 'denominator']
+                ]
+            ]
+        ];
+        $result = $ruleFlow->evaluate($divisionConfig, ['numerator' => 10, 'denominator' => 0]);
+        echo "   ✅ Success: {$result['division_test']}\n\n";
+    } catch (Exception $e) {
+        echo "   ❌ Expected Error: " . $e->getMessage() . "\n\n";
+    }
+}
+
+/**
+ * Generate Production-Ready PHP Functions (NEW!)
+ */
+function generate_converter_functions() {
+    echo "\n=== GENERATED PHP FUNCTIONS FOR PRODUCTION ===\n";
+    
+    $ruleFlow = new RuleFlow();
+    
+    // Length converter function
+    $lengthConfig = [
+        'formulas' => [
+            [
+                'id' => 'to_meters',
+                'switch' => 'from_unit',
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'cm'], 'result' => 'cm', 'set_vars' => ['$meters' => '$value * 0.01']],
+                    ['if' => ['op' => '==', 'value' => 'mm'], 'result' => 'mm', 'set_vars' => ['$meters' => '$value * 0.001']],
+                    ['if' => ['op' => '==', 'value' => 'm'], 'result' => 'm', 'set_vars' => ['$meters' => '$value']],
+                    ['if' => ['op' => '==', 'value' => 'ft'], 'result' => 'ft', 'set_vars' => ['$meters' => '$value * 0.3048']],
+                    ['if' => ['op' => '==', 'value' => 'inch'], 'result' => 'inch', 'set_vars' => ['$meters' => '$value * 0.0254']]
+                ],
+                'default' => 'unknown'
+            ],
+            [
+                'id' => 'result',
+                'switch' => 'to_unit', 
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'cm'], 'result' => 'cm', 'set_vars' => ['$final_result' => '$meters * 100']],
+                    ['if' => ['op' => '==', 'value' => 'mm'], 'result' => 'mm', 'set_vars' => ['$final_result' => '$meters * 1000']],
+                    ['if' => ['op' => '==', 'value' => 'm'], 'result' => 'm', 'set_vars' => ['$final_result' => '$meters']],
+                    ['if' => ['op' => '==', 'value' => 'ft'], 'result' => 'ft', 'set_vars' => ['$final_result' => '$meters / 0.3048']],
+                    ['if' => ['op' => '==', 'value' => 'inch'], 'result' => 'inch', 'set_vars' => ['$final_result' => '$meters / 0.0254']]
+                ],
+                'default' => 'unknown'
+            ]
+        ]
+    ];
+    
+    echo "// Length Converter Function\n";
+    echo "\$lengthConverter = " . $ruleFlow->generateFunctionAsString($lengthConfig) . ";\n\n";
+    
+    // Temperature converter function
+    $tempConfig = [
+        'formulas' => [
+            [
+                'id' => 'to_celsius',
+                'switch' => 'from_unit',
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'C'], 'result' => 'C', 'set_vars' => ['$celsius' => '$value']],
+                    ['if' => ['op' => '==', 'value' => 'F'], 'result' => 'F', 'set_vars' => ['$celsius' => '($value - 32) * 5 / 9']],
+                    ['if' => ['op' => '==', 'value' => 'K'], 'result' => 'K', 'set_vars' => ['$celsius' => '$value - 273.15']]
+                ],
+                'default' => 'unknown'
+            ],
+            [
+                'id' => 'result',
+                'switch' => 'to_unit',
+                'when' => [
+                    ['if' => ['op' => '==', 'value' => 'C'], 'result' => 'C', 'set_vars' => ['$final_temp' => '$celsius']],
+                    ['if' => ['op' => '==', 'value' => 'F'], 'result' => 'F', 'set_vars' => ['$final_temp' => '$celsius * 9 / 5 + 32']],
+                    ['if' => ['op' => '==', 'value' => 'K'], 'result' => 'K', 'set_vars' => ['$final_temp' => '$celsius + 273.15']]
+                ],
+                'default' => 'unknown'
+            ]
+        ]
+    ];
+    
+    echo "// Temperature Converter Function\n";
+    echo "\$temperatureConverter = " . $ruleFlow->generateFunctionAsString($tempConfig) . ";\n\n";
+    
+    // Usage examples
+    echo "// Usage Examples:\n";
+    echo "/*\n";
+    echo "// Length conversion\n";
+    echo "\$inputs = ['value' => 100, 'from_unit' => 'cm', 'to_unit' => 'inch'];\n";
+    echo "\$result = \$lengthConverter(\$inputs);\n";
+    echo "echo \"Result: {\$result['final_result']} inches\";\n\n";
+    echo "// Temperature conversion\n";
+    echo "\$inputs = ['value' => 32, 'from_unit' => 'F', 'to_unit' => 'C'];\n";
+    echo "\$result = \$temperatureConverter(\$inputs);\n";
+    echo "echo \"Result: {\$result['final_temp']} °C\";\n";
+    echo "*/\n\n";
+    
+    echo "// Performance Tips:\n";
+    echo "// 1. Cache the generated functions for better performance\n";
+    echo "// 2. Use specific converters instead of general ones when possible\n";
+    echo "// 3. Consider input validation before calling converter functions\n";
+}
 
 // Run all examples
-echo "Converter Examples\n";
+echo "Unit Converter Examples (Enhanced)\n";
 echo "========================================================\n";
 
-demo1_length_converter();
-demo2_weight_converter();
-demo3_temperature_converter();
-demo4_area_converter();
-demo5_volume_converter();
-demo6_time_converter();
+// Store configs for later use
+$lengthConfig = demo1_length_converter();
+$weightConfig = demo2_weight_converter();
+$tempConfig = demo3_temperature_converter();
+$areaConfig = demo4_area_converter();
+$volumeConfig = demo5_volume_converter();
+$timeConfig = demo6_time_converter();
 
-echo "\n✅ All examples completed!\n";
+// NEW: Performance benchmarks
+benchmark_converters();
+
+// NEW: Error handling demonstration
+demonstrate_error_handling();
+
+// NEW: Generate production functions
+generate_converter_functions();
+
+echo "\n✅ All converter examples completed with enhanced features!\n";
+echo "\n📊 Summary:\n";
+echo "- 6 Converter Types: Length, Weight, Temperature, Area, Volume, Time\n";
+echo "- Performance Benchmarks: Included\n";
+echo "- Error Handling: Demonstrated\n";
+echo "- Production Functions: Generated\n";
+echo "- Total Test Cases: 23\n";
+
+?>

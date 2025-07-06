@@ -32,3 +32,6 @@ dist/
 # Ignore config secrets
 .env
 .env.*
+
+# Template cache
+src/Templates/Providers/cache/

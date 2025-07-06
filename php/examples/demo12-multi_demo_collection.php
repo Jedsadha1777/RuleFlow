@@ -1,6 +1,5 @@
 <?php 
-
-require_once "../src/RuleFlow.php";
+require_once __DIR__ . "/../src/RuleFlow.php";
 
 /**
  * Demo 1: Simple BMI Calculator

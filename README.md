@@ -217,36 +217,79 @@ echo $phpCode; // Shows complete optimized PHP function
 
 ## Examples
 
-The PHP implementation includes comprehensive demos:
+The PHP implementation includes demo files organized by functionality:
 
-### Basic Examples (demo.php)
-1. **BMI Calculator** — Basic expressions and categorization
-2. **Credit Scoring** — Accumulative scoring system
-3. **Blood Pressure** — Multi-dimensional health assessment
-4. **E-commerce Discounts** — Dynamic pricing and tiers
-5. **Academic Grading** — Weighted scoring with bonuses
-6. **Dynamic Pricing** — Complex pricing with $ variables
+### Basic Usage
+1. **demo1-basic.php** — Math expressions, conditional logic, built-in functions
+2. **demo2-templates.php** — Using pre-built templates (BMI, loans, performance)  
+3. **demo3-validation.php** — Input validation and error handling
 
-### Unit Converter Examples (demo-converter.php)
-1. **Length Converter** — mm, cm, m, km, inch, ft, yard, mile
-2. **Weight Converter** — mg, g, kg, ton, oz, lb
-3. **Temperature Converter** — Celsius, Fahrenheit, Kelvin, Rankine
-4. **Area Converter** — Square units and land measurements
-5. **Volume Converter** — Metric and imperial liquid measurements
-6. **Time Converter** — ms, seconds, minutes, hours, days, weeks, months, years
+### Real-World Applications
+4. **demo4-loan-application.php** — Loan assessment with multiple test cases
+5. **demo5-bmi-calculator.php** — Health assessment and BMI categorization
+6. **demo6-employee-review.php** — Performance reviews and candidate scoring
+7. **demo7-dynamic-pricing.php** — E-commerce pricing with market conditions
 
-### Advanced Trading Examples (demo-futures-analysis.php)
-1. **Portfolio Stop Loss** — Risk management with asset-specific thresholds
-2. **Market Trend Analysis** — Technical indicator evaluation
-3. **Grid Position Management** — Automated trading position sizing
-4. **Performance Evaluation** — Win rate and profit analysis
-5. **Complete Trading Flow** — Integrated decision-making system
+### Advanced Features
+8. **demo8-dollar-notation.php** — $ variable usage and complex expressions
+9. **demo9-custom-functions.php** — Custom business functions (shipping, LTV, risk)
+10. **demo10-multi-dimensional.php** — Matrix scoring (bonuses, credit limits)
+11. **demo11-code-generation.php** — Generate optimized PHP functions
 
+### Collections
+12. **demo12-multi_demo_collection.php** — 6 demos in one file
+13. **demo13-converter.php** — Unit conversion systems
+14. **demo14-futures-analysis.php** — Trading analysis examples
+
+**Run examples:**
 ```bash
-cd php && php examples/demo.php
-cd php && php examples/demo-converter.php
-cd php && php examples/demo-futures-analysis.php
+cd php && php demo1-basic.php
+cd php && php demo4-loan-application.php
+cd php && php demo12-multi_demo_collection.php
 ```
+
+## Testing
+
+### Test Environment
+```bash
+cd php && php RunAllTests.php
+```
+
+### Available Test Coverage
+- **Basic functionality** — Expression evaluation, switch logic
+- **$ Notation** — Variable setting and referencing
+- **Multi-dimensional scoring** — Complex nested conditions
+- **Error handling** — Input validation and edge cases
+- **Code generation** — Function optimization and safety
+
+### Known Test Limitations
+- Coverage is approximately 80% of all features
+- Some complex edge cases may not be covered
+- Performance tests are basic benchmarks only
+
+## Known Issues & Limitations
+
+### Expression Parsing
+- **Operator precedence**: `-2 ** 2` returns `-4` instead of `4`
+  - **Workaround**: Use parentheses: `(-2) ** 2` or `-(2 ** 2)`
+- **Complex expressions**: Very long formulas may hit parsing limits
+- **Variable scoping**: $ variables are global within formula execution
+
+### Performance Considerations
+- **Large datasets**: Not optimized for processing thousands of records
+- **Deep nesting**: Very deep multi-dimensional scoring may be slow
+- **Memory usage**: Each formula execution creates new context
+
+### Configuration Validation
+- **Runtime errors**: Some invalid configs only fail during execution
+- **Dependency resolution**: Circular references are not always detected
+- **Type checking**: Limited type validation for input variables
+
+### Workarounds & Solutions
+- **Use code generation** for production environments (better performance)
+- **Validate configurations** during development, not runtime
+- **Keep formulas simple** and break complex logic into smaller steps
+- **Test thoroughly** with representative data before production use
 
 ## Contributing
 
@@ -275,10 +318,7 @@ ruleflow/
 └── php/
     ├── README.md
     ├── src/RuleFlow.php
-    └── examples/
-        ├── demo.php
-        ├── demo-converter.php
-        └── demo-futures-analysis.php
+    └── RunAllTests.php
 ```
 
 ## Version History
@@ -312,13 +352,18 @@ ruleflow/
 
 ## Performance
 
-RuleFlow is designed for high performance:
+RuleFlow is designed for moderate-scale business logic:
 
 - **Code Generation**: Converts JSON rules to optimized PHP functions
 - **Dependency Optimization**: Automatically orders formula execution
 - **Safe Evaluation**: No eval() usage, custom expression parser
 - **Memory Efficient**: Minimal overhead for rule processing
-- **Scalable**: Handle complex multi-dimensional rules efficiently
+- **Moderate Scale**: Handle complex rules efficiently for typical business needs
+
+**Performance expectations:**
+- Suitable for processing hundreds of records per second
+- Complex multi-dimensional rules may reduce throughput
+- Code generation provides 2-5x performance improvement
 
 ## Author
 
@@ -332,7 +377,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - **Issues**: [GitHub Issues](https://github.com/Jedsadha1777/RuleFlow/issues)
 - **PHP Documentation**: [php/README.md](./php/README.md)
-- **Examples**: See `/php/examples/` directory
+- **Examples**: See demo files in `/php/` directory
 
 ---
 
