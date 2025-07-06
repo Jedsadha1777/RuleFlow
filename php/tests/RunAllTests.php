@@ -195,7 +195,7 @@ class TestRunner
         // Check core RuleFlow files
         $coreFiles = [
             __DIR__ . '/../src/RuleFlow.php' => 'RuleFlow (Main)',
-            __DIR__ . '/../src/ConfigTemplateManager.php' => 'ConfigTemplateManager',
+            __DIR__ . '/../src/Templates/ConfigTemplateManager.php' => 'ConfigTemplateManager',
             __DIR__ . '/../src/RuleFlowException.php' => 'RuleFlowException'
         ];
         
