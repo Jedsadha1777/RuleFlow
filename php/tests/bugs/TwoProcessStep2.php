@@ -1,14 +1,4 @@
 <?php
-
-require_once __DIR__ . '/../../src/FormulaProcessor.php';
-// require_once __DIR__ . '/../../src/ExpressionEvaluator.php';
-require_once __DIR__ . '/../../src/CodeGenerator.php';
-require_once __DIR__ . '/../../src/FunctionRegistry.php';
-
-
-
-
-
 // Test Step 2: Enhanced Execution Order
 echo "🧪 QUICK TEST: Step 2 - Enhanced Execution Order\n";
 echo "================================================\n\n";
