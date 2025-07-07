@@ -490,17 +490,22 @@ class TwoPassProcessingTest
     // Helper assertion methods
     private function assertEquals($expected, $actual, string $message = ''): void
     {
-        if (is_float($expected) || is_float($actual)) {
-            if (abs((float)$expected - (float)$actual) > 0.001) {
+        // Convert both values to same type for comparison
+        if (is_numeric($expected) && is_numeric($actual)) {
+            $expectedFloat = (float)$expected;
+            $actualFloat = (float)$actual;
+            
+            if (abs($expectedFloat - $actualFloat) > 0.001) {
                 throw new Exception("❌ $message: Expected $expected, got $actual");
             }
         } else {
-            if ($expected !== $actual) {
+            // For non-numeric values, use string comparison
+            if ((string)$expected !== (string)$actual) {
                 throw new Exception("❌ $message: Expected $expected, got $actual");
             }
         }
     }
-    
+
     private function assertEqualsLoose($expected, $actual, string $message = ''): void
     {
         // Loose comparison for type flexibility

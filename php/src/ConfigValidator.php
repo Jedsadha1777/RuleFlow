@@ -434,14 +434,27 @@ class ConfigValidator
      */
     private function determineSafetyLevel(array $validation): string
     {
-        $errorCount = count($validation['errors']);
-        $warningCount = count($validation['warnings']);
+        $realErrors = [];      
+        $warnings = [];       
         
-        if ($errorCount > 0) {
+        // แยก errors จริง vs warnings
+        foreach ($validation['errors'] as $error) {
+            if (strpos($error, 'unused') !== false || 
+                strpos($error, 'never consumed') !== false ||
+                strpos($error, 'produced but never consumed') !== false) {
+                $warnings[] = $error; // ย้ายเป็น warnings
+            } else {
+                $realErrors[] = $error; // เก็บแค่ errors จริง
+            }
+        }
+        
+        // รวม warnings เดิมด้วย
+        $allWarnings = array_merge($warnings, $validation['warnings']);
+        
+        // กำหนด safety level ตาม real errors
+        if (!empty($realErrors)) {
             return 'UNSAFE';
-        } elseif ($warningCount > 5) {
-            return 'RISKY';
-        } elseif ($warningCount > 0) {
+        } elseif (!empty($allWarnings)) {
             return 'CAUTION';
         } else {
             return 'SAFE';

@@ -4,6 +4,7 @@
 require_once __DIR__ . '/../../src/FormulaProcessor.php';
 require_once __DIR__ . '/../../src/ExpressionEvaluator.php';
 require_once __DIR__ . '/../../src/FunctionRegistry.php';
+require_once __DIR__ . '/../../src/RuleFlowException.php';  // ← เพิ่มบรรทัดนี้
 
 echo "🧪 QUICK TEST: Two-Pass Processing Fix - Step 1\n";
 echo "==============================================\n\n";

@@ -33,10 +33,34 @@ class ExpressionEvaluator
         $this->validateFinalExpression($expr);
 
         $tokens = $this->tokenize($expr);
-        $tokens = $this->processUnaryOperators($tokens); // เพิ่มการประมวลผล unary operators
+        $tokens = $this->processUnaryOperators($tokens);
         $postfix = $this->convertToPostfix($tokens);
         
-        return $this->evaluatePostfix($postfix);
+        $result = $this->evaluatePostfix($postfix);
+        
+        // Ensure result is proper numeric type
+        return $this->convertToNumericType($result);
+    }
+
+    /**
+     * Convert result to proper numeric type
+     */
+    private function convertToNumericType($value): float
+    {
+        if (is_string($value) && is_numeric($value)) {
+            return (float)$value;
+        }
+        
+        if (is_int($value)) {
+            return (float)$value;
+        }
+        
+        if (is_float($value)) {
+            return $value;
+        }
+        
+        // Fallback for any other type
+        return (float)$value;
     }
 
     /**
@@ -51,7 +75,8 @@ class ExpressionEvaluator
             return is_numeric($value) ? (string)$value : '0';
         }, $expr);
         
-        return $this->safeEval($evalExpr, []);
+        $result = $this->safeEval($evalExpr, []);
+        return $this->convertToNumericType($result);
     }
 
     /**

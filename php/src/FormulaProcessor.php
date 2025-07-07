@@ -338,9 +338,10 @@ class FormulaProcessor
                 $complexVars[$contextKey] = $varValue;
                 $pending[] = $contextKey;
             } else {
-                // Simple values - ประมวลผลทันที
-                $simpleVars[$contextKey] = $varValue;
-                $context[$contextKey] = $varValue;
+                // Simple values - ประมวลผลทันทีพร้อม type conversion
+                $convertedValue = $this->convertValueType($varValue);
+                $simpleVars[$contextKey] = $convertedValue;
+                $context[$contextKey] = $convertedValue;
             }
         }
         
@@ -366,44 +367,100 @@ class FormulaProcessor
                         }
                     } elseif ($this->isDollarExpression($varValue)) {
                         // Complex expression: $var1 = $var2 + $var3
-                        // ลองประมวลผล - ถ้าได้แสดงว่า dependencies พร้อมแล้ว
-                        $result = $this->evaluator->evaluateDollarExpression($varValue, $context);
-                        $context[$contextKey] = $result;
-                        unset($pending[$index]);
-                        $progressMade = true;
+                        if ($this->canEvaluateExpression($varValue, $context)) {
+                            $result = $this->evaluateExpression($varValue, $context);
+                            $context[$contextKey] = $result;
+                            unset($pending[$index]);
+                            $progressMade = true;
+                        }
                     }
                 } catch (Exception $e) {
-                    // ยังไม่พร้อม - dependency ยังไม่มี - รอรอบต่อไป
+                    // Skip this iteration, may resolve later
                     continue;
                 }
             }
             
-            // ถ้าไม่มีความคืบหน้า = circular dependency หรือ missing dependency
+            // Reset array keys after unset
+            $pending = array_values($pending);
+            
             if (!$progressMade) {
+                // No progress made, check for circular dependencies
+                if (!empty($pending)) {
+                    $pendingVars = [];
+                    foreach ($pending as $index) {
+                        $pendingVars[] = array_search($index, array_keys($complexVars));
+                    }
+                    throw new RuleFlowException(
+                        "Cannot resolve set_vars dependencies. Possible circular reference or missing variables: " . 
+                        implode(', ', $pendingVars),
+                        ['pending_variables' => $pendingVars]
+                    );
+                }
                 break;
             }
-            
-            // Reset array indices หลัง unset
-            $pending = array_values($pending);
         }
         
-        // Step 3: Handle unresolved dependencies
         if (!empty($pending)) {
-            $unresolved = [];
-            foreach ($pending as $contextKey) {
-                $unresolved[] = "'{$contextKey}' = '{$complexVars[$contextKey]}'";
-            }
-            
-            throw new RuleFlowException(
-                "Cannot resolve set_vars dependencies: " . implode(', ', $unresolved),
-                [
-                    'unresolved_vars' => $pending,
-                    'available_context' => array_keys($context),
-                    'iteration_count' => $iteration
-                ]
-            );
+            throw new RuleFlowException("Maximum iterations exceeded while resolving set_vars dependencies");
         }
     }
+
+
+    /**
+     * Convert value to proper type
+     */
+    private function convertValueType($value)
+{
+    // Keep non-string values as-is, but ensure numbers are proper type
+    if (!is_string($value)) {
+        if (is_numeric($value)) {
+            // Ensure numeric values are proper type
+            if (is_float($value) || strpos((string)$value, '.') !== false) {
+                return (float)$value;
+            } else {
+                return (int)$value;
+            }
+        }
+        return $value;
+    }
+    
+    // ❌ OLD BUGGY CODE:
+    // if (empty($value)) {
+    //     return $value; // BUG: empty('0') = true!
+    // }
+    
+    // ✅ NEW FIXED CODE: Check for truly empty strings only
+    if ($value === '' || $value === null) {
+        return $value;
+    }
+    
+    // Try to convert numeric strings to numbers
+    if (is_numeric($value)) {
+        // Check if it's an integer
+        if (ctype_digit($value) || (substr($value, 0, 1) === '-' && ctype_digit(substr($value, 1)))) {
+            $intValue = (int)$value;
+            // Return int if it fits exactly, otherwise return float
+            if ((string)$intValue === $value) {
+                return $intValue;
+            }
+        }
+        
+        // Convert to float for decimal numbers
+        return (float)$value;
+    }
+    
+    // Handle boolean-like strings
+    $lowerValue = strtolower(trim($value));
+    if (in_array($lowerValue, ['true', '1', 'yes', 'on'])) {
+        return true;
+    }
+    if (in_array($lowerValue, ['false', '0', 'no', 'off'])) {
+        return false;
+    }
+    
+    // Return string as-is for non-convertible values
+    return $value;
+}
 
     /**
      * Enhanced condition evaluation with $ notation support
@@ -448,6 +505,31 @@ class FormulaProcessor
     {
         return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
     }
+
+    private function canEvaluateExpression(string $expression, array $context): bool
+    {
+        // Extract all $variables from expression
+        preg_match_all('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', $expression, $matches);
+        
+        if (empty($matches[1])) {
+            return true; // No variables needed
+        }
+        
+        // Check if all required variables are available
+        foreach ($matches[1] as $varName) {
+            if (!isset($context[$varName])) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    private function evaluateExpression(string $expression, array $context): float
+    {
+        return $this->evaluator->evaluateDollarExpression($expression, $context);
+    }
+
 
     private function isDollarReference(string $value): bool
     {

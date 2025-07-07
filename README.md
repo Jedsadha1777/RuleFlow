@@ -202,7 +202,11 @@ $config = [
 
 ## Version History
 
-### v1.4.0 (Current)
+### v1.4.1 (Current)
+- Fixed type inconsistency bug
+- Fixed logic bug in ConfigValidator
+
+### v1.4.0 
 - Added comprehensive template system with 7 categories
 - Template management: search, clone, modify, organize
 - Enhanced $ notation support for variable referencing
