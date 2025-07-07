@@ -135,18 +135,18 @@ RuleFlow/
     │   │       ├── EducationTemplates.php
     │   │       ├── InsuranceTemplates.php
     │   │       └── RealEstateTemplates.php
-    │   ├── Core/                # Core engine components
-    │   │   ├── ExpressionEvaluator.php
-    │   │   ├── ConfigValidator.php
-    │   │   ├── InputValidator.php
-    │   │   └── FunctionRegistry.php
-    │   └── Utils/               # Utility classes
-    │       ├── SchemaGenerator.php
-    │       └── CodeGenerator.php
+    │   │                        # Core engine components
+    │   ├── ExpressionEvaluator.php
+    │   ├── ConfigValidator.php
+    │   ├── InputValidator.php
+    │   ├── FunctionRegistry.php
+    │   │                        # Utility classes
+    │   ├── SchemaGenerator.php
+    │   └── CodeGenerator.php
     ├── tests/                   # Test suite
-    │   ├── README.md           # Test documentation
-    │   ├── RunAllTests.php     # Test runner
-    │   └── *Test.php           # Individual test files
+    │   ├── README.md            # Test documentation
+    │   ├── RunAllTests.php      # Test runner
+    │   └── *Test.php            # Individual test files
     └── demos/                   # Example demonstrations
         ├── basic_demo.php
         ├── template_demo.php
