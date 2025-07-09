@@ -6,6 +6,11 @@ declare(strict_types=1);
 class ExpressionEvaluator
 {
     private FunctionRegistry $functions;
+
+    public function getFunctionRegistry(): FunctionRegistry
+    {
+        return $this->functions;
+    }
     
     private array $operatorPrecedence = [
         'u-' => 5,  // เพิ่ม unary minus ด้วย precedence สูงสุด

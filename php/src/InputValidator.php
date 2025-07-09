@@ -299,6 +299,7 @@ class InputValidator
                 'uppercase' => is_string($value) ? strtoupper($value) : $value,
                 'strip_tags' => is_string($value) ? strip_tags($value) : $value,
                 'htmlspecialchars' => is_string($value) ? htmlspecialchars($value) : $value,
+                'remove_scripts' => is_string($value) ? preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/mi', '', $value) : $value,
                 default => $value
             };
         }

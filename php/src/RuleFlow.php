@@ -12,9 +12,29 @@ require_once 'Templates/ConfigTemplateManager.php';
 require_once 'SchemaGenerator.php';
 require_once 'ValidationAPI.php';
 
+// ============================================
+// 🔌 Interface สำหรับ Auto-discovery
+// ============================================
+
+interface RuleFlowFunctionProvider
+{
+    /**
+     * Get functions ที่จะ register เข้า RuleFlow
+     * @return array ['function_name' => callable]
+     */
+    public static function getFunctions(): array;
+    
+    /**
+     * Get plugin info (optional)
+     * @return array ['name' => string, 'version' => string, 'description' => string]
+     */
+    public static function getInfo(): array;
+}
+
 /**
- * Main RuleFlow API - Enhanced entry point with SECURE functionality
+ * Main RuleFlow API - Enhanced entry point with SECURE functionality + Auto-discovery
  * 🔒 Security Note: Removed dangerous eval() usage and replaced with safe alternatives
+ * 🔌 Auto-discovery: Functions are automatically loaded from Functions/ folder
  */
 class RuleFlow
 {
@@ -30,6 +50,10 @@ class RuleFlow
 
     // 🔒 Security: Cache for pre-validated configs to avoid repeated validation overhead
     private array $configCache = [];
+    
+    // 🔌 Auto-discovery properties
+    private array $autoLoadedFunctions = [];
+    private string $functionsPath = 'Functions/';
 
     public function __construct()
     {
@@ -42,7 +66,97 @@ class RuleFlow
         $this->templateManager = new ConfigTemplateManager();
         $this->schemaGenerator = new SchemaGenerator();
         $this->validationAPI = new ValidationAPI();
+        
+        // 🔌 Auto-load functions จาก Functions/ folder
+        $this->autoLoadFunctions();
     }
+
+    // ============================================
+    // 🔌 AUTO-DISCOVERY METHODS
+    // ============================================
+    
+    /**
+     * Auto-load functions จาก Functions/ folder
+     */
+    private function autoLoadFunctions(): void
+    {
+        $functionsDir = __DIR__ . '/' . $this->functionsPath;
+        
+        if (!is_dir($functionsDir)) {
+            return; // ถ้าไม่มี folder ก็ข้าม
+        }
+        
+        // หา PHP files ใน folder
+        $files = glob($functionsDir . '*.php');
+        
+        foreach ($files as $file) {
+            $this->loadFunctionFile($file);
+        }
+    }
+    
+    /**
+     * Load function file และ register functions
+     */
+    private function loadFunctionFile(string $file): void
+    {
+        try {
+            require_once $file;
+            
+            // หา class name จาก filename
+            $className = basename($file, '.php');
+            
+            // ตรวจสอบว่า class implement interface หรือไม่
+            if (class_exists($className) && 
+                in_array(RuleFlowFunctionProvider::class, class_implements($className))) {
+                
+                // Get functions และ register
+                $functions = $className::getFunctions();
+                $info = method_exists($className, 'getInfo') ? $className::getInfo() : ['name' => $className];
+                
+                foreach ($functions as $name => $handler) {
+                    if (is_callable($handler)) {
+                        $this->functions->register($name, $handler);
+                        $this->autoLoadedFunctions[$name] = [
+                            'provider' => $className,
+                            'info' => $info
+                        ];
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // Silent fail - ไม่ให้ plugin ที่เสียทำให้ระบบหลักพัง
+            error_log("Failed to load function file {$file}: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get auto-loaded functions info
+     */
+    public function getAutoLoadedFunctions(): array
+    {
+        return $this->autoLoadedFunctions;
+    }
+    
+    /**
+     * Reload functions (สำหรับ development)
+     */
+    public function reloadFunctions(): void
+    {
+        // Clear existing auto-loaded functions
+        foreach (array_keys($this->autoLoadedFunctions) as $functionName) {
+            // Note: FunctionRegistry should have unregister method
+            if (method_exists($this->functions, 'unregister')) {
+                $this->functions->unregister($functionName);
+            }
+        }
+        
+        $this->autoLoadedFunctions = [];
+        $this->autoLoadFunctions();
+    }
+
+    // ============================================
+    // 🔧 EXISTING METHODS (ไม่เปลี่ยน)
+    // ============================================
 
     /**
      * Evaluate configuration with inputs
@@ -365,7 +479,7 @@ class RuleFlow
     }
 
     /**
-     * Register custom function
+     * Register custom function (manual registration)
      */
     public function registerFunction(string $name, callable $handler): void
     {
@@ -373,13 +487,17 @@ class RuleFlow
     }
 
     /**
-     * Get available functions
+     * Get available functions (includes auto-loaded)
      */
     public function getAvailableFunctions(): array
     {
+        $builtin = $this->functions->getAvailableFunctions();
+        $autoLoaded = array_keys($this->autoLoadedFunctions);
+        
         return [
-            'functions' => $this->functions->getAvailableFunctions(),
-            'categories' => $this->functions->getFunctionsByCategory()
+            'functions' => array_merge($builtin, $autoLoaded),
+            'categories' => $this->functions->getFunctionsByCategory(),
+            'auto_loaded' => $this->autoLoadedFunctions
         ];
     }
 
@@ -408,16 +526,17 @@ class RuleFlow
     }
 
     /**
-     * Get system information
+     * Get system information (updated with auto-discovery info)
      */
     public function getSystemInfo(): array
     {
         return [
-            'version' => '2.0.0-secure',
+            'version' => '2.0.0-secure-autodiscovery',
             'php_version' => PHP_VERSION,
             'memory_limit' => ini_get('memory_limit'),
             'max_execution_time' => ini_get('max_execution_time'),
             'available_functions' => count($this->functions->getAvailableFunctions()),
+            'auto_loaded_functions' => count($this->autoLoadedFunctions),
             'available_templates' => count($this->templateManager->getAvailableTemplates()),
             'cached_configs' => count($this->configCache),
             'security_features' => [
@@ -426,6 +545,11 @@ class RuleFlow
                 'memory_limits' => true,
                 'timeout_protection' => true,
                 'config_caching' => true
+            ],
+            'auto_discovery' => [
+                'enabled' => true,
+                'functions_path' => $this->functionsPath,
+                'loaded_providers' => array_unique(array_column($this->autoLoadedFunctions, 'provider'))
             ],
             'extensions' => [
                 'json' => extension_loaded('json'),
