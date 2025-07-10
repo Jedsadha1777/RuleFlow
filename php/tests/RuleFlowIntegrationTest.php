@@ -59,31 +59,31 @@ class RuleFlowIntegrationTest
                         [
                             'var' => 'income',
                             'ranges' => [
-                                ['if' => ['op' => '>=', 'value' => 100000], 'score' => 40],
-                                ['if' => ['op' => '>=', 'value' => 50000], 'score' => 25],
-                                ['if' => ['op' => '>=', 'value' => 30000], 'score' => 15]
+                                ['if' => ['op' => '>=', 'value' => 100000], 'result' => 40],
+                                ['if' => ['op' => '>=', 'value' => 50000], 'result' => 25],
+                                ['if' => ['op' => '>=', 'value' => 30000], 'result' => 15]
                             ]
                         ],
                         [
                             'var' => 'age',
                             'ranges' => [
-                                ['if' => ['op' => 'between', 'value' => [25, 45]], 'score' => 20],
-                                ['if' => ['op' => 'between', 'value' => [46, 60]], 'score' => 15],
-                                ['if' => ['op' => '>=', 'value' => 18], 'score' => 10]
+                                ['if' => ['op' => 'between', 'value' => [25, 45]], 'result' => 20],
+                                ['if' => ['op' => 'between', 'value' => [46, 60]], 'result' => 15],
+                                ['if' => ['op' => '>=', 'value' => 18], 'result' => 10]
                             ]
                         ],
                         [
                             'var' => 'employment_years',
                             'ranges' => [
-                                ['if' => ['op' => '>=', 'value' => 5], 'score' => 20],
-                                ['if' => ['op' => '>=', 'value' => 2], 'score' => 15],
-                                ['if' => ['op' => '>=', 'value' => 1], 'score' => 10]
+                                ['if' => ['op' => '>=', 'value' => 5], 'result' => 20],
+                                ['if' => ['op' => '>=', 'value' => 2], 'result' => 15],
+                                ['if' => ['op' => '>=', 'value' => 1], 'result' => 10]
                             ]
                         ],
                         [
                             'var' => 'has_property',
                             'if' => ['op' => '==', 'value' => 1],
-                            'score' => 20
+                            'result' => 20
                         ]
                     ]
                 ],
@@ -188,7 +188,11 @@ class RuleFlowIntegrationTest
         $inputs1 = ['age' => 30, 'income' => 60000];
         $result1 = $this->engine->evaluate($config, $inputs1);
         
+        // FIX: Multi-dimensional scoring returns array, so check the score field
+        // The engine stores the main score under the formula ID
         $this->assertEquals(100, $result1['risk_assessment']);
+        
+        // Additional properties are stored with formula_id prefix
         $this->assertEquals('low', $result1['risk_assessment_risk_level']);
         $this->assertEquals(true, $result1['approved']);
         
