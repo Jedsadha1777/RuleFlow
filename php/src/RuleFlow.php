@@ -67,8 +67,13 @@ class RuleFlow
         $this->schemaGenerator = new SchemaGenerator();
         $this->validationAPI = new ValidationAPI();
         
-        // 🔌 Auto-load functions จาก Functions/ folder
-        $this->autoLoadFunctions();
+        try {
+            $this->autoLoadFunctions();
+        } catch (Exception $e) {
+            // Log the error but don't fail the constructor
+            error_log("RuleFlow: Failed to auto-load functions - " . $e->getMessage());
+            // Template system and core functionality should still work
+        }
     }
 
     // ============================================
@@ -80,17 +85,23 @@ class RuleFlow
      */
     private function autoLoadFunctions(): void
     {
-        $functionsDir = __DIR__ . '/' . $this->functionsPath;
-        
+         $functionsDir = __DIR__ . '/' . $this->functionsPath;
+    
         if (!is_dir($functionsDir)) {
-            return; // ถ้าไม่มี folder ก็ข้าม
+            return; // ไม่มี directory ก็ไม่เป็นไร
         }
         
-        // หา PHP files ใน folder
         $files = glob($functionsDir . '*.php');
+        if ($files === false || empty($files)) {
+            return; // ไม่มีไฟล์ก็ไม่เป็นไร
+        }
         
         foreach ($files as $file) {
-            $this->loadFunctionFile($file);
+            try {
+                $this->loadFunctionFile($file);
+            } catch (Exception $e) {
+                error_log("RuleFlow: Failed to load $file - " . $e->getMessage());
+            }
         }
     }
     
@@ -100,32 +111,67 @@ class RuleFlow
     private function loadFunctionFile(string $file): void
     {
         try {
+            if (!is_readable($file)) {
+                throw new Exception("Function file not readable: $file");
+            }
+            
             require_once $file;
             
             // หา class name จาก filename
             $className = basename($file, '.php');
             
+            // Check if class exists
+            if (!class_exists($className)) {
+                // File might contain functions or other code - this is OK
+                return;
+            }
+            
+            // Check if interface exists before testing implementation
+            if (!interface_exists('RuleFlowFunctionProvider')) {
+                throw new Exception("RuleFlowFunctionProvider interface not found");
+            }
+            
             // ตรวจสอบว่า class implement interface หรือไม่
-            if (class_exists($className) && 
-                in_array(RuleFlowFunctionProvider::class, class_implements($className))) {
-                
-                // Get functions และ register
-                $functions = $className::getFunctions();
-                $info = method_exists($className, 'getInfo') ? $className::getInfo() : ['name' => $className];
-                
-                foreach ($functions as $name => $handler) {
-                    if (is_callable($handler)) {
-                        $this->functions->register($name, $handler);
-                        $this->autoLoadedFunctions[$name] = [
-                            'provider' => $className,
-                            'info' => $info
-                        ];
-                    }
+            if (!in_array(RuleFlowFunctionProvider::class, class_implements($className))) {
+                // Class exists but doesn't implement interface - this is OK
+                return;
+            }
+            
+            // Validate required methods
+            if (!method_exists($className, 'getFunctions')) {
+                throw new Exception("Class $className must implement getFunctions() method");
+            }
+            
+            // Get functions และ register
+            $functions = $className::getFunctions();
+            
+            if (!is_array($functions)) {
+                throw new Exception("Class $className getFunctions() must return array");
+            }
+            
+            $info = method_exists($className, 'getInfo') ? $className::getInfo() : ['name' => $className];
+            
+            $registeredCount = 0;
+            foreach ($functions as $name => $handler) {
+                if (is_callable($handler)) {
+                    $this->functions->register($name, $handler);
+                    $this->autoLoadedFunctions[$name] = [
+                        'provider' => $className,
+                        'info' => $info
+                    ];
+                    $registeredCount++;
+                } else {
+                    error_log("RuleFlow: Function '$name' from $className is not callable");
                 }
             }
+            
+            if ($registeredCount > 0) {
+                error_log("RuleFlow: Successfully loaded $registeredCount function(s) from $className");
+            }
+            
         } catch (Exception $e) {
-            // Silent fail - ไม่ให้ plugin ที่เสียทำให้ระบบหลักพัง
-            error_log("Failed to load function file {$file}: " . $e->getMessage());
+            // Add more context to error message
+            throw new Exception("Error loading function file $file: " . $e->getMessage());
         }
     }
     

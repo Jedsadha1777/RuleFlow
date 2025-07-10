@@ -36,9 +36,6 @@ class FormulaProcessor
     {
         $formulaId = $formula['id'];
 
-
-        echo ("=== Processing formula: {$formulaId} ===");
-        echo ("Formula type: " . $this->getFormulaType($formula));
         
         try {
             $result = null; // เพิ่มตัวแปร result
@@ -48,7 +45,10 @@ class FormulaProcessor
             }
             // Existing: Switch logic
             elseif (isset($formula['switch'])) {
-                $result = $this->processSwitch($formula, $context);
+              $switchResult = $this->processSwitch($formula, $context);
+
+                 $result = $switchResult['result'];
+                $context = $switchResult['context'];
             }
             // Existing: Regular formula evaluation
             elseif (isset($formula['formula'])) {
@@ -66,20 +66,12 @@ class FormulaProcessor
                 throw new RuleFlowException("Invalid formula structure for '$formulaId'");
             }
             
-            // 🔧 FIX: Store result properly (กลับมาใช้วิธีเดิม)
+
             $variableName = $formula['as'] ?? $formulaId;
             $storeKey = $this->normalizeVariableName($variableName);
+        
             $context[$storeKey] = $result;
-
-
-            
-            echo ("Result: " . ($result === null ? 'NULL' : $result));
-            echo ("Storing as: '{$storeKey}' (from: '{$variableName}')");
-            
-            $context[$storeKey] = $result;
-            
-            echo ("Context now has: " . implode(', ', array_keys($context)));
-            echo ("=== End formula: {$formulaId} ===");
+    
             
         } catch (Exception $e) {
             throw new RuleFlowException(
@@ -178,10 +170,7 @@ class FormulaProcessor
         $switchVar = $this->normalizeVariableName($formula['switch']);
         $switchValue = $context[$switchVar] ?? null;
 
-        // 🔧 DEBUG: Add logging
-        echo ("Switch debug - var: {$formula['switch']}, normalized: {$switchVar}");
-        echo ("Switch value: " . ($switchValue === null ? 'NULL' : $switchValue));
-        echo ("Available context: " . implode(', ', array_keys($context)));
+  
         
         if ($switchValue === null) {
             throw new RuleFlowException("Switch variable '{$formula['switch']}' not found in context");
@@ -204,7 +193,7 @@ class FormulaProcessor
                     $this->processSetVars($condition['set_vars'], $context);
                 }
                 
-                return $result; // 🔧 Return instead of storing here
+                 return ['result' => $result, 'context' => $context];
             }
         }
         
@@ -224,7 +213,7 @@ class FormulaProcessor
                 $result = $this->evaluateResult(['result' => $formula['default']], $context);
             }
             
-            return $result;
+             return ['result' => $result, 'context' => $context];
         }
         
         throw new RuleFlowException("No matching condition found and no default specified");
@@ -438,19 +427,59 @@ class FormulaProcessor
     /**
      * Process set_vars
      */
-    private function processSetVars(array $setVars, array &$context): void
-    {
-        foreach ($setVars as $varName => $value) {
-            $storeKey = $this->normalizeVariableName($varName);
+   private function processSetVars(array $setVars, array &$context): void
+{
+  
+    
+    foreach ($setVars as $varName => $value) {
+        $storeKey = $this->normalizeVariableName($varName);
+        
+   
+        if (is_string($value)) {
+            $hasVar = strpos($value, '$') !== false;
+            $hasOp = preg_match('/[+\-*\/()]/', $value);
             
-            // If value looks like a formula, evaluate it
-            if (is_string($value) && $this->looksLikeFormula($value)) {
-                $context[$storeKey] = $this->evaluator->safeEval($value, $context);
+       
+            
+            if ($hasVar || $hasOp) {
+    
+                
+                // 🔧 CREATE FILTERED CONTEXT
+                $filteredContext = [];
+                
+                // Extract variable names from expression
+                if (preg_match_all('/\$?(\w+)/', $value, $matches)) {
+                  
+                    
+                    foreach ($matches[1] as $foundVar) {
+                        if (isset($context[$foundVar])) {
+                            $filteredContext[$foundVar] = $context[$foundVar];
+                         
+                        }
+                    }
+                }
+                
+
+                
+                try {
+                    $evaluatedValue = $this->evaluator->safeEval($value, $filteredContext);
+                    $context[$storeKey] = $evaluatedValue;
+           
+                } catch (Exception $e) {
+                  
+                    $context[$storeKey] = $value;
+                }
             } else {
                 $context[$storeKey] = $value;
+
             }
+        } else {
+            $context[$storeKey] = $value;
+
         }
     }
+
+}
 
     /**
      * Check if string looks like a formula

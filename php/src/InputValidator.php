@@ -208,10 +208,63 @@ class InputValidator
         }
         
         if (is_string($value)) {
-            // Remove currency symbols and commas
-            $cleaned = preg_replace('/[^\d.-]/', '', $value);
-            if (is_numeric($cleaned)) {
-                return (float)$cleaned;
+            // Remove currency symbols and parentheses first
+            $cleaned = preg_replace('/[^\d.,-]/', '', $value);
+            
+            // 🔧 Handle different currency formats
+            
+            // European format: 1.234,56 (dot = thousands, comma = decimal)
+            if (preg_match('/^\d{1,3}(\.\d{3})*,\d{2}$/', $cleaned)) {
+                // Replace dots (thousands separator) and convert comma to dot
+                $normalized = str_replace(['.', ','], ['', '.'], $cleaned);
+                return (float)$normalized;
+            }
+            
+            // US format: 1,234.56 (comma = thousands, dot = decimal)
+            if (preg_match('/^\d{1,3}(,\d{3})*\.\d{2}$/', $cleaned)) {
+                // Remove commas (thousands separator)
+                $normalized = str_replace(',', '', $cleaned);
+                return (float)$normalized;
+            }
+            
+            // Simple format with commas as thousands: 25,000
+            if (preg_match('/^\d{1,3}(,\d{3})+$/', $cleaned)) {
+                $normalized = str_replace(',', '', $cleaned);
+                return (float)$normalized;
+            }
+            
+            // Simple format with dots as thousands: 25.000
+            if (preg_match('/^\d{1,3}(\.\d{3})+$/', $cleaned)) {
+                $normalized = str_replace('.', '', $cleaned);
+                return (float)$normalized;
+            }
+            
+            // Fallback: remove all non-digit characters except last decimal point
+            if (preg_match('/\d/', $cleaned)) {
+                // Find the last decimal separator
+                $lastDot = strrpos($cleaned, '.');
+                $lastComma = strrpos($cleaned, ',');
+                
+                if ($lastDot !== false && $lastComma !== false) {
+                    // Both exist - the later one is decimal separator
+                    if ($lastDot > $lastComma) {
+                        // Dot is decimal separator
+                        $normalized = preg_replace('/[^0-9.]/', '', $cleaned);
+                        $normalized = preg_replace('/\.(?=.*\.)/', '', $normalized); // Remove all dots except last
+                    } else {
+                        // Comma is decimal separator
+                        $normalized = str_replace(',', '.', preg_replace('/[^0-9,]/', '', $cleaned));
+                        $normalized = preg_replace('/\.(?=.*\.)/', '', $normalized); // Remove all dots except last
+                    }
+                } else {
+                    // Only one type exists
+                    $normalized = preg_replace('/[^0-9.,-]/', '', $cleaned);
+                    $normalized = str_replace(',', '.', $normalized);
+                }
+                
+                if (is_numeric($normalized)) {
+                    return (float)$normalized;
+                }
             }
         }
         
@@ -233,11 +286,10 @@ class InputValidator
             $value = (string)$value;
         }
         
-        // Remove all non-digits
         $digits = preg_replace('/\D/', '', $value);
         
-        // Basic validation (at least 10 digits)
-        if (strlen($digits) < 10) {
+        $length = strlen($digits);
+        if ($length < 7 || $length > 15) {
             throw new Exception("Invalid phone number: '$value'");
         }
         
@@ -290,18 +342,41 @@ class InputValidator
         return $sanitized;
     }
     
-    private function applySanitization($value, array $rules): mixed
+   private function applySanitization($value, array $rules): mixed
     {
         foreach ($rules as $rule) {
             $value = match($rule) {
                 'trim' => is_string($value) ? trim($value) : $value,
                 'lowercase' => is_string($value) ? strtolower($value) : $value,
                 'uppercase' => is_string($value) ? strtoupper($value) : $value,
-                'strip_tags' => is_string($value) ? strip_tags($value) : $value,
+                'strip_tags' => is_string($value) ? $this->removeXSS($value) : $value,
                 'htmlspecialchars' => is_string($value) ? htmlspecialchars($value) : $value,
                 'remove_scripts' => is_string($value) ? preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/mi', '', $value) : $value,
                 default => $value
             };
+        }
+        
+        return $value;
+    }
+
+    private function removeXSS(string $value): string
+    {
+        // Remove script tags and their content completely
+        $value = preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/mi', '', $value);
+        
+        // Remove all HTML tags
+        $value = strip_tags($value);
+        
+        // Remove JavaScript patterns
+        $xssPatterns = [
+            '/javascript:/i',
+            '/on\w+\s*=/i',
+            '/eval\s*\(/i',
+            '/expression\s*\(/i'
+        ];
+        
+        foreach ($xssPatterns as $pattern) {
+            $value = preg_replace($pattern, '', $value);
         }
         
         return $value;
