@@ -69,31 +69,31 @@ function demo2_credit_scoring() {
                     [
                         'var' => 'income',
                         'ranges' => [
-                            ['if' => ['op' => '>=', 'value' => 100000], 'score' => 40],
-                            ['if' => ['op' => '>=', 'value' => 50000], 'score' => 25],
-                            ['if' => ['op' => '>=', 'value' => 30000], 'score' => 15]
+                            ['if' => ['op' => '>=', 'value' => 100000], 'result' => 40],
+                            ['if' => ['op' => '>=', 'value' => 50000], 'result' => 25],
+                            ['if' => ['op' => '>=', 'value' => 30000], 'result' => 15]
                         ]
                     ],
                     [
                         'var' => 'age',
                         'ranges' => [
-                            ['if' => ['op' => 'between', 'value' => [25, 45]], 'score' => 20],
-                            ['if' => ['op' => 'between', 'value' => [46, 60]], 'score' => 15],
-                            ['if' => ['op' => '>=', 'value' => 18], 'score' => 10]
+                            ['if' => ['op' => 'between', 'value' => [25, 45]], 'result' => 20],
+                            ['if' => ['op' => 'between', 'value' => [46, 60]], 'result' => 15],
+                            ['if' => ['op' => '>=', 'value' => 18], 'result' => 10]
                         ]
                     ],
                     [
                         'var' => 'employment_years',
                         'ranges' => [
-                            ['if' => ['op' => '>=', 'value' => 5], 'score' => 20],
-                            ['if' => ['op' => '>=', 'value' => 2], 'score' => 15],
-                            ['if' => ['op' => '>=', 'value' => 1], 'score' => 10]
+                            ['if' => ['op' => '>=', 'value' => 5], 'result' => 20],
+                            ['if' => ['op' => '>=', 'value' => 2], 'result' => 15],
+                            ['if' => ['op' => '>=', 'value' => 1], 'result' => 10]
                         ]
                     ],
                     [
                         'var' => 'has_property',
                         'if' => ['op' => '==', 'value' => 1],
-                        'score' => 20
+                        'result' => 20
                     ]
                 ]
             ],
@@ -173,7 +173,7 @@ function demo3_blood_pressure() {
                     [
                         'var' => 'gender',
                         'if' => ['op' => '==', 'value' => 'female'],
-                        'score' => 1
+                        'result' => 1
                     ]
                 ]
             ],
@@ -298,20 +298,20 @@ function demo4_discount_system() {
                     [
                         'var' => 'is_birthday_month',
                         'if' => ['op' => '==', 'value' => 1],
-                        'score' => 5
+                        'result' => 5
                     ],
                     [
                         'var' => 'order_amount',
                         'ranges' => [
-                            ['if' => ['op' => '>=', 'value' => 5000], 'score' => 3],
-                            ['if' => ['op' => '>=', 'value' => 2000], 'score' => 2],
-                            ['if' => ['op' => '>=', 'value' => 1000], 'score' => 1]
+                            ['if' => ['op' => '>=', 'value' => 5000], 'result' => 3],
+                            ['if' => ['op' => '>=', 'value' => 2000], 'result' => 2],
+                            ['if' => ['op' => '>=', 'value' => 1000], 'result' => 1]
                         ]
                     ],
                     [
                         'var' => 'is_first_order',
                         'if' => ['op' => '==', 'value' => 1],
-                        'score' => 10
+                        'result' => 10
                     ]
                 ]
             ],
@@ -363,7 +363,7 @@ function demo4_discount_system() {
 }
 
 /**
- * Demo 5: Academic Grading System with $ notation
+ * Demo 5: Academic Grading System (CORRECTED)
  */
 function demo5_grading_system() {
     echo "\n=== DEMO 5: Academic Grading System ===\n";
@@ -378,22 +378,20 @@ function demo5_grading_system() {
             ],
             [
                 'id' => 'attendance_bonus',
-                'scoring' => [
-                    'ranges' => [
-                        [
-                            'if' => ['op' => '==', 'value' => 100],
-                            'score' => 2,
-                            'set_vars' => ['$has_bonus' => true]
-                        ],
-                        [
-                            'if' => ['op' => '>=', 'value' => 95],
-                            'score' => 1,
-                            'set_vars' => ['$has_bonus' => true]
-                        ]
+                'switch' => 'attendance',
+                'when' => [
+                    [
+                        'if' => ['op' => '==', 'value' => 100],
+                        'result' => 2,
+                        'set_vars' => ['$has_bonus' => true, '$bonus_reason' => 'Perfect Attendance']
                     ],
-                    'default' => 0
+                    [
+                        'if' => ['op' => '>=', 'value' => 95],
+                        'result' => 1,
+                        'set_vars' => ['$has_bonus' => true, '$bonus_reason' => 'Excellent Attendance']
+                    ]
                 ],
-                'as' => '$total_score'  // ใช้ total_score ที่คำนวณแล้ว
+                'default' => 0
             ],
             [
                 'id' => 'final_score_with_bonus',
@@ -465,7 +463,7 @@ function demo5_grading_system() {
     echo "- Attendance: {$inputs['attendance']}/100 (10%)\n";
     echo "\nWeighted Score: " . round($result['total_score'], 2) . "/100\n";
     if ($result['attendance_bonus'] > 0) {
-        echo "Attendance Bonus: +{$result['attendance_bonus']}\n";
+        echo "Attendance Bonus: +{$result['attendance_bonus']} ({$result['bonus_reason']})\n";
         echo "Final Score: " . round($result['final_score'], 2) . "/100\n";
     }
     echo "Letter Grade: {$result['letter_grade']}\n";
@@ -478,7 +476,7 @@ function demo5_grading_system() {
 }
 
 /**
- * Demo 6: Advanced Product Pricing with $ expressions
+ * Demo 6: Advanced Product Pricing (CORRECTED)
  */
 function demo6_dynamic_pricing() {
     echo "\n=== DEMO 6: Dynamic Product Pricing ===\n";
@@ -532,13 +530,13 @@ function demo6_dynamic_pricing() {
                     [
                         'var' => 'is_peak_season',
                         'if' => ['op' => '==', 'value' => 1],
-                        'score' => 15,
+                        'result' => 15,
                         'set_vars' => ['$seasonal_note' => 'Peak Season']
                     ],
                     [
                         'var' => 'is_holiday',
                         'if' => ['op' => '==', 'value' => 1],
-                        'score' => 10,
+                        'result' => 10,
                         'set_vars' => ['$holiday_note' => 'Holiday Premium']
                     ]
                 ]

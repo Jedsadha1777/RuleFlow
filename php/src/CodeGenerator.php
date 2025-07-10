@@ -143,7 +143,6 @@ class CodeGenerator
         
         foreach ($rules as $rule) {
             $variable = $rule['var'];
-            // Handle $ notation for variable reference
             $varKey = $this->normalizeVariableName($variable);
             
             $code .= "    \$value = \$context['$varKey'] ?? null;\n";
@@ -159,7 +158,9 @@ class CodeGenerator
                         $code .= "        } elseif ($condition) {\n";
                     }
                     
-                    $code .= "            \$score += {$range['score']};\n";
+                    // FIX: Use 'result' instead of 'score'
+                    $result = $range['result'] ?? 0;
+                    $code .= "            \$score += $result;\n";
                     
                     // Handle set_vars in ranges
                     if (isset($range['set_vars'])) {
@@ -170,7 +171,10 @@ class CodeGenerator
             } elseif (isset($rule['if'])) {
                 $condition = $this->generateConditionCode('$value', $rule['if']);
                 $code .= "        if ($condition) {\n";
-                $code .= "            \$score += {$rule['score']};\n";
+                
+                // FIX: Use 'result' instead of 'score'
+                $result = $rule['result'] ?? 0;
+                $code .= "            \$score += $result;\n";
                 
                 // Handle set_vars in rules
                 if (isset($rule['set_vars'])) {
@@ -184,7 +188,6 @@ class CodeGenerator
         }
         
         $code .= "    \$context['$id'] = \$score;\n";
-        
         return $code;
     }
 

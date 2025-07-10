@@ -36,29 +36,23 @@ class FormulaProcessor
     {
         $formulaId = $formula['id'];
 
-        
         try {
-            $result = null; // เพิ่มตัวแปร result
+            $result = null;
             
             if (isset($formula['function_call'])) {
                 $result = $this->processFunctionCall($formula, $context);
             }
-            // Existing: Switch logic
             elseif (isset($formula['switch'])) {
-              $switchResult = $this->processSwitch($formula, $context);
-
-                 $result = $switchResult['result'];
+                $switchResult = $this->processSwitch($formula, $context);
+                $result = $switchResult['result'];
                 $context = $switchResult['context'];
             }
-            // Existing: Regular formula evaluation
             elseif (isset($formula['formula'])) {
                 $result = $this->processExpressionFormula($formula, $context);
             }
-            // Existing: Rules-based scoring
             elseif (isset($formula['rules'])) {
                 $result = $this->processAccumulativeScore($formula, $context);
             }
-            // Existing: Weighted scoring
             elseif (isset($formula['scoring'])) {
                 $result = $this->processWeightScore($formula, $context);
             }
@@ -66,12 +60,8 @@ class FormulaProcessor
                 throw new RuleFlowException("Invalid formula structure for '$formulaId'");
             }
             
-
-            $variableName = $formula['as'] ?? $formulaId;
-            $storeKey = $this->normalizeVariableName($variableName);
-        
-            $context[$storeKey] = $result;
-    
+            // Handle result storage
+            $this->storeFormulaResult($formulaId, $formula, $result, $context);
             
         } catch (Exception $e) {
             throw new RuleFlowException(
@@ -105,6 +95,35 @@ class FormulaProcessor
             return $registry->call($functionName, $args);
         } catch (Exception $e) {
             throw new RuleFlowException("Function '$functionName' call failed: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Store formula result with proper handling of complex results
+     * CLEAR RESPONSIBILITY: Only result storage logic
+     */
+    private function storeFormulaResult(string $formulaId, array $formula, $result, array &$context): void
+    {
+        $variableName = $formula['as'] ?? $formulaId;
+        $storeKey = $this->normalizeVariableName($variableName);
+        
+        if (is_array($result) && isset($result['score'])) {
+            // Multi-dimensional scoring result
+            $context[$storeKey] = $result['score'];
+            
+            // Store additional properties with formula prefix
+            foreach ($result as $key => $value) {
+                if ($key === 'score') continue;
+                
+                if ($key === 'set_vars' && is_array($value)) {
+                    $this->processSetVars($value, $context);
+                } else {
+                    $context["{$formulaId}_{$key}"] = $value;
+                }
+            }
+        } else {
+            // Simple result
+            $context[$storeKey] = $result;
         }
     }
     
@@ -225,7 +244,7 @@ class FormulaProcessor
     private function processAccumulativeScore(array $formula, array $context): float
     {
         $totalScore = 0.0;
-        
+    
         foreach ($formula['rules'] as $rule) {
             $varKey = $this->normalizeVariableName($rule['var']);
             $value = $context[$varKey] ?? null;
@@ -238,7 +257,8 @@ class FormulaProcessor
             if (isset($rule['ranges'])) {
                 foreach ($rule['ranges'] as $range) {
                     if ($this->evaluateCondition($range['if'], $value, $context)) {
-                        $totalScore += $range['score'];
+                        // FIX: Use 'result' instead of 'score'
+                        $totalScore += $range['result'] ?? 0;
                         break;
                     }
                 }
@@ -246,7 +266,8 @@ class FormulaProcessor
             // Handle single condition
             elseif (isset($rule['if'])) {
                 if ($this->evaluateCondition($rule['if'], $value, $context)) {
-                    $totalScore += $rule['score'];
+                    // FIX: Use 'result' instead of 'score'
+                    $totalScore += $rule['result'] ?? 0;
                 }
             }
         }
@@ -259,12 +280,11 @@ class FormulaProcessor
      */
     private function processWeightScore(array $formula, array $context): mixed
     {
-        if (isset($formula['scoring']['ifs'])) {
-             $result = $this->processMultiConditionScoring($formula, $context);
-
-             return is_array($result) ? ($result['score'] ?? 0) : $result;
-
+         if (isset($formula['scoring']['ifs'])) {
+            // Multi-dimensional scoring
+            return $this->processMultiConditionScoring($formula, $context);
         } elseif (isset($formula['scoring']['if'])) {
+            // Simple scoring
             return $this->processSimpleWeightScore($formula, $context);
         }
         
@@ -294,7 +314,8 @@ class FormulaProcessor
         }
         
         if ($this->evaluateCondition($formula['scoring']['if'], $value, $context)) {
-            return (float)$formula['scoring']['score'];
+            // FIX: Use 'result' instead of 'score' if available
+            return (float)($formula['scoring']['result'] ?? $formula['scoring']['score'] ?? 0);
         }
         
         return 0.0;
@@ -305,47 +326,124 @@ class FormulaProcessor
      */
     private function evaluateMultiConditionScore(array $multiCondition, array $context): array
     {
-        $variables = $multiCondition['vars'];
+         $variables = $multiCondition['vars'];
         $matrix = $multiCondition['tree'];
         
+        // Get input values
+        $inputValues = $this->extractInputValues($variables, $context);
+        if (empty($inputValues)) {
+            return $this->createDefaultResult();
+        }
+        
+        // Find matching rule
+        $matchedRule = $this->findMatchingRule($matrix, $inputValues, $context);
+        
+        // Build complete result
+        return $this->buildScoringResult($matchedRule);
+    }
+
+    /**
+     * Extract input values for variables
+     * CLEAR RESPONSIBILITY: Only handle input extraction
+     */
+    private function extractInputValues(array $variables, array $context): array
+    {
         $values = [];
         foreach ($variables as $var) {
             $varKey = $this->normalizeVariableName($var);
             $value = $context[$varKey] ?? null;
             if ($value === null) {
-                return ['score' => 0];
+                return []; // Return empty if any variable is missing
             }
             $values[] = $value;
         }
-        
-        $result = $this->navigateMatrix($matrix, $values, 0, $context);
-        
-        return is_array($result) ? $result : ['score' => $result];
+        return $values;
     }
 
     /**
-     * Navigate scoring matrix
+     * Find the matching rule in the multi-dimensional matrix
+     * CLEAR RESPONSIBILITY: Only navigate and find the match
      */
-    private function navigateMatrix(array $matrix, array $values, int $depth, array $context): mixed
+    private function findMatchingRule(array $matrix, array $values, array $context): ?array
     {
+        return $this->navigateMatrix($matrix, $values, 0, $context);
+    }
+
+    /**
+     * Navigate scoring matrix - SIMPLIFIED AND FOCUSED
+     * CLEAR RESPONSIBILITY: Only navigation logic
+     */
+    private function navigateMatrix(array $matrix, array $values, int $depth, array $context): ?array
+    {
+        // Base case: if we've processed all dimensions, return the matrix itself
         if ($depth >= count($values)) {
-            return $matrix;
+            return is_array($matrix) ? $matrix : null;
         }
         
-        $value = $values[$depth];
+        $currentValue = $values[$depth];
         
+        // Find matching condition at current depth
         foreach ($matrix as $node) {
-            if ($this->evaluateCondition($node['if'], $value, $context)) {
-                if (isset($node['children'])) {
-                    return $this->navigateMatrix($node['children'], $values, $depth + 1, $context);
+            if ($this->evaluateCondition($node['if'], $currentValue, $context)) {
+                // If this is the last dimension, find the final match in ranges
+                if ($depth === count($values) - 1) {
+                    if (isset($node['ranges'])) {
+                        // This is the final dimension, evaluate ranges
+                        foreach ($node['ranges'] as $range) {
+                            if ($this->evaluateCondition($range['if'], $values[$depth], $context)) {
+                                return $range;
+                            }
+                        }
+                    }
+                    // No ranges or no match in ranges
+                    return $node;
                 } else {
-                    return $node['score'] ?? 0;
+                    // Continue to next dimension
+                    if (isset($node['ranges'])) {
+                        return $this->navigateMatrix($node['ranges'], $values, $depth + 1, $context);
+                    }
                 }
             }
         }
         
-        return 0;
+        return null; // No match found
     }
+
+    /**
+     * Build complete scoring result
+     * CLEAR RESPONSIBILITY: Only result construction
+     */
+    private function buildScoringResult(?array $matchedRule): array
+    {
+        if ($matchedRule === null) {
+            return $this->createDefaultResult();
+        }
+        
+        $result = [
+            'score' => $matchedRule['score'] ?? 0
+        ];
+        
+        // Add all additional properties except structural ones
+        $excludedKeys = ['if', 'score', 'ranges', 'children'];
+        foreach ($matchedRule as $key => $value) {
+            if (!in_array($key, $excludedKeys)) {
+                $result[$key] = $value;
+            }
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Create default result when no match is found
+     */
+    private function createDefaultResult(): array
+    {
+        return ['score' => 0];
+    }
+
+
+    
 
     /**
      * 🔧 Fixed evaluateCondition method with correct parameter order
@@ -427,75 +525,156 @@ class FormulaProcessor
     /**
      * Process set_vars
      */
-   private function processSetVars(array $setVars, array &$context): void
-{
-  
-    
-    foreach ($setVars as $varName => $value) {
-        $storeKey = $this->normalizeVariableName($varName);
-        
-   
-        if (is_string($value)) {
-            $hasVar = strpos($value, '$') !== false;
-            $hasOp = preg_match('/[+\-*\/()]/', $value);
+    private function processSetVars(array $setVars, array &$context): void
+    {
+        foreach ($setVars as $varName => $value) {
+            $storeKey = $this->normalizeVariableName($varName);
             
-       
-            
-            if ($hasVar || $hasOp) {
-    
-                
-                // 🔧 CREATE FILTERED CONTEXT
-                $filteredContext = [];
-                
-                // Extract variable names from expression
-                if (preg_match_all('/\$?(\w+)/', $value, $matches)) {
-                  
-                    
-                    foreach ($matches[1] as $foundVar) {
-                        if (isset($context[$foundVar])) {
-                            $filteredContext[$foundVar] = $context[$foundVar];
-                         
-                        }
+            if (is_string($value)) {
+                // Check if it's a simple reference (e.g., '$base_points')
+                if ($this->isSimpleReference($value)) {
+                    $referenceKey = $this->normalizeVariableName($value);
+                    if (isset($context[$referenceKey])) {
+                        // Direct assignment to preserve type
+                        $context[$storeKey] = $context[$referenceKey];
+                    } else {
+                        throw new RuleFlowException("Reference variable '$value' not found in context");
                     }
                 }
-                
-
-                
-                try {
-                    $evaluatedValue = $this->evaluator->safeEval($value, $filteredContext);
-                    $context[$storeKey] = $evaluatedValue;
-           
-                } catch (Exception $e) {
-                  
-                    $context[$storeKey] = $value;
+                // Check if it contains variables or operators (expression)
+                elseif ($this->hasVariablesOrOperators($value)) {
+                    // CREATE FILTERED CONTEXT
+                    $filteredContext = [];
+                    
+                    // Extract variable names from expression
+                    if (preg_match_all('/\$?[a-zA-Z_][a-zA-Z0-9_]*/', $value, $matches)) {
+                        foreach ($matches[0] as $varName) {
+                            $normalizedVar = $this->normalizeVariableName($varName);
+                            if (isset($context[$normalizedVar])) {
+                                $filteredContext[$normalizedVar] = $context[$normalizedVar];
+                            }
+                        }
+                    }
+                    
+                    try {
+                        $evaluatedValue = $this->evaluator->safeEval($value, $filteredContext);
+                        $context[$storeKey] = $evaluatedValue;
+                    } catch (Exception $e) {
+                        throw new RuleFlowException("Error evaluating set_vars expression '$value': " . $e->getMessage());
+                    }
+                }
+                else {
+                    // Simple literal string - apply type conversion
+                    $context[$storeKey] = $this->convertValueType($value);
                 }
             } else {
+                // Direct assignment for non-string values
                 $context[$storeKey] = $value;
-
             }
-        } else {
-            $context[$storeKey] = $value;
-
         }
     }
 
-}
+    private function hasVariablesOrOperators($value): bool
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+        
+        $hasVar = strpos($value, '$') !== false;
+        $hasOp = preg_match('/[+\-*\/()]/', $value);
+        
+        return $hasVar || $hasOp;
+    }
+
+
+    /**
+     * Check if value is a simple reference (e.g., '$variable_name')
+     */
+    private function isSimpleReference($value): bool
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+        
+        $trimmed = trim($value);
+        // Match exactly: $variable_name (no operators, no extra text)
+        return preg_match('/^\$[a-zA-Z_][a-zA-Z0-9_]*$/', $trimmed) === 1;
+    }
+
+    
+    /**
+     * Convert string value to appropriate type - NEW METHOD
+     */
+    private function convertValueType($value)
+    {
+        // If not string, return as-is
+        if (!is_string($value)) {
+            return $value;
+        }
+        
+        $trimmed = trim($value);
+        
+        // Handle empty string
+        if ($trimmed === '') {
+            return '';
+        }
+
+        // Handle numeric values
+        if (is_numeric($trimmed)) {
+                // Check if it's an integer
+                if (ctype_digit($trimmed) || (substr($trimmed, 0, 1) === '-' && ctype_digit(substr($trimmed, 1)))) {
+                    $intValue = (int)$trimmed;
+                    // Ensure no precision loss
+                    if ((string)$intValue === $trimmed) {
+                        return $intValue;
+                    }
+                }
+                
+                // It's a float
+                return (float)$trimmed;
+            }
+        
+        // Handle boolean values
+         if (in_array(strtolower($trimmed), ['true', 'yes', 'on'])) {
+            return true;
+        }
+        if (in_array(strtolower($trimmed), ['false', 'no', 'off'])) {
+            return false;
+        }
+        
+        // Handle null
+        if (strtolower($trimmed) === 'null') {
+            return null;
+        }
+        
+        
+        
+        // Return as string if no conversion applies
+        return $value;
+    }
 
     /**
      * Check if string looks like a formula
      */
-    private function looksLikeFormula(string $str): bool
+    private function looksLikeFormula($value): bool
     {
-        // Simple check for mathematical operators or function calls
-        return preg_match('/[+\-*\/()]|\w+\s*\(/', $str) === 1;
+        // FIX: Handle null and non-string values
+        if (!is_string($value) || $value === null) {
+            return false;
+        }
+        
+        // Simple heuristic: contains operators or function calls
+        return preg_match('/[+\-*\/()]/', $value) || 
+            preg_match('/[a-zA-Z_][a-zA-Z0-9_]*\s*\(/', $value);
     }
+
 
     /**
      * Normalize variable name (handle $ prefix)
      */
     private function normalizeVariableName(string $varName): string
     {
-         return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
+        return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
     }
 
     /**
