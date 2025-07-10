@@ -6,6 +6,11 @@ declare(strict_types=1);
 class ExpressionEvaluator
 {
     private FunctionRegistry $functions;
+
+    public function getFunctionRegistry(): FunctionRegistry
+    {
+        return $this->functions;
+    }
     
     private array $operatorPrecedence = [
         'u-' => 5,  // เพิ่ม unary minus ด้วย precedence สูงสุด
@@ -204,15 +209,37 @@ class ExpressionEvaluator
     /**
      * Replace variables with their values
      */
-    private function replaceVariables(string $expr, array $vars): string
+   private function replaceVariables(string $expr, array $vars): string
     {
-        foreach ($vars as $key => $value) {
-            if (!is_numeric($value)) {
-                throw new RuleFlowException("Variable {$key} must be numeric, got: " . gettype($value));
+        // Remove spaces for easier processing
+        $expr = trim($expr);
+        
+        // 🔧 FIX: Replace $variable with actual values WITHOUT adding extra $
+        $expr = preg_replace_callback('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', function($matches) use ($vars) {
+            $varName = $matches[1];
+            
+            if (isset($vars[$varName])) {
+                $value = $vars[$varName];
+                
+                // 🔧 CRITICAL: Return the VALUE directly, not with $ prefix
+                if (is_numeric($value)) {
+                    return (string)$value;  // Return "100", not "$100"
+                } else {
+                    throw new RuleFlowException("Variable $varName must be numeric, got: " . gettype($value));
+                }
+            } else {
+                throw new RuleFlowException("Variable \$$varName not found in context");
             }
-            $expr = preg_replace('/\b' . preg_quote($key, '/') . '\b/', (string)$value, $expr);
+        }, $expr);
+        
+        // Also handle variables without $ prefix
+        foreach ($vars as $varName => $value) {
+            if (is_numeric($value)) {
+                // Replace whole word boundaries only
+                $expr = preg_replace('/\b' . preg_quote($varName, '/') . '\b/', (string)$value, $expr);
+            }
         }
-
+        
         return $expr;
     }
 
@@ -226,6 +253,10 @@ class ExpressionEvaluator
             if (strpos($expr, $func) !== false) {
                 return;
             }
+        }
+
+        if (preg_match('/\$/', $expr)) {
+            throw new RuleFlowException("Expression contains unresolved variables or invalid characters: '$expr'");
         }
         
         // อัปเดต regex pattern ให้รองรับ negative numbers

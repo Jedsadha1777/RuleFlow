@@ -567,6 +567,12 @@ class ConfigValidator
             $errors[] = "$prefix: 'switch' field must reference a valid variable or use \$ notation";
         }
 
+        // 🆕 Add function_call validation
+        if (isset($formula['function_call'])) {
+            $functionErrors = $this->validateFunctionCall($formula, $prefix);
+            $errors = array_merge($errors, $functionErrors);
+        }
+
         if (isset($formula['formula'])) {
             $expressionErrors = $this->validateExpressionFormula($formula, $prefix);
             $errors = array_merge($errors, $expressionErrors);
@@ -588,10 +594,33 @@ class ConfigValidator
         }
 
         if (!isset($formula['formula']) && !isset($formula['switch']) && 
-            !isset($formula['scoring']) && !isset($formula['rules'])) {
+            !isset($formula['scoring']) && !isset($formula['rules']) && 
+            !isset($formula['function_call'])) {
             $errors[] = "$prefix: Formula must have at least one action";
         }
 
+        return $errors;
+    }
+
+    /**
+     *  Validate function_call structure
+     */
+    private function validateFunctionCall(array $formula, string $prefix): array
+    {
+        $errors = [];
+        
+        // Validate function_call field
+        if (!is_string($formula['function_call']) || empty($formula['function_call'])) {
+            $errors[] = "$prefix: 'function_call' must be a non-empty string";
+        }
+        
+        // Validate params field (optional)
+        if (isset($formula['params'])) {
+            if (!is_array($formula['params'])) {
+                $errors[] = "$prefix: 'params' must be an array";
+            }
+        }
+        
         return $errors;
     }
 
@@ -695,6 +724,18 @@ class ConfigValidator
             $outputs[$id] = $storeAs;
 
             $deps = [];
+            
+            if (isset($formula['function_call']) && isset($formula['params'])) {
+                foreach ($formula['params'] as $param) {
+                    if (is_string($param)) {
+                        $paramName = ltrim($param, '$');
+                        if (!is_numeric($param) && $param !== 'true' && $param !== 'false') {
+                            $deps[] = $paramName;
+                        }
+                    }
+                }
+            }
+            
             if (isset($formula['inputs'])) {
                 $deps = array_merge($deps, $formula['inputs']);
             }
@@ -823,6 +864,20 @@ class ConfigValidator
         $requiredInputs = [];
         
         foreach ($config['formulas'] as $formula) {
+            // 🆕 Handle function_call params
+            if (isset($formula['function_call']) && isset($formula['params'])) {
+                foreach ($formula['params'] as $param) {
+                    if (is_string($param)) {
+                        // Remove $ prefix if present
+                        $paramName = ltrim($param, '$');
+                        // Only add if it looks like a variable (not a literal)
+                        if (!is_numeric($param) && $param !== 'true' && $param !== 'false') {
+                            $requiredInputs[] = $paramName;
+                        }
+                    }
+                }
+            }
+            
             if (isset($formula['inputs'])) {
                 foreach ($formula['inputs'] as $input) {
                     $normalizedInput = $this->normalizeVariableName($input);

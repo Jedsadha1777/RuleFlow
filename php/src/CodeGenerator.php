@@ -143,7 +143,6 @@ class CodeGenerator
         
         foreach ($rules as $rule) {
             $variable = $rule['var'];
-            // Handle $ notation for variable reference
             $varKey = $this->normalizeVariableName($variable);
             
             $code .= "    \$value = \$context['$varKey'] ?? null;\n";
@@ -159,7 +158,9 @@ class CodeGenerator
                         $code .= "        } elseif ($condition) {\n";
                     }
                     
-                    $code .= "            \$score += {$range['score']};\n";
+                    // FIX: Use 'result' instead of 'score'
+                    $result = $range['result'] ?? 0;
+                    $code .= "            \$score += $result;\n";
                     
                     // Handle set_vars in ranges
                     if (isset($range['set_vars'])) {
@@ -170,7 +171,10 @@ class CodeGenerator
             } elseif (isset($rule['if'])) {
                 $condition = $this->generateConditionCode('$value', $rule['if']);
                 $code .= "        if ($condition) {\n";
-                $code .= "            \$score += {$rule['score']};\n";
+                
+                // FIX: Use 'result' instead of 'score'
+                $result = $rule['result'] ?? 0;
+                $code .= "            \$score += $result;\n";
                 
                 // Handle set_vars in rules
                 if (isset($rule['set_vars'])) {
@@ -184,7 +188,6 @@ class CodeGenerator
         }
         
         $code .= "    \$context['$id'] = \$score;\n";
-        
         return $code;
     }
 
@@ -392,22 +395,54 @@ class CodeGenerator
     /**
      * Generate condition code with $ notation support
      */
-    private function generateConditionCode(string $variable, array $condition): string
+    private function generateConditionCode(string $variable, $condition): string
     {
-        $operator = $condition['op'];
-        $value = $condition['value'];
+        if (is_array($condition)) {
+            if (isset($condition['and'])) {
+                $subConditions = [];
+                foreach ($condition['and'] as $subCondition) {
+                    $subConditions[] = $this->generateConditionCode($variable, $subCondition);
+                }
+                return '(' . implode(' && ', $subConditions) . ')';
+            }
+            
+            if (isset($condition['or'])) {
+                $subConditions = [];
+                foreach ($condition['or'] as $subCondition) {
+                    $subConditions[] = $this->generateConditionCode($variable, $subCondition);
+                }
+                return '(' . implode(' || ', $subConditions) . ')';
+            }
+            
+            // Handle variable reference in condition
+            if (isset($condition['var'])) {
+                $varKey = $this->normalizeVariableName($condition['var']);
+                $variable = "\$context['$varKey']";
+            }
+            
+            // Handle original single condition logic
+            $operator = $condition['op'] ?? '==';
+            $value = $condition['value'] ?? null;
         
-        return match ($operator) {
-            '<' => "$variable < " . $this->formatConditionValue($value),
-            '<=' => "$variable <= " . $this->formatConditionValue($value),
-            '>' => "$variable > " . $this->formatConditionValue($value),
-            '>=' => "$variable >= " . $this->formatConditionValue($value),
-            '==' => "$variable == " . $this->escapePhpValue($value),
-            '!=' => "$variable != " . $this->escapePhpValue($value),
-            'between' => $this->generateBetweenCondition($variable, $value),
-            'in' => "in_array($variable, " . var_export($value, true) . ", true)",
-            default => throw new RuleFlowException("Unsupported operator: $operator")
-        };
+            return match ($operator) {
+                '<' => "$variable < " . $this->formatConditionValue($value),
+                '<=' => "$variable <= " . $this->formatConditionValue($value),
+                '>' => "$variable > " . $this->formatConditionValue($value),
+                '>=' => "$variable >= " . $this->formatConditionValue($value),
+                '==' => "$variable == " . $this->escapePhpValue($value),
+                '!=' => "$variable != " . $this->escapePhpValue($value),
+                'between' => $this->generateBetweenCondition($variable, $value),
+                'in' => "in_array($variable, " . var_export($value, true) . ", true)",
+                'not_in' => "!in_array($variable, " . var_export($value, true) . ", true)",
+                'contains' => "strpos($variable, " . $this->escapePhpValue($value) . ") !== false",
+                'starts_with' => "str_starts_with($variable, " . $this->escapePhpValue($value) . ")",
+                'ends_with' => "str_ends_with($variable, " . $this->escapePhpValue($value) . ")",
+                default => throw new RuleFlowException("Unsupported operator: $operator")
+            };
+        }
+        
+        // Fallback for simple values
+        return "$variable == " . $this->escapePhpValue($condition);
     }
 
     /**

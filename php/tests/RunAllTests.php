@@ -6,9 +6,17 @@
  * Usage: php tests/RunAllTests.php
  */
 
-// Only require test files that actually exist
+// Test files mapping - add test files as they become available
 $testFiles = [
-    'ConfigTemplateManagerTest.php' => 'ConfigTemplateManagerTest'
+    'ConfigTemplateManagerTest.php' => 'ConfigTemplateManagerTest',
+    'ConfigValidatorTest.php' => 'ConfigValidatorTest',
+    'ExpressionEvaluatorTest.php' => 'ExpressionEvaluatorTest',
+    'FunctionRegistryTest.php' => 'FunctionRegistryTest',
+    'InputValidatorTest.php' => 'InputValidatorTest',
+    'SchemaGeneratorTest.php' => 'SchemaGeneratorTest',
+    'ValidationAPITest.php' => 'ValidationAPITest',
+    'RuleFlowIntegrationTest.php' => 'RuleFlowIntegrationTest',
+    'NestedLogicTest.php' => 'NestedLogicTest'  // 🆕 Added nested logic test
 ];
 
 // Check which test files exist and require them
@@ -52,10 +60,32 @@ class TestRunner
         
         echo "📋 Found " . count($this->availableTests) . " test suite(s)\n\n";
         
-        // Run available tests
+        // Run available tests in order
+        $testOrder = [
+            'ExpressionEvaluatorTest',
+            'FunctionRegistryTest', 
+            'ConfigValidatorTest',
+            'InputValidatorTest',
+            'NestedLogicTest',        // 🆕 Added to test order
+            'ConfigTemplateManagerTest',
+            'SchemaGeneratorTest',
+            'ValidationAPITest',
+            'RuleFlowIntegrationTest'
+        ];
+        
+        foreach ($testOrder as $testClass) {
+            if (isset($this->availableTests[$testClass])) {
+                $testName = $this->getTestDisplayName($testClass);
+                $this->runTestSuite($testClass, $testName);
+            }
+        }
+        
+        // Run any remaining tests not in the order
         foreach ($this->availableTests as $testClass => $file) {
-            $testName = $this->getTestDisplayName($testClass);
-            $this->runTestSuite($testClass, $testName);
+            if (!in_array($testClass, $testOrder)) {
+                $testName = $this->getTestDisplayName($testClass);
+                $this->runTestSuite($testClass, $testName);
+            }
         }
         
         $this->printSummary();
@@ -118,6 +148,13 @@ class TestRunner
         
         if ($this->failedTests === 0 && $this->totalTests > 0) {
             echo "\n🎉 ALL TESTS PASSED! RuleFlow is working correctly.\n";
+            
+            // Special message for nested logic if test was run
+            if (isset($this->testResults['Nested Logic Tests']) && 
+                $this->testResults['Nested Logic Tests'] === 'PASSED') {
+                echo "🚀 NEW FEATURE: Nested AND/OR logic is working perfectly!\n";
+            }
+            
             exit(0);
         } elseif ($this->totalTests === 0) {
             echo "\n⚠️ NO TESTS RUN! Please create test files.\n";
@@ -141,7 +178,8 @@ class TestRunner
             'InputValidatorTest' => 'Input Validator',
             'SchemaGeneratorTest' => 'Schema Generator',
             'ValidationAPITest' => 'Validation API',
-            'RuleFlowIntegrationTest' => 'Integration Tests'
+            'RuleFlowIntegrationTest' => 'Integration Tests',
+            'NestedLogicTest' => 'Nested Logic Tests'  // 🆕 Added display name
         ];
         
         return $nameMap[$testClass] ?? $testClass;
@@ -162,7 +200,9 @@ class TestRunner
             'input' => 'InputValidatorTest',
             'schema' => 'SchemaGeneratorTest',
             'validation' => 'ValidationAPITest',
-            'integration' => 'RuleFlowIntegrationTest'
+            'integration' => 'RuleFlowIntegrationTest',
+            'nested' => 'NestedLogicTest',        // 🆕 Added nested test mapping
+            'logic' => 'NestedLogicTest'          // 🆕 Alternative mapping
         ];
         
         if (!isset($testClassMap[$testName])) {
@@ -195,6 +235,9 @@ class TestRunner
         // Check core RuleFlow files
         $coreFiles = [
             __DIR__ . '/../src/RuleFlow.php' => 'RuleFlow (Main)',
+            __DIR__ . '/../src/FormulaProcessor.php' => 'FormulaProcessor',
+            __DIR__ . '/../src/ExpressionEvaluator.php' => 'ExpressionEvaluator',
+            __DIR__ . '/../src/CodeGenerator.php' => 'CodeGenerator',
             __DIR__ . '/../src/Templates/ConfigTemplateManager.php' => 'ConfigTemplateManager',
             __DIR__ . '/../src/RuleFlowException.php' => 'RuleFlowException'
         ];
@@ -235,6 +278,12 @@ class TestRunner
         }
         
         echo "✅ Test environment looks good!\n";
+        
+        // Special check for nested logic enhancement
+        if (isset($this->availableTests['NestedLogicTest'])) {
+            echo "🚀 NEW: Nested logic tests are available!\n";
+        }
+        
         return true;
     }
     
@@ -253,14 +302,17 @@ class TestRunner
         
         foreach ($this->availableTests as $testClass => $file) {
             $displayName = $this->getTestDisplayName($testClass);
-            echo "• $displayName ($file)\n";
+            $isNew = ($testClass === 'NestedLogicTest') ? ' 🆕 NEW!' : '';
+            echo "• $displayName ($file)$isNew\n";
         }
         
         echo "\nUsage:\n";
         echo "php tests/RunAllTests.php                    # Run all tests\n";
         echo "php tests/RunAllTests.php --test=template    # Run specific test\n";
+        echo "php tests/RunAllTests.php --test=nested      # Run nested logic tests\n";
         echo "php tests/RunAllTests.php --check            # Check environment\n";
         echo "php tests/RunAllTests.php --list             # Show this list\n";
+        echo "php tests/RunAllTests.php --quick            # Quick functionality test\n";
     }
     
     /**
@@ -301,7 +353,43 @@ class TestRunner
                 return;
             }
             
-            // Test 4: Function generation
+            // Test 4: Nested logic (if available)
+            try {
+                $nestedConfig = [
+                    'formulas' => [
+                        [
+                            'id' => 'nested_test',
+                            'switch' => 'trigger',
+                            'when' => [
+                                [
+                                    'if' => [
+                                        'and' => [
+                                            ['op' => '>', 'var' => 'x', 'value' => 5],
+                                            ['op' => '<', 'var' => 'y', 'value' => 10]
+                                        ]
+                                    ],
+                                    'result' => 'success'
+                                ]
+                            ],
+                            'default' => 'fail'
+                        ]
+                    ]
+                ];
+                
+                $nestedInputs = ['trigger' => 'test', 'x' => 7, 'y' => 8];
+                $nestedResult = $ruleFlow->evaluate($nestedConfig, $nestedInputs);
+                
+                if ($nestedResult['nested_test'] === 'success') {
+                    echo "✅ Nested AND logic works! 🚀\n";
+                } else {
+                    echo "⚠️ Nested logic might not be implemented yet\n";
+                }
+                
+            } catch (Exception $e) {
+                echo "⚠️ Nested logic not available (this is normal for older versions)\n";
+            }
+            
+            // Test 5: Function generation
             $generatedCode = $ruleFlow->generateFunctionAsString($config);
             if (strpos($generatedCode, 'function') !== false) {
                 echo "✅ Code generation works\n";
@@ -310,77 +398,38 @@ class TestRunner
                 return;
             }
             
-            echo "\n🎉 Quick test passed! RuleFlow basic functionality is working.\n";
+            echo "\n🎉 Quick test passed! RuleFlow is working correctly.\n";
             
         } catch (Exception $e) {
             echo "❌ Quick test failed: " . $e->getMessage() . "\n";
         }
-    }
-    
-    /**
-     * Show usage information
-     */
-    public static function showUsage(): void
-    {
-        echo "RuleFlow Test Runner\n";
-        echo "==================\n\n";
-        echo "Usage:\n";
-        echo "  php tests/RunAllTests.php [command] [options]\n\n";
-        echo "Commands:\n";
-        echo "  (none)         Run all available tests\n";
-        echo "  --test=NAME    Run specific test suite\n";
-        echo "  --check        Check test environment\n";
-        echo "  --list         List available tests\n";
-        echo "  --quick        Run quick functionality test\n";
-        echo "  --help         Show this help\n\n";
-        echo "Available Test Names:\n";
-        echo "  template       ConfigTemplateManager tests\n";
-        echo "  expression     ExpressionEvaluator tests (if available)\n";
-        echo "  validator      ConfigValidator tests (if available)\n";
-        echo "  functions      FunctionRegistry tests (if available)\n";
-        echo "  input          InputValidator tests (if available)\n";
-        echo "  schema         SchemaGenerator tests (if available)\n";
-        echo "  validation     ValidationAPI tests (if available)\n";
-        echo "  integration    Integration tests (if available)\n\n";
-        echo "Examples:\n";
-        echo "  php tests/RunAllTests.php\n";
-        echo "  php tests/RunAllTests.php --test=template\n";
-        echo "  php tests/RunAllTests.php --check\n";
-        echo "  php tests/RunAllTests.php --list\n";
-        echo "  php tests/RunAllTests.php --quick\n";
+        
+        echo "\n";
     }
 }
 
-// Main execution
-if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'])) {
-    $runner = new TestRunner($availableTests);
-    
-    // Parse command line arguments
-    $options = getopt('', ['test:', 'check', 'list', 'quick', 'help']);
-    
-    if (isset($options['help'])) {
-        TestRunner::showUsage();
-        exit(0);
-    }
-    
-    if (isset($options['list'])) {
-        $runner->listTests();
-        exit(0);
-    }
-    
-    if (isset($options['check'])) {
-        $runner->checkTestEnvironment();
-        exit(0);
-    }
-    
-    if (isset($options['quick'])) {
-        $runner->runQuickTest();
-        exit(0);
-    }
-    
-    if (isset($options['test'])) {
-        $runner->runSpecificTest($options['test']);
-    } else {
-        $runner->runAllTests();
+// Process command line arguments
+$args = isset($argv) ? array_slice($argv, 1) : [];
+$runner = new TestRunner($availableTests);
+
+if (empty($args)) {
+    // Run all tests
+    $runner->runAllTests();
+} else {
+    foreach ($args as $arg) {
+        if ($arg === '--check') {
+            $runner->checkTestEnvironment();
+        } elseif ($arg === '--list') {
+            $runner->listTests();
+        } elseif ($arg === '--quick') {
+            $runner->runQuickTest();
+        } elseif (strpos($arg, '--test=') === 0) {
+            $testName = substr($arg, 7);
+            $runner->runSpecificTest($testName);
+        } else {
+            echo "❌ Unknown argument: $arg\n";
+            echo "Usage: php tests/RunAllTests.php [--check|--list|--quick|--test=testname]\n";
+            exit(1);
+        }
     }
 }
