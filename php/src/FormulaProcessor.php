@@ -450,6 +450,36 @@ class FormulaProcessor
      */
     private function evaluateCondition(array $condition, $switchValue, array $context): bool
     {
+        // 🆕 Handle nested logical groups - AND operation
+        if (isset($condition['and'])) {
+            foreach ($condition['and'] as $subCondition) {
+                if (!$this->evaluateCondition($subCondition, $switchValue, $context)) {
+                    return false; // All conditions must be true for AND
+                }
+            }
+            return true;
+        }
+        
+        // 🆕 Handle nested logical groups - OR operation  
+        if (isset($condition['or'])) {
+            foreach ($condition['or'] as $subCondition) {
+                if ($this->evaluateCondition($subCondition, $switchValue, $context)) {
+                    return true; // Any condition can be true for OR
+                }
+            }
+            return false;
+        }
+        
+        // 🆕 Handle variable reference in condition (for complex conditions)
+        if (isset($condition['var'])) {
+            $varKey = $this->normalizeVariableName($condition['var']);
+            $switchValue = $context[$varKey] ?? null;
+            
+            if ($switchValue === null) {
+                return false; // Missing variable means condition fails
+            }
+        }
+
         $operator = $condition['op'] ?? '==';
         $value = $condition['value'] ?? null;
         
