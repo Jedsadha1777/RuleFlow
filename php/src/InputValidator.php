@@ -211,7 +211,7 @@ class InputValidator
             // Remove currency symbols and parentheses first
             $cleaned = preg_replace('/[^\d.,-]/', '', $value);
             
-            // 🔧 Handle different currency formats
+            // Handle different currency formats
             
             // European format: 1.234,56 (dot = thousands, comma = decimal)
             if (preg_match('/^\d{1,3}(\.\d{3})*,\d{2}$/', $cleaned)) {

@@ -7,7 +7,6 @@ require_once 'ValidationCore.php';
 /**
  * ValidationAPI - สำหรับ UI interactions, progressive validation
  * ใช้ ValidationCore ทำงานหนัก ส่วนตัวนี้จัดการ UX concerns
- * ✨ ไม่มีการ "โยนไปโยนมา" อีกต่อไป
  */
 class ValidationAPI
 {
@@ -19,7 +18,7 @@ class ValidationAPI
     }
 
     // ============================================
-    // 🎯 UI-FOCUSED METHODS
+    // UI-FOCUSED METHODS
     // ============================================
     
     /**
