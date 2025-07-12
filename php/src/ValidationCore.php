@@ -27,7 +27,7 @@ class ValidationCore
     }
 
     // ============================================
-    // 🔍 CORE VALIDATION METHODS
+    //  CORE VALIDATION METHODS
     // ============================================
     
     /**
@@ -144,7 +144,7 @@ class ValidationCore
     }
 
     // ============================================
-    // 🔧 PRIVATE HELPER METHODS
+    // PRIVATE HELPER METHODS
     // ============================================
     
     /**
