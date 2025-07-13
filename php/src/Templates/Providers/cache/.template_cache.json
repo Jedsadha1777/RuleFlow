@@ -1,0 +1,1773 @@
+{
+    "templates": {
+        "dynamic_pricing": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "demand_multiplier",
+                        "switch": "demand_level",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "High"
+                                },
+                                "result": 1.2
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Medium"
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Low"
+                                },
+                                "result": 0.8
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "inventory_multiplier",
+                        "switch": "inventory_level",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 10
+                                },
+                                "result": 1.15
+                            },
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 50
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 100
+                                },
+                                "result": 0.9
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "competitor_adjustment",
+                        "switch": "price_vs_competitor",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">",
+                                    "value": 1.1
+                                },
+                                "result": 0.95
+                            },
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 0.9
+                                },
+                                "result": 1.05
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "dynamic_price",
+                        "formula": "base_price * demand_multiplier * inventory_multiplier * competitor_adjustment",
+                        "inputs": [
+                            "base_price",
+                            "demand_multiplier",
+                            "inventory_multiplier",
+                            "competitor_adjustment"
+                        ]
+                    },
+                    {
+                        "id": "discount_eligible",
+                        "switch": "customer_tier",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "VIP"
+                                },
+                                "result": 0.15
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Gold"
+                                },
+                                "result": 0.1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Silver"
+                                },
+                                "result": 0.05
+                            }
+                        ],
+                        "default": 0
+                    },
+                    {
+                        "id": "final_price",
+                        "formula": "dynamic_price * (1 - discount_eligible)",
+                        "inputs": [
+                            "dynamic_price",
+                            "discount_eligible"
+                        ]
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Dynamic Pricing Strategy",
+                "category": "ecommerce",
+                "description": "AI-driven pricing based on demand, inventory, and competition",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "base_price": "Base product price",
+                    "demand_level": "Demand level (High\/Medium\/Low)",
+                    "inventory_level": "Current inventory quantity",
+                    "price_vs_competitor": "Price ratio vs competitor",
+                    "customer_tier": "Customer tier (VIP\/Gold\/Silver\/Bronze)"
+                },
+                "outputs": {
+                    "dynamic_price": "Price after demand\/inventory adjustments",
+                    "discount_eligible": "Customer discount percentage",
+                    "final_price": "Final price after all adjustments"
+                }
+            }
+        },
+        "customer_ltv": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "monthly_value",
+                        "formula": "avg_order_value * orders_per_month",
+                        "inputs": [
+                            "avg_order_value",
+                            "orders_per_month"
+                        ]
+                    },
+                    {
+                        "id": "annual_value",
+                        "formula": "monthly_value * 12",
+                        "inputs": [
+                            "monthly_value"
+                        ]
+                    },
+                    {
+                        "id": "retention_factor",
+                        "switch": "customer_segment",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Premium"
+                                },
+                                "result": 0.9
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Standard"
+                                },
+                                "result": 0.7
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Basic"
+                                },
+                                "result": 0.5
+                            }
+                        ],
+                        "default": 0.6
+                    },
+                    {
+                        "id": "lifetime_months",
+                        "formula": "1 \/ (1 - retention_factor)",
+                        "inputs": [
+                            "retention_factor"
+                        ]
+                    },
+                    {
+                        "id": "customer_ltv",
+                        "formula": "monthly_value * lifetime_months",
+                        "inputs": [
+                            "monthly_value",
+                            "lifetime_months"
+                        ]
+                    },
+                    {
+                        "id": "ltv_category",
+                        "switch": "customer_ltv",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 10000
+                                },
+                                "result": "High Value"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 5000
+                                },
+                                "result": "Medium Value"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 1000
+                                },
+                                "result": "Standard Value"
+                            }
+                        ],
+                        "default": "Low Value"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Customer Lifetime Value Calculator",
+                "category": "ecommerce",
+                "description": "Calculate and categorize customer lifetime value",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "avg_order_value": "Average order value",
+                    "orders_per_month": "Number of orders per month",
+                    "customer_segment": "Customer segment (Premium\/Standard\/Basic)"
+                },
+                "outputs": {
+                    "monthly_value": "Monthly customer value",
+                    "annual_value": "Annual customer value",
+                    "customer_ltv": "Customer lifetime value",
+                    "ltv_category": "LTV category classification"
+                }
+            }
+        },
+        "student_grading": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "weighted_average",
+                        "formula": "(exam_score * 0.4) + (assignment_avg * 0.3) + (participation * 0.2) + (attendance * 0.1)",
+                        "inputs": [
+                            "exam_score",
+                            "assignment_avg",
+                            "participation",
+                            "attendance"
+                        ]
+                    },
+                    {
+                        "id": "letter_grade",
+                        "switch": "weighted_average",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 97
+                                },
+                                "result": "A+"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 93
+                                },
+                                "result": "A"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 90
+                                },
+                                "result": "A-"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 87
+                                },
+                                "result": "B+"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 83
+                                },
+                                "result": "B"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 80
+                                },
+                                "result": "B-"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 77
+                                },
+                                "result": "C+"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 73
+                                },
+                                "result": "C"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 70
+                                },
+                                "result": "C-"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 67
+                                },
+                                "result": "D+"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 65
+                                },
+                                "result": "D"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 60
+                                },
+                                "result": "D-"
+                            }
+                        ],
+                        "default": "F"
+                    },
+                    {
+                        "id": "gpa_points",
+                        "switch": "letter_grade",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "A+"
+                                },
+                                "result": 4
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "A"
+                                },
+                                "result": 4
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "A-"
+                                },
+                                "result": 3.7
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "B+"
+                                },
+                                "result": 3.3
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "B"
+                                },
+                                "result": 3
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "B-"
+                                },
+                                "result": 2.7
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "C+"
+                                },
+                                "result": 2.3
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "C"
+                                },
+                                "result": 2
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "C-"
+                                },
+                                "result": 1.7
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "D+"
+                                },
+                                "result": 1.3
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "D"
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "D-"
+                                },
+                                "result": 0.7
+                            }
+                        ],
+                        "default": 0
+                    },
+                    {
+                        "id": "pass_fail",
+                        "switch": "weighted_average",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 60
+                                },
+                                "result": "Pass"
+                            }
+                        ],
+                        "default": "Fail"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Student Grade Calculation",
+                "category": "education",
+                "description": "Calculate weighted grades, letter grades, and GPA points",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "exam_score": "Exam score (0-100)",
+                    "assignment_avg": "Assignment average (0-100)",
+                    "participation": "Participation score (0-100)",
+                    "attendance": "Attendance score (0-100)"
+                },
+                "outputs": {
+                    "weighted_average": "Weighted average score",
+                    "letter_grade": "Letter grade (A+ to F)",
+                    "gpa_points": "GPA points (0.0-4.0)",
+                    "pass_fail": "Pass\/Fail status"
+                }
+            }
+        },
+        "loan_application": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "monthly_income",
+                        "formula": "annual_income \/ 12",
+                        "inputs": [
+                            "annual_income"
+                        ],
+                        "as": "$monthly"
+                    },
+                    {
+                        "id": "debt_to_income_ratio",
+                        "formula": "percentage(monthly_debt, monthly)",
+                        "inputs": [
+                            "monthly_debt",
+                            "monthly"
+                        ],
+                        "as": "$dti_ratio"
+                    },
+                    {
+                        "id": "credit_score_points",
+                        "rules": [
+                            {
+                                "var": "credit_score",
+                                "ranges": [
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 750
+                                        },
+                                        "score": 100
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 700
+                                        },
+                                        "score": 80
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 650
+                                        },
+                                        "score": 60
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 600
+                                        },
+                                        "score": 40
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 550
+                                        },
+                                        "score": 20
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": "income_points",
+                        "rules": [
+                            {
+                                "var": "monthly",
+                                "ranges": [
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 10000
+                                        },
+                                        "score": 50
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 7500
+                                        },
+                                        "score": 40
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 5000
+                                        },
+                                        "score": 30
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 3000
+                                        },
+                                        "score": 20
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 2000
+                                        },
+                                        "score": 10
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": "employment_points",
+                        "rules": [
+                            {
+                                "var": "employment_years",
+                                "ranges": [
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 5
+                                        },
+                                        "score": 30
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 3
+                                        },
+                                        "score": 20
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 1
+                                        },
+                                        "score": 10
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 0.5
+                                        },
+                                        "score": 5
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": "total_score",
+                        "formula": "credit_score_points + income_points + employment_points",
+                        "inputs": [
+                            "credit_score_points",
+                            "income_points",
+                            "employment_points"
+                        ]
+                    },
+                    {
+                        "id": "loan_decision",
+                        "switch": "total_score",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 150
+                                },
+                                "result": "Approved",
+                                "set_vars": {
+                                    "$interest_rate": 3.5,
+                                    "$max_amount": 1000000,
+                                    "$term_years": 30
+                                }
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 120
+                                },
+                                "result": "Approved",
+                                "set_vars": {
+                                    "$interest_rate": 4.5,
+                                    "$max_amount": 500000,
+                                    "$term_years": 25
+                                }
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 80
+                                },
+                                "result": "Conditional",
+                                "set_vars": {
+                                    "$interest_rate": 6.5,
+                                    "$max_amount": 200000,
+                                    "$term_years": 15
+                                }
+                            }
+                        ],
+                        "default": "Rejected",
+                        "default_vars": {
+                            "interest_rate": 0,
+                            "max_amount": 0,
+                            "term_years": 0
+                        }
+                    },
+                    {
+                        "id": "has_loan_approval",
+                        "switch": "loan_decision",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Approved"
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Conditional"
+                                },
+                                "result": 1
+                            }
+                        ],
+                        "default": 0
+                    },
+                    {
+                        "id": "monthly_rate",
+                        "switch": "has_loan_approval",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "result": 1
+                            }
+                        ],
+                        "default": 0
+                    },
+                    {
+                        "id": "calc_monthly_rate",
+                        "formula": "interest_rate \/ 100 \/ 12 * monthly_rate",
+                        "inputs": [
+                            "interest_rate",
+                            "monthly_rate"
+                        ]
+                    },
+                    {
+                        "id": "num_payments",
+                        "switch": "has_loan_approval",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "result": 1
+                            }
+                        ],
+                        "default": 0
+                    },
+                    {
+                        "id": "calc_num_payments",
+                        "formula": "term_years * 12 * num_payments",
+                        "inputs": [
+                            "term_years",
+                            "num_payments"
+                        ]
+                    },
+                    {
+                        "id": "payment_factor",
+                        "formula": "pow(1 + calc_monthly_rate, calc_num_payments)",
+                        "inputs": [
+                            "calc_monthly_rate",
+                            "calc_num_payments"
+                        ]
+                    },
+                    {
+                        "id": "monthly_payment",
+                        "switch": "has_loan_approval",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "result": "calculated"
+                            }
+                        ],
+                        "default": 0,
+                        "formula": "max_amount * calc_monthly_rate * payment_factor \/ max(payment_factor - 1, 0.001)",
+                        "inputs": [
+                            "max_amount",
+                            "calc_monthly_rate",
+                            "payment_factor"
+                        ]
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Loan Application Assessment",
+                "category": "financial",
+                "description": "Comprehensive loan approval system with credit scoring",
+                "author": "RuleFlow",
+                "version": "2.0.0",
+                "inputs": {
+                    "annual_income": "Annual gross income (number)",
+                    "monthly_debt": "Existing monthly debt payments (number)",
+                    "credit_score": "Credit score 300-850 (number)",
+                    "employment_years": "Years at current job (number)"
+                },
+                "outputs": {
+                    "loan_decision": "Approved\/Conditional\/Rejected",
+                    "interest_rate": "Approved interest rate (%)",
+                    "max_amount": "Maximum loan amount",
+                    "monthly_payment": "Estimated monthly payment"
+                }
+            }
+        },
+        "credit_card_approval": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "credit_utilization_score",
+                        "switch": "credit_utilization",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 10
+                                },
+                                "result": 50
+                            },
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 30
+                                },
+                                "result": 30
+                            },
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 50
+                                },
+                                "result": 10
+                            },
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 75
+                                },
+                                "result": -10
+                            }
+                        ],
+                        "default": -20
+                    },
+                    {
+                        "id": "payment_history_score",
+                        "switch": "late_payments_12m",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": 0
+                                },
+                                "result": 50
+                            },
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 1
+                                },
+                                "result": 30
+                            },
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 3
+                                },
+                                "result": 10
+                            }
+                        ],
+                        "default": -30
+                    },
+                    {
+                        "id": "final_score",
+                        "formula": "credit_score + credit_utilization_score + payment_history_score + income_score",
+                        "inputs": [
+                            "credit_score",
+                            "credit_utilization_score",
+                            "payment_history_score",
+                            "income_score"
+                        ]
+                    },
+                    {
+                        "id": "approval_decision",
+                        "switch": "final_score",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 750
+                                },
+                                "result": "Approved",
+                                "set_vars": {
+                                    "$credit_limit": 50000,
+                                    "$apr": 12.99
+                                }
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 650
+                                },
+                                "result": "Approved",
+                                "set_vars": {
+                                    "$credit_limit": 25000,
+                                    "$apr": 18.99
+                                }
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 600
+                                },
+                                "result": "Approved",
+                                "set_vars": {
+                                    "$credit_limit": 10000,
+                                    "$apr": 24.99
+                                }
+                            }
+                        ],
+                        "default": "Rejected"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Credit Card Approval System",
+                "category": "financial",
+                "description": "Credit card application assessment with limit determination",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "credit_score": "FICO credit score",
+                    "credit_utilization": "Current credit utilization %",
+                    "late_payments_12m": "Late payments in last 12 months",
+                    "income_score": "Income-based score"
+                },
+                "outputs": {
+                    "approval_decision": "Approved\/Rejected",
+                    "credit_limit": "Approved credit limit",
+                    "apr": "Annual percentage rate"
+                }
+            }
+        },
+        "performance_review": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "performance_score",
+                        "formula": "avg(quality_score, productivity_score, teamwork_score, communication_score)",
+                        "inputs": [
+                            "quality_score",
+                            "productivity_score",
+                            "teamwork_score",
+                            "communication_score"
+                        ]
+                    },
+                    {
+                        "id": "goal_achievement_bonus",
+                        "switch": "goals_achieved",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 90
+                                },
+                                "result": 20
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 75
+                                },
+                                "result": 15
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 60
+                                },
+                                "result": 10
+                            }
+                        ],
+                        "default": 0
+                    },
+                    {
+                        "id": "total_score",
+                        "formula": "performance_score + goal_achievement_bonus + tenure_bonus",
+                        "inputs": [
+                            "performance_score",
+                            "goal_achievement_bonus",
+                            "tenure_bonus"
+                        ]
+                    },
+                    {
+                        "id": "rating",
+                        "switch": "total_score",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 90
+                                },
+                                "result": "Exceptional"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 80
+                                },
+                                "result": "Exceeds Expectations"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 70
+                                },
+                                "result": "Meets Expectations"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 60
+                                },
+                                "result": "Below Expectations"
+                            }
+                        ],
+                        "default": "Unsatisfactory"
+                    },
+                    {
+                        "id": "salary_increase_percent",
+                        "switch": "rating",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Exceptional"
+                                },
+                                "result": 8
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Exceeds Expectations"
+                                },
+                                "result": 5
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Meets Expectations"
+                                },
+                                "result": 3
+                            }
+                        ],
+                        "default": 0
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Employee Performance Review",
+                "category": "hr",
+                "description": "Comprehensive employee evaluation with rating and salary increase calculation",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "quality_score": "Work quality score (0-100)",
+                    "productivity_score": "Productivity score (0-100)",
+                    "teamwork_score": "Teamwork score (0-100)",
+                    "communication_score": "Communication score (0-100)",
+                    "goals_achieved": "Percentage of goals achieved (0-100)",
+                    "tenure_bonus": "Tenure bonus points"
+                },
+                "outputs": {
+                    "performance_score": "Average performance score",
+                    "total_score": "Total performance score",
+                    "rating": "Performance rating",
+                    "salary_increase_percent": "Recommended salary increase percentage"
+                }
+            }
+        },
+        "candidate_scoring": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "experience_score",
+                        "rules": [
+                            {
+                                "var": "years_experience",
+                                "ranges": [
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 10
+                                        },
+                                        "score": 30
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 5
+                                        },
+                                        "score": 25
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 3
+                                        },
+                                        "score": 20
+                                    },
+                                    {
+                                        "if": {
+                                            "op": ">=",
+                                            "value": 1
+                                        },
+                                        "score": 15
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": "education_score",
+                        "switch": "education_level",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "PhD"
+                                },
+                                "result": 25
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Masters"
+                                },
+                                "result": 20
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Bachelors"
+                                },
+                                "result": 15
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Associates"
+                                },
+                                "result": 10
+                            }
+                        ],
+                        "default": 5
+                    },
+                    {
+                        "id": "skills_score",
+                        "formula": "technical_skills * 0.4 + soft_skills * 0.3 + domain_knowledge * 0.3",
+                        "inputs": [
+                            "technical_skills",
+                            "soft_skills",
+                            "domain_knowledge"
+                        ]
+                    },
+                    {
+                        "id": "total_candidate_score",
+                        "formula": "experience_score + education_score + skills_score",
+                        "inputs": [
+                            "experience_score",
+                            "education_score",
+                            "skills_score"
+                        ]
+                    },
+                    {
+                        "id": "recommendation",
+                        "switch": "total_candidate_score",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 80
+                                },
+                                "result": "Strong Hire"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 70
+                                },
+                                "result": "Hire"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 60
+                                },
+                                "result": "Borderline"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 50
+                                },
+                                "result": "Weak Hire"
+                            }
+                        ],
+                        "default": "No Hire"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Candidate Evaluation System",
+                "category": "hr",
+                "description": "Structured candidate assessment for hiring decisions",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "years_experience": "Years of relevant experience",
+                    "education_level": "Highest education level",
+                    "technical_skills": "Technical skills score (0-100)",
+                    "soft_skills": "Soft skills score (0-100)",
+                    "domain_knowledge": "Domain knowledge score (0-100)"
+                },
+                "outputs": {
+                    "experience_score": "Experience score",
+                    "education_score": "Education score",
+                    "skills_score": "Combined skills score",
+                    "total_candidate_score": "Total candidate score",
+                    "recommendation": "Hiring recommendation"
+                }
+            }
+        },
+        "bmi_health_assessment": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "bmi_calculation",
+                        "formula": "bmi(weight, height)",
+                        "inputs": [
+                            "weight",
+                            "height"
+                        ],
+                        "as": "$bmi"
+                    },
+                    {
+                        "id": "bmi_category",
+                        "switch": "$bmi",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 18.5
+                                },
+                                "result": "Underweight"
+                            },
+                            {
+                                "if": {
+                                    "op": "between",
+                                    "value": [
+                                        18.5,
+                                        24.9
+                                    ]
+                                },
+                                "result": "Normal"
+                            },
+                            {
+                                "if": {
+                                    "op": "between",
+                                    "value": [
+                                        25,
+                                        29.9
+                                    ]
+                                },
+                                "result": "Overweight"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 30
+                                },
+                                "result": "Obese"
+                            }
+                        ],
+                        "default": "Unknown"
+                    },
+                    {
+                        "id": "health_risk_score",
+                        "switch": "bmi_category",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Normal"
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Underweight"
+                                },
+                                "result": 2
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Overweight"
+                                },
+                                "result": 3
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Obese"
+                                },
+                                "result": 5
+                            }
+                        ],
+                        "default": 3
+                    },
+                    {
+                        "id": "health_recommendations",
+                        "switch": "bmi_category",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Underweight"
+                                },
+                                "result": "Consider increasing caloric intake"
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Normal"
+                                },
+                                "result": "Maintain current healthy lifestyle"
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Overweight"
+                                },
+                                "result": "Consider diet and exercise modifications"
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Obese"
+                                },
+                                "result": "Consult healthcare provider for weight management"
+                            }
+                        ],
+                        "default": "Consult healthcare provider"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "BMI Health Assessment",
+                "category": "healthcare",
+                "description": "Calculate BMI and provide health category with recommendations",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "weight": "Weight in kilograms (number)",
+                    "height": "Height in meters (number)"
+                },
+                "outputs": {
+                    "bmi": "Body Mass Index value",
+                    "bmi_category": "BMI category (Underweight\/Normal\/Overweight\/Obese)",
+                    "health_risk_score": "Health risk score (1-5)",
+                    "health_recommendations": "Health recommendations based on BMI"
+                }
+            }
+        },
+        "auto_insurance_risk": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "age_risk_factor",
+                        "switch": "driver_age",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 25
+                                },
+                                "result": 1.5
+                            },
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 35
+                                },
+                                "result": 1.2
+                            },
+                            {
+                                "if": {
+                                    "op": "<=",
+                                    "value": 65
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": ">",
+                                    "value": 65
+                                },
+                                "result": 1.3
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "experience_factor",
+                        "switch": "driving_years",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 3
+                                },
+                                "result": 1.4
+                            },
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 10
+                                },
+                                "result": 1.1
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 10
+                                },
+                                "result": 0.9
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "accident_factor",
+                        "switch": "accidents_5_years",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": 0
+                                },
+                                "result": 0.8
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "result": 1.2
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 2
+                                },
+                                "result": 1.8
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "base_premium",
+                        "formula": "base_rate * age_risk_factor * experience_factor * accident_factor",
+                        "inputs": [
+                            "base_rate",
+                            "age_risk_factor",
+                            "experience_factor",
+                            "accident_factor"
+                        ]
+                    },
+                    {
+                        "id": "risk_category",
+                        "switch": "base_premium",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 2000
+                                },
+                                "result": "High Risk"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 1200
+                                },
+                                "result": "Medium Risk"
+                            },
+                            {
+                                "if": {
+                                    "op": "<",
+                                    "value": 1200
+                                },
+                                "result": "Low Risk"
+                            }
+                        ],
+                        "default": "Standard Risk"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Auto Insurance Risk Assessment",
+                "category": "insurance",
+                "description": "Calculate insurance premiums based on driver risk factors",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "driver_age": "Driver age in years",
+                    "driving_years": "Years of driving experience",
+                    "accidents_5_years": "Number of accidents in last 5 years",
+                    "base_rate": "Base insurance rate"
+                },
+                "outputs": {
+                    "age_risk_factor": "Age-based risk factor",
+                    "experience_factor": "Experience-based factor",
+                    "accident_factor": "Accident history factor",
+                    "base_premium": "Calculated premium amount",
+                    "risk_category": "Risk category classification"
+                }
+            }
+        },
+        "property_valuation": {
+            "config": {
+                "formulas": [
+                    {
+                        "id": "size_value",
+                        "formula": "square_feet * price_per_sqft",
+                        "inputs": [
+                            "square_feet",
+                            "price_per_sqft"
+                        ]
+                    },
+                    {
+                        "id": "location_multiplier",
+                        "switch": "location_rating",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Prime"
+                                },
+                                "result": 1.3
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Excellent"
+                                },
+                                "result": 1.2
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Good"
+                                },
+                                "result": 1.1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Average"
+                                },
+                                "result": 1
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Below Average"
+                                },
+                                "result": 0.9
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "condition_multiplier",
+                        "switch": "property_condition",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Excellent"
+                                },
+                                "result": 1.15
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Good"
+                                },
+                                "result": 1.05
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Fair"
+                                },
+                                "result": 0.95
+                            },
+                            {
+                                "if": {
+                                    "op": "==",
+                                    "value": "Poor"
+                                },
+                                "result": 0.8
+                            }
+                        ],
+                        "default": 1
+                    },
+                    {
+                        "id": "amenity_bonus",
+                        "rules": [
+                            {
+                                "var": "has_garage",
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "score": 5000
+                            },
+                            {
+                                "var": "has_pool",
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "score": 15000
+                            },
+                            {
+                                "var": "has_fireplace",
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "score": 3000
+                            },
+                            {
+                                "var": "updated_kitchen",
+                                "if": {
+                                    "op": "==",
+                                    "value": 1
+                                },
+                                "score": 10000
+                            }
+                        ]
+                    },
+                    {
+                        "id": "estimated_value",
+                        "formula": "(size_value * location_multiplier * condition_multiplier) + amenity_bonus",
+                        "inputs": [
+                            "size_value",
+                            "location_multiplier",
+                            "condition_multiplier",
+                            "amenity_bonus"
+                        ]
+                    },
+                    {
+                        "id": "value_category",
+                        "switch": "estimated_value",
+                        "when": [
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 1000000
+                                },
+                                "result": "Luxury"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 500000
+                                },
+                                "result": "Premium"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 250000
+                                },
+                                "result": "Standard"
+                            },
+                            {
+                                "if": {
+                                    "op": ">=",
+                                    "value": 100000
+                                },
+                                "result": "Affordable"
+                            }
+                        ],
+                        "default": "Budget"
+                    }
+                ]
+            },
+            "metadata": {
+                "name": "Property Valuation Model",
+                "category": "real_estate",
+                "description": "Estimate property value based on size, location, condition, and amenities",
+                "author": "RuleFlow",
+                "version": "1.0.0",
+                "inputs": {
+                    "square_feet": "Property size in square feet",
+                    "price_per_sqft": "Price per square foot in area",
+                    "location_rating": "Location rating (Prime\/Excellent\/Good\/Average\/Below Average)",
+                    "property_condition": "Property condition (Excellent\/Good\/Fair\/Poor)",
+                    "has_garage": "Has garage (1\/0)",
+                    "has_pool": "Has pool (1\/0)",
+                    "has_fireplace": "Has fireplace (1\/0)",
+                    "updated_kitchen": "Has updated kitchen (1\/0)"
+                },
+                "outputs": {
+                    "size_value": "Base value from size",
+                    "estimated_value": "Total estimated property value",
+                    "value_category": "Property value category"
+                }
+            }
+        }
+    },
+    "providers": [
+        {
+            "class": "EcommerceTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/EcommerceTemplates.php",
+            "modified": 1752092338
+        },
+        {
+            "class": "EducationTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/EducationTemplates.php",
+            "modified": 1752092338
+        },
+        {
+            "class": "FinancialTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/FinancialTemplates.php",
+            "modified": 1752092338
+        },
+        {
+            "class": "HRTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/HRTemplates.php",
+            "modified": 1752092338
+        },
+        {
+            "class": "HealthcareTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/HealthcareTemplates.php",
+            "modified": 1752092338
+        },
+        {
+            "class": "InsuranceTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/InsuranceTemplates.php",
+            "modified": 1752092338
+        },
+        {
+            "class": "RealEstateTemplates",
+            "file": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers\/RealEstateTemplates.php",
+            "modified": 1752092338
+        }
+    ],
+    "cached_at": 1752435056,
+    "providers_path": "\/Users\/jedsadha\/Documents\/www\/JedLib\/RuleFlowDev\/RuleFlow\/php\/src\/Templates\/Providers",
+    "cache_version": "1.0"
+}
