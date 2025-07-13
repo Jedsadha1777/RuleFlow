@@ -163,6 +163,7 @@ class FormulaProcessor
                 // 🔧 FIX: ลองหาใน context หลายแบบ
                 if (isset($context[$contextKey])) {
                     $vars[$key] = $context[$contextKey];
+                    $vars[$contextKey] = $context[$contextKey];
                 } elseif (isset($context[$key])) {
                     $vars[$key] = $context[$key];
                 } elseif (substr($key, 0, 1) === '$') {
