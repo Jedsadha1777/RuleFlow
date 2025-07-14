@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../src/RuleFlow.php';
+
 require_once __DIR__ . '/../../src/ConfigValidator.php';
 require_once __DIR__ . '/../../src/RuleFlowException.php';
 

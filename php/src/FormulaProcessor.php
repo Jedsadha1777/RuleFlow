@@ -1,6 +1,8 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . '/RuleFlowHelper.php';
+
 
 /**
  * Enhanced FormulaProcessor with function_call support
@@ -105,7 +107,7 @@ class FormulaProcessor
     private function storeFormulaResult(string $formulaId, array $formula, $result, array &$context): void
     {
         $variableName = $formula['as'] ?? $formulaId;
-        $storeKey = $this->normalizeVariableName($variableName);
+        $storeKey = RuleFlowHelper::normalizeVariableName($variableName);
         
         if (is_array($result) && isset($result['score'])) {
             // Multi-dimensional scoring result
@@ -158,7 +160,7 @@ class FormulaProcessor
 
         if (!empty($formula['inputs'])) {
             foreach ($formula['inputs'] as $key) {
-                $contextKey = $this->normalizeVariableName($key);
+                $contextKey = RuleFlowHelper::normalizeVariableName($key);
                 
                 // 🔧 FIX: ลองหาใน context หลายแบบ
                 if (isset($context[$contextKey])) {
@@ -187,7 +189,7 @@ class FormulaProcessor
      */
     private function processSwitch(array $formula, array $context): mixed
     {
-        $switchVar = $this->normalizeVariableName($formula['switch']);
+        $switchVar = RuleFlowHelper::normalizeVariableName($formula['switch']);
         $switchValue = $context[$switchVar] ?? null;
 
   
@@ -247,7 +249,7 @@ class FormulaProcessor
         $totalScore = 0.0;
     
         foreach ($formula['rules'] as $rule) {
-            $varKey = $this->normalizeVariableName($rule['var']);
+            $varKey = RuleFlowHelper::normalizeVariableName($rule['var']);
             $value = $context[$varKey] ?? null;
             
             if ($value === null) {
@@ -307,7 +309,7 @@ class FormulaProcessor
     private function processSimpleWeightScore(array $formula, array $context): float
     {
         $storeAs = isset($formula['as']) ? 
-            $this->normalizeVariableName($formula['as']) : $formula['id'];
+            RuleFlowHelper::normalizeVariableName($formula['as']) : $formula['id'];
         $value = $context[$storeAs] ?? null;
         
         if ($value === null) {
@@ -351,7 +353,7 @@ class FormulaProcessor
     {
         $values = [];
         foreach ($variables as $var) {
-            $varKey = $this->normalizeVariableName($var);
+            $varKey = RuleFlowHelper::normalizeVariableName($var);
             $value = $context[$varKey] ?? null;
             if ($value === null) {
                 return []; // Return empty if any variable is missing
@@ -473,7 +475,7 @@ class FormulaProcessor
         
         // 🆕 Handle variable reference in condition (for complex conditions)
         if (isset($condition['var'])) {
-            $varKey = $this->normalizeVariableName($condition['var']);
+            $varKey = RuleFlowHelper::normalizeVariableName($condition['var']);
             $switchValue = $context[$varKey] ?? null;
             
             if ($switchValue === null) {
@@ -486,7 +488,7 @@ class FormulaProcessor
         
         // Handle $ references in condition values
         if (is_string($value) && substr($value, 0, 1) === '$') {
-            $varKey = $this->normalizeVariableName($value);
+            $varKey = RuleFlowHelper::normalizeVariableName($value);
             $value = $context[$varKey] ?? null;
         }
         
@@ -559,12 +561,12 @@ class FormulaProcessor
     private function processSetVars(array $setVars, array &$context): void
     {
         foreach ($setVars as $varName => $value) {
-            $storeKey = $this->normalizeVariableName($varName);
+            $storeKey = RuleFlowHelper::normalizeVariableName($varName);
             
             if (is_string($value)) {
                 // Check if it's a simple reference (e.g., '$base_points')
                 if ($this->isSimpleReference($value)) {
-                    $referenceKey = $this->normalizeVariableName($value);
+                    $referenceKey = RuleFlowHelper::normalizeVariableName($value);
                     if (isset($context[$referenceKey])) {
                         // Direct assignment to preserve type
                         $context[$storeKey] = $context[$referenceKey];
@@ -580,7 +582,7 @@ class FormulaProcessor
                     // Extract variable names from expression
                     if (preg_match_all('/\$?[a-zA-Z_][a-zA-Z0-9_]*/', $value, $matches)) {
                         foreach ($matches[0] as $varName) {
-                            $normalizedVar = $this->normalizeVariableName($varName);
+                            $normalizedVar = RuleFlowHelper::normalizeVariableName($varName);
                             if (isset($context[$normalizedVar])) {
                                 $filteredContext[$normalizedVar] = $context[$normalizedVar];
                             }
@@ -700,13 +702,7 @@ class FormulaProcessor
     }
 
 
-    /**
-     * Normalize variable name (handle $ prefix)
-     */
-    private function normalizeVariableName(string $varName): string
-    {
-        return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
-    }
+    
 
     /**
      * Get formula type for debugging

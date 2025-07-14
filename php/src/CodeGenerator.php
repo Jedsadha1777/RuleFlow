@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . '/RuleFlowHelper.php';
 
 /**
  * Generate optimized PHP code from configurations
@@ -62,7 +63,7 @@ class CodeGenerator
         
         // Handle $ notation for output
         $storeAs = $formula['as'] ?? ('$' . $formula['id']);
-        $contextKey = $this->normalizeVariableName($storeAs);
+        $contextKey = RuleFlowHelper::normalizeVariableName($storeAs);
         
         $code = "";
         
@@ -92,7 +93,7 @@ class CodeGenerator
         $default = $formula['default'] ?? 'null';
         
         // Handle $ notation for switch variable
-        $switchContextKey = $this->normalizeVariableName($switchVar);
+        $switchContextKey = RuleFlowHelper::normalizeVariableName($switchVar);
         
         $code = "    \$switchValue = \$context['$switchContextKey'] ?? null;\n";
         $code .= "    if (\$switchValue === null) {\n";
@@ -143,7 +144,7 @@ class CodeGenerator
         
         foreach ($rules as $rule) {
             $variable = $rule['var'];
-            $varKey = $this->normalizeVariableName($variable);
+            $varKey = RuleFlowHelper::normalizeVariableName($variable);
             
             $code .= "    \$value = \$context['$varKey'] ?? null;\n";
             $code .= "    if (\$value !== null) {\n";
@@ -227,7 +228,7 @@ class CodeGenerator
         
         // Check if all variables exist (handle $ notation)
         foreach ($variables as $var) {
-            $varKey = $this->normalizeVariableName($var);
+            $varKey = RuleFlowHelper::normalizeVariableName($var);
             $code .= "    if (!isset(\$context['$varKey'])) {\n";
             $code .= "        \$context['$id'] = 0;\n";
             $code .= "        return \$context;\n";
@@ -236,7 +237,7 @@ class CodeGenerator
         
         // Get variable values
         foreach ($variables as $i => $var) {
-            $varKey = $this->normalizeVariableName($var);
+            $varKey = RuleFlowHelper::normalizeVariableName($var);
             $code .= "    \$var$i = \$context['$varKey'];\n";
         }
         
@@ -307,7 +308,7 @@ class CodeGenerator
     {
         $id = $formula['id'];
         $storeAs = $formula['as'] ?? ('$' . $id);
-        $storeAsKey = $this->normalizeVariableName($storeAs);
+        $storeAsKey = RuleFlowHelper::normalizeVariableName($storeAs);
         $ranges = $formula['scoring']['ranges'];
         $default = $formula['scoring']['default'] ?? 0;
         
@@ -348,7 +349,7 @@ class CodeGenerator
     {
         $id = $formula['id'];
         $storeAs = $formula['as'] ?? ('$' . $id);
-        $storeAsKey = $this->normalizeVariableName($storeAs);
+        $storeAsKey = RuleFlowHelper::normalizeVariableName($storeAs);
         $condition = $formula['scoring']['if'];
         $score = $formula['scoring']['score'];
         
@@ -372,13 +373,13 @@ class CodeGenerator
         
         foreach ($setVars as $varName => $varValue) {
             // Normalize variable name (remove $ if present for context key)
-            $contextKey = $this->normalizeVariableName($varName);
+            $contextKey = RuleFlowHelper::normalizeVariableName($varName);
             
-            if (is_string($varValue) && $this->isDollarReference($varValue)) {
+            if (is_string($varValue) && RuleFlowHelper::isDollarReference($varValue)) {
                 // เป็น $ reference
-                $refKey = $this->normalizeVariableName($varValue);
+                $refKey = RuleFlowHelper::normalizeVariableName($varValue);
                 $code .= "{$indent}\$context['$contextKey'] = \$context['$refKey'] ?? null;\n";
-            } elseif (is_string($varValue) && $this->isDollarExpression($varValue)) {
+            } elseif (is_string($varValue) && RuleFlowHelper::isDollarExpression($varValue)) {
                 // เป็น expression ที่มี $ variables
                 $phpExpr = $this->convertDollarExpressionToPhp($varValue);
                 $code .= "{$indent}\$context['$contextKey'] = $phpExpr;\n";
@@ -416,7 +417,7 @@ class CodeGenerator
             
             // Handle variable reference in condition
             if (isset($condition['var'])) {
-                $varKey = $this->normalizeVariableName($condition['var']);
+                $varKey = RuleFlowHelper::normalizeVariableName($condition['var']);
                 $variable = "\$context['$varKey']";
             }
             
@@ -450,8 +451,8 @@ class CodeGenerator
      */
     private function formatConditionValue($value): string
     {
-        if (is_string($value) && $this->isDollarReference($value)) {
-            $valueKey = $this->normalizeVariableName($value);
+        if (is_string($value) && RuleFlowHelper::isDollarReference($value)) {
+            $valueKey = RuleFlowHelper::normalizeVariableName($value);
             return "\$context['$valueKey']";
         }
         
@@ -493,18 +494,18 @@ class CodeGenerator
             // Standard dependencies
             if (isset($formula['inputs'])) {
                 foreach ($formula['inputs'] as $input) {
-                    $deps[] = $this->normalizeVariableName($input);
+                    $deps[] = RuleFlowHelper::normalizeVariableName($input);
                 }
             }
             if (isset($formula['switch'])) {
-                $switchVar = $this->normalizeVariableName($formula['switch']);
+                $switchVar = RuleFlowHelper::normalizeVariableName($formula['switch']);
                 $deps[] = $switchVar;
             }
             
             // Dependencies from scoring vars
             if (isset($formula['scoring']['ifs']['vars'])) {
                 foreach ($formula['scoring']['ifs']['vars'] as $var) {
-                    $varKey = $this->normalizeVariableName($var);
+                    $varKey = RuleFlowHelper::normalizeVariableName($var);
                     $deps[] = $varKey;
                 }
             }
@@ -513,7 +514,7 @@ class CodeGenerator
             if (isset($formula['rules'])) {
                 foreach ($formula['rules'] as $rule) {
                     if (isset($rule['var'])) {
-                        $varKey = $this->normalizeVariableName($rule['var']);
+                        $varKey = RuleFlowHelper::normalizeVariableName($rule['var']);
                         $deps[] = $varKey;
                     }
                 }
@@ -637,7 +638,7 @@ class CodeGenerator
     {
         // Mark formula's main output as available
         $mainOutput = isset($formula['as']) ? 
-            $this->normalizeVariableName($formula['as']) : $formula['id'];
+            RuleFlowHelper::normalizeVariableName($formula['as']) : $formula['id'];
         
         if (!isset($dynamicOutputs[$mainOutput])) {
             $dynamicOutputs[$mainOutput] = [];
@@ -710,7 +711,7 @@ class CodeGenerator
                 foreach ($allFormulas as $f) {
                     if (in_array($f['id'], $processed)) {
                         $outputKey = isset($f['as']) ? 
-                            $this->normalizeVariableName($f['as']) : $f['id'];
+                            RuleFlowHelper::normalizeVariableName($f['as']) : $f['id'];
                         if ($outputKey === $dep) {
                             $depSatisfied = true;
                             break;
@@ -735,7 +736,7 @@ class CodeGenerator
     private function processSetVarsForDependency(array $setVars, array &$deps, array &$dynamicOutputs, string $formulaId): void
     {
         foreach ($setVars as $varName => $varValue) {
-            $outputKey = $this->normalizeVariableName($varName);
+            $outputKey = RuleFlowHelper::normalizeVariableName($varName);
             
             // Track this as a dynamic output
             if (!isset($dynamicOutputs[$outputKey])) {
@@ -745,11 +746,11 @@ class CodeGenerator
             
             // Extract dependencies from the value
             if (is_string($varValue)) {
-                if ($this->isDollarReference($varValue)) {
+                if (RuleFlowHelper::isDollarReference($varValue)) {
                     // Simple reference: $var1 = $var2
-                    $depKey = $this->normalizeVariableName($varValue);
+                    $depKey = RuleFlowHelper::normalizeVariableName($varValue);
                     $deps[] = $depKey;
-                } elseif ($this->isDollarExpression($varValue)) {
+                } elseif (RuleFlowHelper::isDollarExpression($varValue)) {
                     // Complex expression: extract all $variables
                     if (preg_match_all('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', $varValue, $matches)) {
                         foreach ($matches[1] as $depVar) {
@@ -839,25 +840,5 @@ class CodeGenerator
         }
     }
 
-    /**
-     * Helper methods
-     */
-    private function normalizeVariableName(string $varName): string
-    {
-        return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
-    }
 
-    private function isDollarReference(string $value): bool
-    {
-        return preg_match('/^\$[a-zA-Z_][a-zA-Z0-9_]*$/', trim($value)) === 1;
-    }
-
-    private function isDollarExpression(string $value): bool
-    {
-        $trimmed = trim($value);
-        return preg_match('/\$[a-zA-Z_][a-zA-Z0-9_]*/', $trimmed) && 
-               !$this->isDollarReference($trimmed) &&
-               (preg_match('/[\+\-\*\/\(\)\s]/', $trimmed) || 
-                preg_match('/\$[a-zA-Z_][a-zA-Z0-9_]*.*\$[a-zA-Z_][a-zA-Z0-9_]*/', $trimmed));
-    }
 }
