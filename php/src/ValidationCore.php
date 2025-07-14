@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-require_once 'ConfigValidator.php';
-require_once 'InputValidator.php';
-require_once 'SchemaGenerator.php';
+require_once __DIR__ . '/ConfigValidator.php';
+require_once __DIR__ . '/InputValidator.php';
+require_once __DIR__ . '/SchemaGenerator.php';
 
 /**
  * ValidationCore - รวม config, input, schema validation

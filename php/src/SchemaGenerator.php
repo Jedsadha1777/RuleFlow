@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . '/RuleFlowHelper.php';
 
 /**
  * Generate input schemas and documentation from RuleFlow configurations
@@ -277,7 +278,7 @@ class SchemaGenerator
             }
             
             // Check switch variables
-            if (isset($formula['switch']) && $this->normalizeVariableName($formula['switch']) === $input) {
+            if (isset($formula['switch']) && RuleFlowHelper::normalizeVariableName($formula['switch']) === $input) {
                 $usage['in_switches'] = true;
             }
             
@@ -293,7 +294,7 @@ class SchemaGenerator
             // Check rules
             if (isset($formula['rules'])) {
                 foreach ($formula['rules'] as $rule) {
-                    if (isset($rule['var']) && $this->normalizeVariableName($rule['var']) === $input) {
+                    if (isset($rule['var']) && RuleFlowHelper::normalizeVariableName($rule['var']) === $input) {
                         if (isset($rule['ranges'])) {
                             foreach ($rule['ranges'] as $range) {
                                 if (isset($range['if'])) {
@@ -914,11 +915,5 @@ class SchemaGenerator
         return $constraints;
     }
     
-    /**
-     * Helper methods
-     */
-    private function normalizeVariableName(string $varName): string
-    {
-        return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
-    }
+   
 }

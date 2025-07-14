@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . '/RuleFlowHelper.php';
 
 /**
  * Configuration validation and input handling
@@ -25,7 +26,7 @@ class ConfigValidator
             $formulaSetVars = $this->extractAllSetVars($formula);
             
             foreach ($formulaSetVars as $varName => $varValue) {
-                $normalizedVar = $this->normalizeVariableName($varName);
+                $normalizedVar = RuleFlowHelper::normalizeVariableName($varName);
                 
                 if (!isset($setVarsAnalysis[$normalizedVar])) {
                     $setVarsAnalysis[$normalizedVar] = [
@@ -47,7 +48,7 @@ class ConfigValidator
             // Track who consumes variables
             $consumed = $this->extractConsumedVariables($formula);
             foreach ($consumed as $consumedVar) {
-                $normalizedVar = $this->normalizeVariableName($consumedVar);
+                $normalizedVar = RuleFlowHelper::normalizeVariableName($consumedVar);
                 if (isset($setVarsAnalysis[$normalizedVar])) {
                     $setVarsAnalysis[$normalizedVar]['consumers'][] = $formulaId;
                 }
@@ -153,11 +154,11 @@ class ConfigValidator
             return 'literal';
         }
         
-        if ($this->isDollarReference($value)) {
+        if (RuleFlowHelper::isDollarReference($value)) {
             return 'reference';
         }
         
-        if ($this->isDollarExpression($value)) {
+        if (RuleFlowHelper::isDollarExpression($value)) {
             return 'expression';
         }
         
@@ -215,7 +216,7 @@ class ConfigValidator
             // Standard dependencies
             if (isset($formula['inputs'])) {
                 foreach ($formula['inputs'] as $input) {
-                    $dependencies[] = $this->normalizeVariableName($input);
+                    $dependencies[] = RuleFlowHelper::normalizeVariableName($input);
                 }
             }
             
@@ -556,14 +557,14 @@ class ConfigValidator
 
         // Validate $ notation in 'as' field
         if (isset($formula['as']) && is_string($formula['as']) && 
-            !$this->isValidDollarVariable($formula['as'])) {
+            !RuleFlowHelper::isDollarReference($formula['as'])) {
             $errors[] = "$prefix: 'as' field must use valid \$ notation (e.g., '\$variable_name')";
         }
 
         // Validate $ notation in 'switch' field
         if (isset($formula['switch']) && is_string($formula['switch']) && 
-            !$this->isValidDollarVariable($formula['switch']) && 
-            !$this->isValidInputVariable($formula['switch'])) {
+            !RuleFlowHelper::isDollarReference($formula['switch']) && 
+            !RuleFlowHelper::isValidInputVariable($formula['switch'])) {
             $errors[] = "$prefix: 'switch' field must reference a valid variable or use \$ notation";
         }
 
@@ -720,7 +721,7 @@ class ConfigValidator
         foreach ($formulas as $index => $formula) { 
             $id = $formula['id'] ?? "Formula[$index]";
             $storeAs = isset($formula['as']) ? 
-                $this->normalizeVariableName($formula['as']) : $id;
+                RuleFlowHelper::normalizeVariableName($formula['as']) : $id;
             $outputs[$id] = $storeAs;
 
             $deps = [];
@@ -740,17 +741,17 @@ class ConfigValidator
                 $deps = array_merge($deps, $formula['inputs']);
             }
             if (isset($formula['switch'])) {
-                $deps[] = $this->normalizeVariableName($formula['switch']);
+                $deps[] = RuleFlowHelper::normalizeVariableName($formula['switch']);
             }
             if (isset($formula['scoring']['ifs']['vars'])) {
                 foreach ($formula['scoring']['ifs']['vars'] as $var) {
-                    $deps[] = $this->normalizeVariableName($var);
+                    $deps[] = RuleFlowHelper::normalizeVariableName($var);
                 }
             }
             if (isset($formula['rules'])) {
                 foreach ($formula['rules'] as $rule) {
                     if (isset($rule['var'])) {
-                        $deps[] = $this->normalizeVariableName($rule['var']);
+                        $deps[] = RuleFlowHelper::normalizeVariableName($rule['var']);
                     }
                 }
             }
@@ -828,7 +829,7 @@ class ConfigValidator
             $id = $formula['id'] ?? "Formula[$index]";
 
             if (isset($formula['as'])) {
-                $storeAs = $this->normalizeVariableName($formula['as']);
+                $storeAs = RuleFlowHelper::normalizeVariableName($formula['as']);
                 $isUsed = false;
 
                 foreach ($config['formulas'] as $otherFormula) {
@@ -837,7 +838,7 @@ class ConfigValidator
                         break;
                     }
                     if (isset($otherFormula['switch']) && 
-                        $this->normalizeVariableName($otherFormula['switch']) === $storeAs) {
+                        RuleFlowHelper::normalizeVariableName($otherFormula['switch']) === $storeAs) {
                         $isUsed = true;
                         break;
                     }
@@ -880,20 +881,20 @@ class ConfigValidator
             
             if (isset($formula['inputs'])) {
                 foreach ($formula['inputs'] as $input) {
-                    $normalizedInput = $this->normalizeVariableName($input);
+                    $normalizedInput = RuleFlowHelper::normalizeVariableName($input);
                     $requiredInputs[] = $normalizedInput;
                 }
             }
             
             if (isset($formula['switch'])) {
-                $switchVar = $this->normalizeVariableName($formula['switch']);
+                $switchVar = RuleFlowHelper::normalizeVariableName($formula['switch']);
                 $requiredInputs[] = $switchVar;
             }
             
             if (isset($formula['rules'])) {
                 foreach ($formula['rules'] as $rule) {
                     if (isset($rule['var'])) {
-                        $varKey = $this->normalizeVariableName($rule['var']);
+                        $varKey = RuleFlowHelper::normalizeVariableName($rule['var']);
                         $requiredInputs[] = $varKey;
                     }
                 }
@@ -981,32 +982,6 @@ class ConfigValidator
     /**
      * Helper methods
      */
-    private function normalizeVariableName(string $varName): string
-    {
-        return substr($varName, 0, 1) === '$' ? substr($varName, 1) : $varName;
-    }
-
-    private function isValidDollarVariable(string $varName): bool
-    {
-        return preg_match('/^\$[a-zA-Z_][a-zA-Z0-9_]*$/', $varName) === 1;
-    }
-
-    private function isValidInputVariable(string $varName): bool
-    {
-        return preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $varName) &&  substr($varName, 0, 1) !== '$';
-    }
-
-    private function isDollarReference(string $value): bool
-    {
-        return preg_match('/^\$[a-zA-Z_][a-zA-Z0-9_]*$/', trim($value)) === 1;
-    }
-
-    private function isDollarExpression(string $value): bool
-    {
-        $trimmed = trim($value);
-        return preg_match('/\$[a-zA-Z_][a-zA-Z0-9_]*/', $trimmed) && 
-               !$this->isDollarReference($trimmed) &&
-               (preg_match('/[\+\-\*\/\(\)\s]/', $trimmed) || 
-                preg_match('/\$[a-zA-Z_][a-zA-Z0-9_]*.*\$[a-zA-Z_][a-zA-Z0-9_]*/', $trimmed));
-    }
+    
+   
 }

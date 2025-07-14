@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once 'ValidationCore.php';
+require_once __DIR__ . '/ValidationCore.php';
 
 /**
  * ValidationAPI - สำหรับ UI interactions, progressive validation
