@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/ExpressionParser.php';
+
 
 class ExpressionEvaluator
 {
@@ -12,17 +14,6 @@ class ExpressionEvaluator
         return $this->functions;
     }
     
-    private array $operatorPrecedence = [
-        'u-' => 5,  // เพิ่ม unary minus ด้วย precedence สูงสุด
-        '**' => 4,
-        '*' => 3,
-        '/' => 3,
-        '+' => 2,
-        '-' => 2
-    ];
-
-    private array $rightAssociative = ['**' => true, 'u-' => true]; // unary minus เป็น right associative
-
     public function __construct(FunctionRegistry $functions)
     {
         $this->functions = $functions;
@@ -33,13 +24,13 @@ class ExpressionEvaluator
      */
     public function safeEval(string $expr, array $vars): float
     {
-        $expr = $this->replaceVariables($expr, $vars);
+        $expr = ExpressionParser::replaceVariables($expr, $vars);
         $expr = $this->processFunctions($expr);
         $this->validateFinalExpression($expr);
 
-        $tokens = $this->tokenize($expr);
-        $tokens = $this->processUnaryOperators($tokens);
-        $postfix = $this->convertToPostfix($tokens);
+        $tokens = ExpressionParser::tokenize($expr);
+        $tokens = ExpressionParser::processUnaryOperators($tokens);
+        $postfix = ExpressionParser::convertToPostfix($tokens);
         
         $result = $this->evaluatePostfix($postfix);
         
@@ -199,49 +190,13 @@ class ExpressionEvaluator
             throw new RuleFlowException("Invalid numeric expression: '$expr' contains unresolved variables");
         }
 
-        $tokens = $this->tokenize($expr);
-        $tokens = $this->processUnaryOperators($tokens); // เพิ่มการประมวลผล unary operators
-        $postfix = $this->convertToPostfix($tokens);
+        $tokens = ExpressionParser::tokenize($expr);
+        $tokens = ExpressionParser::processUnaryOperators($tokens); // เพิ่มการประมวลผล unary operators
+        $postfix = ExpressionParser::convertToPostfix($tokens);
         
         return $this->evaluatePostfix($postfix);
     }
 
-    /**
-     * Replace variables with their values
-     */
-   private function replaceVariables(string $expr, array $vars): string
-    {
-        // Remove spaces for easier processing
-        $expr = trim($expr);
-        
-        // 🔧 FIX: Replace $variable with actual values WITHOUT adding extra $
-        $expr = preg_replace_callback('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', function($matches) use ($vars) {
-            $varName = $matches[1];
-            
-            if (isset($vars[$varName])) {
-                $value = $vars[$varName];
-                
-                // 🔧 CRITICAL: Return the VALUE directly, not with $ prefix
-                if (is_numeric($value)) {
-                    return (string)$value;  // Return "100", not "$100"
-                } else {
-                    throw new RuleFlowException("Variable $varName must be numeric, got: " . gettype($value));
-                }
-            } else {
-                throw new RuleFlowException("Variable \$$varName not found in context");
-            }
-        }, $expr);
-        
-        // Also handle variables without $ prefix
-        foreach ($vars as $varName => $value) {
-            if (is_numeric($value)) {
-                // Replace whole word boundaries only
-                $expr = preg_replace('/\b' . preg_quote($varName, '/') . '\b/', (string)$value, $expr);
-            }
-        }
-        
-        return $expr;
-    }
 
     /**
      * Validate final expression after variable replacement
@@ -265,115 +220,6 @@ class ExpressionEvaluator
         }
     }
 
-    /**
-     * Tokenize expression - ปรับปรุงให้รองรับ negative numbers และ power operator
-     */
-    private function tokenize(string $expr): array
-    {
-        // จัดการ ** operator ก่อน (ป้องกัน * * แยกกัน)
-        $expr = str_replace('**', ' ** ', $expr);
-        
-        // ใส่ space รอบ operators และ parentheses
-        $expr = preg_replace('/([+\-*\/\(\)])/', ' $1 ', $expr);
-        
-        // แก้ไข ** ที่อาจถูกแยกออกจากขั้นตอนข้างต้น
-        $expr = preg_replace('/\*\s+\*/', '**', $expr);
-        
-        return array_filter(
-            preg_split('/\s+/', trim($expr)),
-            fn($token) => $token !== ''
-        );
-    }
-
-    /**
-     * Process unary operators - ฟังก์ชันใหม่เพื่อจัดการ unary minus
-     */
-    private function processUnaryOperators(array $tokens): array
-    {
-        $processed = [];
-        $length = count($tokens);
-        
-        for ($i = 0; $i < $length; $i++) {
-            $token = $tokens[$i];
-            
-            // ตรวจสอบว่าเป็น unary minus หรือไม่
-            if ($token === '-' && $this->isUnaryMinus($tokens, $i)) {
-                // แปลง unary minus เป็น 'u-' เพื่อแยกจาก binary minus
-                $processed[] = 'u-';
-            } else {
-                $processed[] = $token;
-            }
-        }
-        
-        return $processed;
-    }
-
-    /**
-     * ตรวจสอบว่า '-' ตัวนี้เป็น unary minus หรือไม่
-     */
-    private function isUnaryMinus(array $tokens, int $index): bool
-    {
-        // ถ้าเป็น token แรก = unary
-        if ($index === 0) {
-            return true;
-        }
-        
-        $prevToken = $tokens[$index - 1];
-        
-        // ถ้า token ก่อนหน้าเป็น operator หรือ '(' = unary
-        return in_array($prevToken, ['+', '-', '*', '/', '**', '('], true);
-    }
-
-    /**
-     * Convert infix expression to postfix using Shunting-yard algorithm
-     * ปรับปรุงให้รองรับ unary operators
-     */
-    private function convertToPostfix(array $tokens): array
-    {
-        $stack = [];
-        $output = [];
-
-        foreach ($tokens as $token) {
-            if (is_numeric($token)) {
-                $output[] = (float)$token;
-            } elseif (array_key_exists($token, $this->operatorPrecedence)) {
-                while (
-                    !empty($stack) &&
-                    end($stack) !== '(' &&
-                    array_key_exists(end($stack), $this->operatorPrecedence) &&
-                    (
-                        ($this->operatorPrecedence[end($stack)] > $this->operatorPrecedence[$token]) ||
-                        ($this->operatorPrecedence[end($stack)] == $this->operatorPrecedence[$token] && 
-                         !isset($this->rightAssociative[$token]))
-                    )
-                ) {
-                    $output[] = array_pop($stack);
-                }
-                $stack[] = $token;
-            } elseif ($token === '(') {
-                $stack[] = $token;
-            } elseif ($token === ')') {
-                while (!empty($stack) && end($stack) !== '(') {
-                    $output[] = array_pop($stack);
-                }
-                if (empty($stack)) {
-                    throw new RuleFlowException("Mismatched parentheses");
-                }
-                array_pop($stack);
-            } else {
-                throw new RuleFlowException("Unknown token: {$token}");
-            }
-        }
-
-        while (!empty($stack)) {
-            if (in_array(end($stack), ['(', ')'], true)) {
-                throw new RuleFlowException("Mismatched parentheses");
-            }
-            $output[] = array_pop($stack);
-        }
-
-        return $output;
-    }
 
     /**
      * Evaluate postfix expression - ปรับปรุงให้รองรับ unary operators

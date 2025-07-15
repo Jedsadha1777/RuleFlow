@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require_once __DIR__ . '/RuleFlowHelper.php';
+require_once __DIR__ . '/CodeTemplates.php';
 
 /**
  * Generate optimized PHP code from configurations
@@ -101,8 +102,8 @@ class CodeGenerator
         $code .= "    }\n";
         
         foreach ($cases as $i => $case) {
-            $condition = $this->generateConditionCode('$switchValue', $case['if']);
-            $result = $this->escapePhpValue($case['result']);
+            $condition = CodeTemplates::generateConditionCode('$switchValue', $case['if']);
+            $result = CodeTemplates::escapePhpValue($case['result']);
             
             if ($i === 0) {
                 $code .= "    if ($condition) {\n";
@@ -120,7 +121,7 @@ class CodeGenerator
         
         // Default case
         $code .= "    } else {\n";
-        $code .= "        \$context['$id'] = " . $this->escapePhpValue($default) . ";\n";
+        $code .= "        \$context['$id'] = " . CodeTemplates::escapePhpValue($default) . ";\n";
         
         // Handle default_vars
         if (isset($formula['default_vars'])) {
@@ -151,7 +152,7 @@ class CodeGenerator
             
             if (isset($rule['ranges'])) {
                 foreach ($rule['ranges'] as $i => $range) {
-                    $condition = $this->generateConditionCode('$value', $range['if']);
+                    $condition = CodeTemplates::generateConditionCode('$value', $range['if']);
                     
                     if ($i === 0) {
                         $code .= "        if ($condition) {\n";
@@ -170,7 +171,7 @@ class CodeGenerator
                 }
                 $code .= "        }\n";
             } elseif (isset($rule['if'])) {
-                $condition = $this->generateConditionCode('$value', $rule['if']);
+                $condition = CodeTemplates::generateConditionCode('$value', $rule['if']);
                 $code .= "        if ($condition) {\n";
                 
                 // FIX: Use 'result' instead of 'score'
@@ -264,7 +265,7 @@ class CodeGenerator
         $varName = "\$var$depth";
         
         foreach ($matrix as $i => $item) {
-            $condition = $this->generateConditionCode($varName, $item['if']);
+            $condition = CodeTemplates::generateConditionCode($varName, $item['if']);
             
             if ($i === 0) {
                 $code .= "    if ($condition) {\n";
@@ -284,7 +285,7 @@ class CodeGenerator
                 // Handle additional result data
                 foreach ($item as $key => $value) {
                     if (!in_array($key, ['if', 'ranges', 'score'])) {
-                        $phpValue = $this->escapePhpValue($value);
+                        $phpValue = CodeTemplates::escapePhpValue($value);
                         $code .= "        \$context['{$formulaId}_$key'] = $phpValue;\n";
                     }
                 }
@@ -318,7 +319,7 @@ class CodeGenerator
         $code .= "    } else {\n";
         
         foreach ($ranges as $i => $range) {
-            $condition = $this->generateConditionCode('$value', $range['if']);
+            $condition = CodeTemplates::generateConditionCode('$value', $range['if']);
             
             if ($i === 0) {
                 $code .= "        if ($condition) {\n";
@@ -355,7 +356,7 @@ class CodeGenerator
         
         $code = "    \$value = \$context['$storeAsKey'] ?? null;\n";
         $code .= "    if (\$value !== null && " . 
-                 $this->generateConditionCode('$value', $condition) . ") {\n";
+                 CodeTemplates::generateConditionCode('$value', $condition) . ") {\n";
         $code .= "        \$context['$id'] = $score;\n";
         $code .= "    } else {\n";
         $code .= "        \$context['$id'] = 0;\n";
@@ -385,93 +386,12 @@ class CodeGenerator
                 $code .= "{$indent}\$context['$contextKey'] = $phpExpr;\n";
             } else {
                 // Literal value
-                $phpValue = $this->escapePhpValue($varValue);
+                $phpValue = CodeTemplates::escapePhpValue($varValue);
                 $code .= "{$indent}\$context['$contextKey'] = $phpValue;\n";
             }
         }
         
         return $code;
-    }
-
-    /**
-     * Generate condition code with $ notation support
-     */
-    private function generateConditionCode(string $variable, $condition): string
-    {
-        if (is_array($condition)) {
-            if (isset($condition['and'])) {
-                $subConditions = [];
-                foreach ($condition['and'] as $subCondition) {
-                    $subConditions[] = $this->generateConditionCode($variable, $subCondition);
-                }
-                return '(' . implode(' && ', $subConditions) . ')';
-            }
-            
-            if (isset($condition['or'])) {
-                $subConditions = [];
-                foreach ($condition['or'] as $subCondition) {
-                    $subConditions[] = $this->generateConditionCode($variable, $subCondition);
-                }
-                return '(' . implode(' || ', $subConditions) . ')';
-            }
-            
-            // Handle variable reference in condition
-            if (isset($condition['var'])) {
-                $varKey = RuleFlowHelper::normalizeVariableName($condition['var']);
-                $variable = "\$context['$varKey']";
-            }
-            
-            // Handle original single condition logic
-            $operator = $condition['op'] ?? '==';
-            $value = $condition['value'] ?? null;
-        
-            return match ($operator) {
-                '<' => "$variable < " . $this->formatConditionValue($value),
-                '<=' => "$variable <= " . $this->formatConditionValue($value),
-                '>' => "$variable > " . $this->formatConditionValue($value),
-                '>=' => "$variable >= " . $this->formatConditionValue($value),
-                '==' => "$variable == " . $this->escapePhpValue($value),
-                '!=' => "$variable != " . $this->escapePhpValue($value),
-                'between' => $this->generateBetweenCondition($variable, $value),
-                'in' => "in_array($variable, " . var_export($value, true) . ", true)",
-                'not_in' => "!in_array($variable, " . var_export($value, true) . ", true)",
-                'contains' => "strpos($variable, " . $this->escapePhpValue($value) . ") !== false",
-                'starts_with' => "str_starts_with($variable, " . $this->escapePhpValue($value) . ")",
-                'ends_with' => "str_ends_with($variable, " . $this->escapePhpValue($value) . ")",
-                default => throw new RuleFlowException("Unsupported operator: $operator")
-            };
-        }
-        
-        // Fallback for simple values
-        return "$variable == " . $this->escapePhpValue($condition);
-    }
-
-    /**
-     * Format condition value with $ notation support
-     */
-    private function formatConditionValue($value): string
-    {
-        if (is_string($value) && RuleFlowHelper::isDollarReference($value)) {
-            $valueKey = RuleFlowHelper::normalizeVariableName($value);
-            return "\$context['$valueKey']";
-        }
-        
-        return $this->formatValue($value);
-    }
-
-    /**
-     * Generate between condition with $ notation support
-     */
-    private function generateBetweenCondition(string $variable, $value): string
-    {
-        if (is_array($value) && count($value) === 2) {
-            $min = $this->formatConditionValue($value[0]);
-            $max = $this->formatConditionValue($value[1]);
-            
-            return "$variable >= $min && $variable <= $max";
-        }
-        
-        throw new RuleFlowException("Between operator requires array with 2 values");
     }
 
     /**
@@ -629,7 +549,6 @@ class CodeGenerator
                (substr($varName, 0, 1) !== '$' && 
                 !in_array($varName, ['step1', 'step2', 'final', 'formula_a', 'formula_b', 'intermediate', 'bonus']));
     }
-    
 
      /**
      * Update dynamic outputs after processing a formula
@@ -728,8 +647,6 @@ class CodeGenerator
         return true;
     }
     
-
-
     /**
      * Process set_vars to extract dependencies and track outputs
      */
@@ -761,7 +678,6 @@ class CodeGenerator
             }
         }
     }
-        
 
     /**
      * Convert mathematical expression to PHP code
@@ -799,46 +715,5 @@ class CodeGenerator
         // Replace $variable_name with $context['variable_name']
         return preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', "\$context['$1']", $expr);
     }
-
-    /**
-     * Format value for PHP code generation
-     */
-    private function formatValue($value): string
-    {
-        if (is_numeric($value)) {
-            return (string)$value;
-        } elseif (is_string($value)) {
-            return "'" . addslashes($value) . "'";
-        } elseif (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        } elseif (is_null($value)) {
-            return 'null';
-        } elseif (is_array($value)) {
-            return var_export($value, true);
-        } else {
-            return var_export($value, true);
-        }
-    }
-
-    /**
-     * Escape PHP value for code generation
-     */
-    private function escapePhpValue($value): string
-    {
-        if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
-        } elseif (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        } elseif (is_null($value)) {
-            return 'null';
-        } elseif (is_array($value)) {
-            return var_export($value, true);
-        } elseif (is_numeric($value)) {
-            return (string)$value;
-        } else {
-            return var_export($value, true);
-        }
-    }
-
 
 }

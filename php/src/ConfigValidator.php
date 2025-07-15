@@ -9,7 +9,7 @@ require_once __DIR__ . '/RuleFlowHelper.php';
 class ConfigValidator
 {
     /**
-     * Enhanced Two-Pass Processing Validation - STEP 3
+     * Enhanced Two-Pass Processing Validation 
      * เพิ่มการตรวจสอบและป้องกันปัญหาก่อนที่จะ process
      */
     private function validateTwoPassConfiguration(array $config): array
@@ -979,9 +979,4 @@ class ConfigValidator
         return null;
     }
 
-    /**
-     * Helper methods
-     */
-    
-   
 }
