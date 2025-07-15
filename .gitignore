@@ -36,3 +36,4 @@ dist/
 # Template cache
 src/Templates/Providers/cache/
 php/src/Templates/Providers/cache/
+php/src/Templates/Providers/cache/.template_cache.json
