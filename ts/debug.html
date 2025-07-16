@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RuleFlow Debug</title>
+</head>
+<body>
+    <h1>🐛 RuleFlow Debug</h1>
+    <button onclick="runTest()">Run Test</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import { RuleFlow } from './dist/ruleflow.es.js'
+        
+        window.runTest = async function() {
+            const engine = new RuleFlow()
+            
+            const config = {
+                formulas: [{
+                    id: 'test',
+                    formula: 'a + b',
+                    inputs: ['a', 'b']
+                }]
+            }
+            
+            debugger; // Breakpoint here
+            const result = await engine.evaluate(config, { a: 5, b: 3 })
+            
+            document.getElementById('result').innerHTML = 
+                `<pre>${JSON.stringify(result, null, 2)}</pre>`
+        }
+    </script>
+</body>
+</html>

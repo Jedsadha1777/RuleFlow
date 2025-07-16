@@ -1,0 +1,38 @@
+{
+  "name": "ts",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit",
+    "debug": "node --inspect-brk dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.13.1",
+  "devDependencies": {
+    "@types/node": "^24.0.14",
+    "@typescript-eslint/eslint-plugin": "^8.37.0",
+    "@typescript-eslint/parser": "^8.37.0",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "description": ""
+}
