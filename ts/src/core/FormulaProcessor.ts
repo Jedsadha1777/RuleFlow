@@ -1,17 +1,20 @@
 import { Formula, Condition, LogicalCondition } from '../types.js';
 import { ExpressionEvaluator } from './ExpressionEvaluator.js';
 import { InputValidator } from '../validators/InputValidator.js';
+import { ScoringProcessor } from './ScoringProcessor.js';
 import { RuleFlowException } from '../exceptions/RuleFlowException.js';
 import { FunctionRegistry } from '../functions/FunctionRegistry.js';
 
 export class FormulaProcessor {
   private evaluator: ExpressionEvaluator;
   private inputValidator: InputValidator;
+  private scoringProcessor: ScoringProcessor;
 
   constructor(functionRegistry?: FunctionRegistry) {
     const registry = functionRegistry || new FunctionRegistry();
     this.evaluator = new ExpressionEvaluator(registry);
     this.inputValidator = new InputValidator();
+    this.scoringProcessor = new ScoringProcessor();
   }
 
   process(formulas: Formula[], inputs: Record<string, any>): Record<string, any> {
@@ -23,6 +26,12 @@ export class FormulaProcessor {
           this.processFormula(formula, context);
         } else if (formula.switch) {
           this.processSwitch(formula, context);
+        } else if (formula.rules) {
+          this.processAccumulativeScoring(formula, context);
+        } else if (formula.scoring) {
+          this.processAdvancedScoring(formula, context);
+        } else {
+          throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, rules, or scoring`);
         }
       } catch (error) {
         throw new RuleFlowException(`Error processing formula '${formula.id}': ${error.message}`);
@@ -39,7 +48,9 @@ export class FormulaProcessor {
 
     this.evaluator.setVariables(context);
     const result = this.evaluator.evaluate(formula.formula!);
-    context[formula.id] = result;
+    
+    const storeAs = formula.as || formula.id;
+    context[storeAs.replace('$', '')] = result;
 
     // Handle variable setting
     if (formula.set_vars) {
@@ -58,7 +69,8 @@ export class FormulaProcessor {
 
     for (const when of formula.when || []) {
       if (this.evaluateCondition(when.if, switchValue, context)) {
-        context[formula.id] = when.result;
+        const storeAs = formula.as || formula.id;
+        context[storeAs.replace('$', '')] = when.result;
         
         // Handle variable setting in when condition
         if (when.set_vars) {
@@ -73,13 +85,74 @@ export class FormulaProcessor {
     // Use default if no condition matched
     if (!matched) {
       if (formula.default !== undefined) {
-        context[formula.id] = formula.default;
+        const storeAs = formula.as || formula.id;
+        context[storeAs.replace('$', '')] = formula.default;
       }
       
       // Handle default set_vars
       if (formula.set_vars) {
         this.setVariables(formula.set_vars, context);
       }
+    }
+  }
+
+  private processAccumulativeScoring(formula: Formula, context: Record<string, any>): void {
+    if (!formula.rules) {
+      throw new RuleFlowException(`Accumulative scoring formula '${formula.id}' must have rules`);
+    }
+
+    const result = this.scoringProcessor.processAccumulativeScore(formula.rules, context);
+    
+    const storeAs = formula.as || formula.id;
+    context[storeAs.replace('$', '')] = result.score;
+    
+    // Store additional metadata
+    if (result.breakdown) {
+      context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
+    }
+    
+    if (result.decision) {
+      context[`${storeAs.replace('$', '')}_decision`] = result.decision;
+    }
+    
+    if (result.level) {
+      context[`${storeAs.replace('$', '')}_level`] = result.level;
+    }
+  }
+
+  private processAdvancedScoring(formula: Formula, context: Record<string, any>): void {
+    if (!formula.scoring) {
+      throw new RuleFlowException(`Advanced scoring formula '${formula.id}' must have scoring configuration`);
+    }
+
+    let result;
+    
+    if (formula.scoring.ifs) {
+      // Multi-dimensional scoring
+      result = this.scoringProcessor.processMultiDimensionalScore(formula.scoring, context);
+    } else if (formula.scoring.if) {
+      // Simple weighted scoring
+      const storeAs = formula.as || formula.id;
+      const value = context[storeAs.replace('$', '')];
+      result = this.scoringProcessor.processSimpleScore(formula.scoring, value, context);
+    } else {
+      throw new RuleFlowException(`Invalid scoring configuration for formula '${formula.id}'`);
+    }
+    
+    const storeAs = formula.as || formula.id;
+    context[storeAs.replace('$', '')] = result.score;
+    
+    // Store additional metadata
+    if (result.decision) {
+      context[`${storeAs.replace('$', '')}_decision`] = result.decision;
+    }
+    
+    if (result.level) {
+      context[`${storeAs.replace('$', '')}_level`] = result.level;
+    }
+    
+    if (result.breakdown) {
+      context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
     }
   }
 
@@ -104,6 +177,12 @@ export class FormulaProcessor {
       case '<': return valueToCompare < simpleCondition.value;
       case '>=': return valueToCompare >= simpleCondition.value;
       case '<=': return valueToCompare <= simpleCondition.value;
+      case 'between':
+        const range = simpleCondition.value as [number, number];
+        return valueToCompare >= range[0] && valueToCompare <= range[1];
+      case 'in':
+        const array = simpleCondition.value as any[];
+        return array.includes(valueToCompare);
       default:
         throw new RuleFlowException(`Unknown operator: ${simpleCondition.op}`);
     }

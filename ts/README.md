@@ -12,6 +12,7 @@ A declarative business logic engine for TypeScript/JavaScript that processes com
 - ✅ **Nested Logic** - Complex AND/OR conditions with unlimited nesting
 - ✅ **Variable Setting** - Dynamic variable assignment with `set_vars`
 - ✅ **Type Conversion** - Auto-convert strings to numbers/booleans
+- ✅ **Advanced Scoring** - Multi-dimensional and accumulative scoring
 
 ### Function System  
 - ✅ **Function Registry** - 25+ built-in functions across 4 categories
@@ -23,7 +24,6 @@ A declarative business logic engine for TypeScript/JavaScript that processes com
 
 - 🔄 **Code Generation** - Convert rules to optimized TypeScript functions
 - 📋 **Template System** - Pre-built configurations for common scenarios  
-- 🏆 **Advanced Scoring** - Multi-dimensional and accumulative scoring
 - 📝 **Schema Generator** - Auto-generate JSON schemas
 - ✅ **Enhanced Validation** - Extended configuration validation
 
