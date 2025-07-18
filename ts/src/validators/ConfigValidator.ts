@@ -81,7 +81,7 @@ export class ConfigValidator {
 
     // Must have some execution logic
     if (!formula.formula && !formula.switch && !formula.when && !formula.set_vars && !formula.rules && !formula.scoring) {
-      errors.push(`${prefix}: Must have 'formula', 'switch', 'when', 'set_vars', 'rules', or 'scoring'`);
+      errors.push(`${prefix}: Must have 'formula', 'switch', 'when', or 'set_vars'`);
     }
 
     // Validate formula structure
@@ -281,7 +281,7 @@ export class ConfigValidator {
     // Invalid scoring configuration
     else {
       if (scoring.score === undefined && scoring.result === undefined) {
-        errors.push(`${prefix}: Scoring configuration must have either 'ifs' for multi-dimensional or 'if' for simple scoring, or direct 'score'/'result'`);
+        errors.push(`${prefix}: Invalid scoring configuration`);
       }
     }
 
