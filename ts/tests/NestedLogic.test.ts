@@ -1,5 +1,3 @@
-// ts/tests/NestedLogic.test.ts
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RuleFlow, RuleFlowException } from '../src/index.js';
 
