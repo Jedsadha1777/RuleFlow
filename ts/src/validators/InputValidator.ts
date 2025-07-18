@@ -53,13 +53,13 @@ export class InputValidator {
       if (formula.inputs) {
         requiredInputs.push(...formula.inputs);
       }
-      
+
       // Extract from formula string - parse variables
       if (formula.formula) {
         const variables = this.extractVariablesFromFormula(formula.formula);
         requiredInputs.push(...variables);
       }
-      
+
       // Extract from switch variable
       if (formula.switch) {
         const switchVar = formula.switch.replace('$', '');
@@ -93,7 +93,7 @@ export class InputValidator {
 
     // Remove duplicates and filter reserved words
     const reserved = ['true', 'false', 'null', 'undefined', 'max', 'min', 'abs', 'sqrt', 'round'];
-    return [...new Set(requiredInputs)].filter(input => 
+    return [...new Set(requiredInputs)].filter(input =>
       input && !reserved.includes(input.toLowerCase())
     );
   }
@@ -107,15 +107,15 @@ export class InputValidator {
     const variableRegex = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b(?!\s*\()/g;
     const variables: string[] = [];
     let match;
-    
+
     while ((match = variableRegex.exec(formula)) !== null) {
       const variable = match[1];
       // Filter out mathematical functions and operators
-      if (!['max', 'min', 'abs', 'sqrt', 'round', 'floor', 'ceil', 'pow', 'sin', 'cos', 'tan', 'log'].includes(variable)) {
+      if (!this.isMathFunction(variable)) {
         variables.push(variable);
       }
     }
-    
+
     return variables;
   }
 
@@ -124,24 +124,36 @@ export class InputValidator {
    */
   private extractVariablesFromCondition(condition: any): string[] {
     const variables: string[] = [];
-    
+
     if (condition.var) {
       variables.push(condition.var);
     }
-    
+
     if (condition.and && Array.isArray(condition.and)) {
       condition.and.forEach((subCondition: any) => {
         variables.push(...this.extractVariablesFromCondition(subCondition));
       });
     }
-    
+
     if (condition.or && Array.isArray(condition.or)) {
       condition.or.forEach((subCondition: any) => {
         variables.push(...this.extractVariablesFromCondition(subCondition));
       });
     }
-    
+
     return variables;
+  }
+
+  /**
+   * Check if a string is a mathematical function
+   */
+  private isMathFunction(str: string): boolean {
+    const mathFunctions = [
+      'abs', 'acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'exp', 'floor',
+      'log', 'max', 'min', 'pow', 'random', 'round', 'sin', 'sqrt', 'tan',
+      'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'number', 'string'
+    ];
+    return mathFunctions.includes(str.toLowerCase());
   }
 
   /**
@@ -149,13 +161,11 @@ export class InputValidator {
    */
   getMissingInputs(userInputs: Record<string, any>, config: RuleFlowConfig): string[] {
     const requiredInputs = this.extractRequiredInputs(config);
-    const providedInputs = Object.keys(userInputs);
-    
-    return requiredInputs.filter(required => !providedInputs.includes(required));
+    return requiredInputs.filter(input => !(input in userInputs) || userInputs[input] === null || userInputs[input] === undefined || userInputs[input] === '');
   }
 
   /**
-   * Convert value to appropriate type
+   * Convert string values to appropriate types
    */
   convertValue(value: any): any {
     if (value === null || value === undefined) {
@@ -164,17 +174,17 @@ export class InputValidator {
 
     if (typeof value === 'string') {
       const trimmed = value.trim();
-      
+
       // Try to convert to number
-      if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      if (/^-?\d+\.?\d*$/.test(trimmed)) {
         const num = parseFloat(trimmed);
         return isNaN(num) ? trimmed : num;
       }
-      
+
       // Try to convert to boolean
       if (trimmed.toLowerCase() === 'true') return true;
       if (trimmed.toLowerCase() === 'false') return false;
-      
+
       return trimmed;
     }
 
@@ -182,7 +192,7 @@ export class InputValidator {
   }
 
   /**
-   * 🆕 Validate single field (เหมือน PHP validateField)
+   * Validate single field (เหมือน PHP validateField)
    */
   validateField(fieldName: string, value: any, config: RuleFlowConfig): FieldValidationResult {
     const requiredInputs = this.extractRequiredInputs(config);
@@ -220,84 +230,162 @@ export class InputValidator {
   }
 
   /**
-   * 🆕 Validate multiple fields at once (เหมือน PHP validateFields)
+   * Validate multiple fields at once (เหมือน PHP validateFields)
    */
   validateFields(userInputs: Record<string, any>, config: RuleFlowConfig): Record<string, FieldValidationResult> {
     const results: Record<string, FieldValidationResult> = {};
-    
+
     Object.entries(userInputs).forEach(([fieldName, value]) => {
       results[fieldName] = this.validateField(fieldName, value, config);
     });
-    
+
     return results;
   }
 
   /**
-   * 🆕 Validate partial inputs (เหมือน PHP validatePartial)
+   *  Validate partial inputs (เหมือน PHP validatePartial)
    */
   validatePartial(userInputs: Record<string, any>, config: RuleFlowConfig): {
     valid: boolean;
     missing_required: string[];
     overall_progress: number;
   } {
-    const requiredInputs = this.extractRequiredInputs(config);
-    const missingInputs = this.getMissingInputs(userInputs, config);
-    const providedCount = requiredInputs.length - missingInputs.length;
-    const progress = requiredInputs.length > 0 ? Math.round((providedCount / requiredInputs.length) * 100) : 100;
+    const baseInputs = this.extractBaseInputs(config);
+    const missingBaseInputs = baseInputs.filter(input =>
+      !(input in userInputs) || userInputs[input] === null || userInputs[input] === undefined || userInputs[input] === ''
+    );
+    const providedCount = baseInputs.length - missingBaseInputs.length;
+    const progress = baseInputs.length > 0 ?
+      Math.round((providedCount / baseInputs.length) * 100) : 100;
 
     return {
-      valid: missingInputs.length === 0,
-      missing_required: missingInputs,
+      valid: missingBaseInputs.length === 0,
+      missing_required: missingBaseInputs,
       overall_progress: progress
     };
   }
 
-  /**
-   * Check if inputs are complete
-   */
+
   isComplete(userInputs: Record<string, any>, config: RuleFlowConfig): boolean {
-    return this.getMissingInputs(userInputs, config).length === 0;
+    const missingInputs = this.getMissingInputs(userInputs, config);
+    return missingInputs.length === 0;
   }
 
-  /**
-   * Get completion percentage
-   */
+
   getCompletionPercentage(userInputs: Record<string, any>, config: RuleFlowConfig): number {
     const requiredInputs = this.extractRequiredInputs(config);
     if (requiredInputs.length === 0) return 100;
-    
+
     const missingInputs = this.getMissingInputs(userInputs, config);
     const providedCount = requiredInputs.length - missingInputs.length;
-    
     return Math.round((providedCount / requiredInputs.length) * 100);
   }
 
   /**
-   * 🆕 Get validation status for UI (เหมือน PHP getValidationStatus)
+   * Extract only base inputs (not calculated fields)
    */
+  private extractBaseInputs(config: RuleFlowConfig): string[] {
+    const baseInputs: string[] = [];
+    const calculatedFields: string[] = [];
+
+    config.formulas.forEach(formula => {
+      // Formula ID is a calculated field
+      if (formula.id) {
+        calculatedFields.push(formula.id);
+      }
+
+      // Extract from inputs array (these are base inputs)
+      if (formula.inputs) {
+        baseInputs.push(...formula.inputs);
+      }
+
+      // Extract from formula string - parse variables
+      if (formula.formula) {
+        const variables = this.extractVariablesFromFormula(formula.formula);
+        variables.forEach(variable => {
+          if (!calculatedFields.includes(variable)) {
+            baseInputs.push(variable);
+          }
+        });
+      }
+
+      // Extract from rules (scoring) - these are base inputs
+      if ((formula as any).rules) {
+        (formula as any).rules.forEach((rule: any) => {
+          if (rule.var && !calculatedFields.includes(rule.var)) {
+            baseInputs.push(rule.var);
+          }
+        });
+      }
+
+      // Extract from scoring configuration
+      if ((formula as any).scoring?.ifs?.vars) {
+        (formula as any).scoring.ifs.vars.forEach((variable: string) => {
+          if (!calculatedFields.includes(variable)) {
+            baseInputs.push(variable);
+          }
+        });
+      }
+
+      // Extract variables from when conditions
+      if (formula.when) {
+        formula.when.forEach(whenCondition => {
+          if (whenCondition.if && typeof whenCondition.if === 'object') {
+            const conditionVars = this.extractVariablesFromCondition(whenCondition.if);
+            conditionVars.forEach(variable => {
+              if (!calculatedFields.includes(variable)) {
+                baseInputs.push(variable);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Remove duplicates and filter reserved words
+    const reserved = ['true', 'false', 'null', 'undefined', 'max', 'min', 'abs', 'sqrt', 'round'];
+    return [...new Set(baseInputs)].filter(input =>
+      input && !reserved.includes(input.toLowerCase()) && !calculatedFields.includes(input)
+    );
+  }
+
   getValidationStatus(userInputs: Record<string, any>, config: RuleFlowConfig): ValidationStatus {
-    const fieldValidation = this.validatePartial(userInputs, config);
-    const requiredInputs = this.extractRequiredInputs(config);
-    const providedInputs = Object.keys(userInputs);
-    
-    // ตรวจสอบ field ที่ invalid
+    const baseInputs = this.extractBaseInputs(config);
+    const allInputs = this.extractRequiredInputs(config);
+
+    // Calculate progress based on base inputs for UI
+    const missingBaseInputs = baseInputs.filter(input =>
+      !(input in userInputs) || userInputs[input] === null || userInputs[input] === undefined || userInputs[input] === ''
+    );
+
+    const baseProgress = baseInputs.length > 0 ?
+      Math.round(((baseInputs.length - missingBaseInputs.length) / baseInputs.length) * 100) : 100;
+
     const fieldResults = this.validateFields(userInputs, config);
+
+    const providedInputs = Object.keys(userInputs).filter(key =>
+      userInputs[key] !== null && userInputs[key] !== undefined && userInputs[key] !== ''
+    );
+
     const invalidFields = Object.values(fieldResults).filter(result => !result.valid).length;
-    
-    // คำนวณ validation score
-    const validFieldsCount = providedInputs.length - invalidFields;
-    const validationScore = requiredInputs.length > 0 
-      ? Math.max(0, (validFieldsCount / requiredInputs.length) * 100)
+    const validFieldsCount = Object.values(fieldResults).filter(result => result.valid).length;
+
+    const validationScore = baseInputs.length > 0 ?
+      Math.max(0, ((baseInputs.length - missingBaseInputs.length) / baseInputs.length) * 100)
       : 100;
 
     return {
-      ready_to_submit: fieldValidation.valid && invalidFields === 0,
+      ready_to_submit: missingBaseInputs.length === 0 && invalidFields === 0,
       validation_score: Math.round(validationScore),
-      field_validation: fieldValidation,
+      field_validation: {
+        valid: missingBaseInputs.length === 0,
+        missing_required: missingBaseInputs,
+        overall_progress: baseProgress
+      },
       summary: {
-        total_fields: requiredInputs.length,
+        total_fields: allInputs.length,
         provided_fields: providedInputs.length,
-        missing_fields: fieldValidation.missing_required.length,
+        missing_fields: missingBaseInputs.length,
         invalid_fields: invalidFields
       }
     };
@@ -308,7 +396,7 @@ export class InputValidator {
    */
   sanitizeInputs(userInputs: Record<string, any>): Record<string, any> {
     const sanitized: Record<string, any> = {};
-    
+
     Object.entries(userInputs).forEach(([key, value]) => {
       if (typeof value === 'string') {
         // Basic sanitization
@@ -317,12 +405,12 @@ export class InputValidator {
         sanitized[key] = value;
       }
     });
-    
+
     return sanitized;
   }
 
   /**
-   * 🆕 Advanced sanitization (เหมือน PHP security features)
+   *  Advanced sanitization (เหมือน PHP security features)
    */
   sanitizeInputsAdvanced(userInputs: Record<string, any>, options: SanitizationOptions = {}): Record<string, any> {
     const {
@@ -333,7 +421,7 @@ export class InputValidator {
     } = options;
 
     const sanitized: Record<string, any> = {};
-    
+
     Object.entries(userInputs).forEach(([key, value]) => {
       // Filter allowed keys
       if (allowedKeys && !allowedKeys.includes(key)) {
@@ -350,7 +438,7 @@ export class InputValidator {
 
         // Remove HTML tags (improved regex)
         if (removeHtml) {
-          // Remove script tags first
+          // Remove script tags completely
           cleanValue = cleanValue.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
           // Remove all other HTML tags
           cleanValue = cleanValue.replace(/<[^>]*>/g, '');
@@ -363,18 +451,19 @@ export class InputValidator {
           cleanValue = cleanValue.substring(0, maxStringLength);
         }
 
-        // Remove dangerous characters
-        cleanValue = cleanValue.replace(/[<>"']/g, '');
+        // Remove dangerous SQL keywords and characters
+        cleanValue = cleanValue.replace(/\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|TRUNCATE|ALTER|CREATE)\b/gi, '');
+        cleanValue = cleanValue.replace(/['"`;]/g, '');
       }
 
       sanitized[key] = cleanValue;
     });
-    
+
     return sanitized;
   }
 
   /**
-   * 🆕 Validate input security (ตรวจหา injection attempts)
+   *  Validate input security (ตรวจหา injection attempts)
    */
   validateInputSecurity(userInputs: Record<string, any>): SecurityValidationResult {
     const threats: Array<{ field: string; threat_type: string; message: string; }> = [];
@@ -415,7 +504,7 @@ export class InputValidator {
       threats
     };
   }
-  
+
   /**
    * Original validate method (เก็บไว้เพื่อ backward compatibility)
    */
@@ -431,7 +520,15 @@ export class InputValidator {
    * Validate before evaluation
    */
   validateBeforeEvaluate(inputs: Record<string, any>, config: RuleFlowConfig): void {
-    const missingInputs = this.getMissingInputs(inputs, config);
+    const baseInputs = this.extractBaseInputs(config);
+    const missingInputs: string[] = [];
+
+    for (const required of baseInputs) {
+      if (!(required in inputs) || inputs[required] === null || inputs[required] === undefined || inputs[required] === '') {
+        missingInputs.push(required);
+      }
+    }
+
     if (missingInputs.length > 0) {
       throw new RuleFlowException(`Missing required inputs: ${missingInputs.join(', ')}`);
     }

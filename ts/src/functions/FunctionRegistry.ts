@@ -87,6 +87,24 @@ export class FunctionRegistry {
   }
 
   /**
+   * List all registered functions
+   */
+  listFunctions(): Array<{ name: string; category?: string; description?: string; }> {
+    const functions: Array<{ name: string; category?: string; description?: string; }> = [];
+    
+    for (const [name, func] of this.functions.entries()) {
+      const info = this.functionInfo.get(name);
+      functions.push({
+        name,
+        category: info?.category,
+        description: info?.description
+      });
+    }
+    
+    return functions;
+  }
+
+  /**
    * Unregister a function (for testing/development)
    */
   unregister(name: string): boolean {
@@ -326,7 +344,7 @@ export class FunctionRegistry {
         parameters: ['cost', 'markupRate'],
         returnType: 'number'
     });
-    }
+  }
 
   /**
    * Register utility functions
@@ -380,7 +398,6 @@ export class FunctionRegistry {
       parameters: ['weight', 'height'],
       returnType: 'number'
     });
-
     this.register('age', (birthDate: string | Date) => {
       const birth = new Date(birthDate);
       const today = new Date();
@@ -399,4 +416,6 @@ export class FunctionRegistry {
       returnType: 'number'
     });
   }
+
+    
 }
