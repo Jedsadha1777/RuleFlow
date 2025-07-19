@@ -92,7 +92,7 @@ export class FunctionRegistry {
   listFunctions(): Array<{ name: string; category?: string; description?: string; }> {
     const functions: Array<{ name: string; category?: string; description?: string; }> = [];
     
-    for (const [name, func] of this.functions.entries()) {
+    for (const [name] of this.functions.entries()) {
       const info = this.functionInfo.get(name);
       functions.push({
         name,
