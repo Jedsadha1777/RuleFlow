@@ -1,4 +1,4 @@
-import { RuleFlowConfig, Formula } from '../types.js';
+import { RuleFlowConfig } from '../types.js';
 import { RuleFlowException } from '../exceptions/RuleFlowException.js';
 
 export interface FieldValidationResult {
@@ -267,18 +267,14 @@ export class InputValidator {
 
 
   isComplete(userInputs: Record<string, any>, config: RuleFlowConfig): boolean {
-    const missingInputs = this.getMissingInputs(userInputs, config);
-    return missingInputs.length === 0;
+    const result = this.validatePartial(userInputs, config);
+    return result.valid;
   }
 
 
   getCompletionPercentage(userInputs: Record<string, any>, config: RuleFlowConfig): number {
-    const requiredInputs = this.extractRequiredInputs(config);
-    if (requiredInputs.length === 0) return 100;
-
-    const missingInputs = this.getMissingInputs(userInputs, config);
-    const providedCount = requiredInputs.length - missingInputs.length;
-    return Math.round((providedCount / requiredInputs.length) * 100);
+    const result = this.validatePartial(userInputs, config);
+    return result.overall_progress;
   }
 
   /**
@@ -368,8 +364,6 @@ export class InputValidator {
     );
 
     const invalidFields = Object.values(fieldResults).filter(result => !result.valid).length;
-    const validFieldsCount = Object.values(fieldResults).filter(result => result.valid).length;
-
     const validationScore = baseInputs.length > 0 ?
       Math.max(0, ((baseInputs.length - missingBaseInputs.length) / baseInputs.length) * 100)
       : 100;
@@ -522,13 +516,13 @@ export class InputValidator {
   validateBeforeEvaluate(inputs: Record<string, any>, config: RuleFlowConfig): void {
     const baseInputs = this.extractBaseInputs(config);
     const missingInputs: string[] = [];
-
+    
     for (const required of baseInputs) {
       if (!(required in inputs) || inputs[required] === null || inputs[required] === undefined || inputs[required] === '') {
         missingInputs.push(required);
       }
     }
-
+    
     if (missingInputs.length > 0) {
       throw new RuleFlowException(`Missing required inputs: ${missingInputs.join(', ')}`);
     }

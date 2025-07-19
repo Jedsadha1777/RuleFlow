@@ -515,34 +515,5 @@ export class InputValidator {
     };
   }
   
-  /**
-   * Original validate method (เก็บไว้เพื่อ backward compatibility)
-   */
-  validate(inputs: Record<string, any>, requiredInputs: string[]): void {
-    for (const required of requiredInputs) {
-      if (!(required in inputs)) {
-        throw new RuleFlowException(`Required input '${required}' is missing`);
-      }
-    }
-  }
-
-  /**
-   * Validate before evaluation (only check base inputs, not calculated fields)
-   */
-  validateBeforeEvaluate(inputs: Record<string, any>, config: RuleFlowConfig): void {
-    const baseInputs = this.extractBaseInputs(config);
-    const validateBeforeEvaluate(inputs: Record<string, any>, config: RuleFlowConfig): void {
-   const baseInputs = this.extractBaseInputs(config);
-   const missingInputs: string[] = [];
-   
-   for (const required of baseInputs) {
-     if (!(required in inputs) || inputs[required] === null || inputs[required] === undefined || inputs[required] === '') {
-       missingInputs.push(required);
-     }
-   }
-   
-   if (missingInputs.length > 0) {
-     throw new RuleFlowException(`Missing required inputs: ${missingInputs.join(', ')}`);
-   }
- }
+  
 }

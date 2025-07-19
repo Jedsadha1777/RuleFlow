@@ -112,7 +112,6 @@ export class ConfigValidator {
       errors.push(`${prefix}: 'formula' must be a non-empty string`);
     }
 
-    // Check for common syntax errors
     if (formula.formula) {
       // Unmatched parentheses
       const openParens = (formula.formula.match(/\(/g) || []).length;
@@ -121,13 +120,13 @@ export class ConfigValidator {
         errors.push(`${prefix}: Unmatched parentheses in formula`);
       }
 
-      // Invalid operators
-      if (/[\+\-\*\/]{2,}/.test(formula.formula)) {
+      // ✅ Fixed: รองรับ ** operator
+      if (/[\+\-\/]{2,}|\*{3,}/.test(formula.formula)) {
         errors.push(`${prefix}: Invalid operator sequence in formula`);
       }
 
       // Check for incomplete expressions
-      if (/[\+\-\*\/]\s*$/.test(formula.formula.trim())) {
+      if (/[+\-*/]\s*$/.test(formula.formula.trim())) {
         errors.push(`${prefix}: Formula ends with operator`);
       }
     }

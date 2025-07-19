@@ -33,7 +33,7 @@ export class FormulaProcessor {
         } else {
           throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, rules, or scoring`);
         }
-      } catch (error) {
+      } catch (error: any) {
         throw new RuleFlowException(`Error processing formula '${formula.id}': ${error.message}`);
       }
     }
@@ -59,7 +59,29 @@ export class FormulaProcessor {
   }
 
   private processSwitch(formula: Formula, context: Record<string, any>): void {
-    const switchValue = context[formula.switch!];
+    let switchValue: any;
+
+     if (formula.switch!.startsWith('$')) {
+      // ลบ $ prefix และหาตัวแปรใน context
+      const varName = formula.switch!.substring(1);
+      switchValue = context[varName];
+      
+      if (switchValue === undefined) {
+        throw new RuleFlowException(
+          `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
+        );
+      }
+    } else {
+      // ใช้ชื่อตัวแปรโดยตรง
+      switchValue = context[formula.switch!];
+      
+      if (switchValue === undefined) {
+        throw new RuleFlowException(
+          `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
+        );
+      }
+    }
+
     
     if (switchValue === undefined) {
       throw new RuleFlowException(`Switch variable '${formula.switch}' not found`);
@@ -93,6 +115,27 @@ export class FormulaProcessor {
       if (formula.set_vars) {
         this.setVariables(formula.set_vars, context);
       }
+    }
+  }
+  private evaluateCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
+    if (condition.op && 'value' in condition) {
+      return this.compareValues(switchValue, condition.op, condition.value);
+    }
+    return Boolean(condition);
+  }
+
+  private compareValues(leftValue: any, operator: string, rightValue: any): boolean {
+    const left = typeof leftValue === 'string' ? parseFloat(leftValue) || leftValue : leftValue;
+    const right = typeof rightValue === 'string' ? parseFloat(rightValue) || rightValue : rightValue;
+
+    switch (operator) {
+      case '<': return left < right;
+      case '<=': return left <= right;
+      case '>': return left > right;
+      case '>=': return left >= right;
+      case '==': case '=': return left == right;
+      case '!=': case '<>': return left != right;
+      default: throw new RuleFlowException(`Unknown operator: ${operator}`);
     }
   }
 
@@ -153,38 +196,6 @@ export class FormulaProcessor {
     
     if (result.breakdown) {
       context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
-    }
-  }
-
-  private evaluateCondition(condition: Condition | LogicalCondition, switchValue: any, context: Record<string, any>): boolean {
-    // Handle logical conditions (AND/OR)
-    if ('and' in condition) {
-      return condition.and!.every(cond => this.evaluateCondition(cond, switchValue, context));
-    }
-    
-    if ('or' in condition) {
-      return condition.or!.some(cond => this.evaluateCondition(cond, switchValue, context));
-    }
-
-    // Handle simple condition
-    const simpleCondition = condition as Condition;
-    const valueToCompare = simpleCondition.var ? context[simpleCondition.var] : switchValue;
-    
-    switch (simpleCondition.op) {
-      case '==': return valueToCompare == simpleCondition.value;
-      case '!=': return valueToCompare != simpleCondition.value;
-      case '>': return valueToCompare > simpleCondition.value;
-      case '<': return valueToCompare < simpleCondition.value;
-      case '>=': return valueToCompare >= simpleCondition.value;
-      case '<=': return valueToCompare <= simpleCondition.value;
-      case 'between':
-        const range = simpleCondition.value as [number, number];
-        return valueToCompare >= range[0] && valueToCompare <= range[1];
-      case 'in':
-        const array = simpleCondition.value as any[];
-        return array.includes(valueToCompare);
-      default:
-        throw new RuleFlowException(`Unknown operator: ${simpleCondition.op}`);
     }
   }
 

@@ -12,6 +12,7 @@ export interface Formula {
   set_vars?: Record<string, any>;
   rules?: any[]; // For accumulative scoring
   scoring?: any; // For advanced scoring
+  as?: string;
 }
 
 export interface WhenCondition {

@@ -39,34 +39,49 @@ export class RuleFlow {
     execution_time?: number;
   }> {
     const startTime = Date.now();
-    
+
     try {
       // 1. Validate configuration first
       const configValidation = this.validator.validateConfig(config);
+
       if (!configValidation.valid) {
+
         return {
           valid: false,
           errors: configValidation.errors,
-          warnings: configValidation.warnings
+          warnings: configValidation.warnings || []
         };
       }
 
       // 2. Try to evaluate with sample inputs
-      const result = await this.evaluate(config, sampleInputs);
-      const executionTime = Date.now() - startTime;
+      try {
+        const result = await this.evaluate(config, sampleInputs);
+        const executionTime = Date.now() - startTime;
 
-      return {
-        valid: true,
-        errors: [],
-        warnings: configValidation.warnings,
-        test_result: result,
-        execution_time: executionTime
-      };
+        return {
+          valid: true,
+          errors: [],
+          warnings: configValidation.warnings || [],
+          test_result: result,
+          execution_time: executionTime
+        };
 
-    } catch (error: any) {
+      } catch (evalError: any) {
+
+
+        return {
+          valid: false,
+          errors: [`Test execution failed: ${evalError.message}`],
+          warnings: configValidation.warnings || []
+        };
+      }
+
+    } catch (configError: any) {
+
+
       return {
         valid: false,
-        errors: [`Test execution failed: ${error.message}`],
+        errors: [`Configuration test failed: ${configError.message}`],
         warnings: []
       };
     }
@@ -136,5 +151,5 @@ export class RuleFlow {
     this.functionRegistry.register(name, handler, info);
   }
 
-  
+
 }

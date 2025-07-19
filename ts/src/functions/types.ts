@@ -88,3 +88,21 @@ export interface ScoringResult {
   breakdown?: Record<string, number>; // Score breakdown by category
   metadata?: Record<string, any>;
 }
+
+export type FunctionHandler = (...args: any[]) => any;
+
+export interface FunctionInfo {
+  name: string;
+  category?: string;
+  description?: string;
+  parameters?: string[];
+  returnType?: string;
+}
+
+export interface FunctionCategories {
+  [category: string]: string[];
+  Math: string[];
+  Statistics: string[];
+  Business: string[];
+  Utility: string[];
+}

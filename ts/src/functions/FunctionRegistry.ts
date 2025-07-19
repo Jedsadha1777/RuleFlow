@@ -38,7 +38,7 @@ export class FunctionRegistry {
 
     try {
       return handler(...args);
-    } catch (error) {
+    } catch (error: any) {
       throw new RuleFlowException(`Error calling function '${name}': ${error.message}`);
     }
   }
