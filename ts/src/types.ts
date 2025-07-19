@@ -20,16 +20,18 @@ export interface Formula {
 // ================================
 export interface WhenCondition {
   if: Condition | LogicalCondition;
-  result: any;
+  result?: any;
   function_call?: string;
   params?: any[]; 
   set_vars?: Record<string, any>;
 }
 
 export interface Condition {
-  op: string;  // ==, !=, >, <, >=, <=, between, in
-  value: any;
+  op: string;
+  value?: any;
   var?: string;
+  function?: string;
+  params?: any[];    
 }
 
 export interface LogicalCondition {
@@ -66,6 +68,8 @@ export interface ScoringConfig {
   result?: number;
   weight?: number;
 }
+
+
 
 export interface MultiDimensionalScoring {
   vars: string[];
