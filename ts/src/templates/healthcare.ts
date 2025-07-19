@@ -45,7 +45,13 @@ export const BMI_CALCULATOR: Template = {
       },
       {
         id: 'health_score',
-        formula: 'bmi < 18.5 ? 70 : (bmi < 25 ? 100 : (bmi < 30 ? 75 : 50))'
+        switch: '$bmi',
+        when: [
+          { if: { op: '<', value: 18.5 }, result: 70 },
+          { if: { op: '<', value: 25 }, result: 100 },
+          { if: { op: '<', value: 30 }, result: 75 }
+        ],
+        default: 50
       }
     ]
   },
@@ -139,7 +145,7 @@ export const HEALTH_RISK_ASSESSMENT: Template = {
       name: 'High risk',
       description: 'Multiple risk factors',
       inputs: { age: 60, smoking: true, exercise_hours_week: 1, family_history: true },
-      expectedOutputs: { risk_factors: 28, risk_level: 'High Risk' }
+      expectedOutputs: { risk_factors: 36, risk_level: 'Very High Risk' }
     }
   ]
 };

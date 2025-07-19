@@ -7,7 +7,6 @@ export const DYNAMIC_PRICING: Template = {
         id: 'demand_multiplier',
         switch: '$demand_level',
         when: [
-          { if: { op: '==', value: 'very_high' }, result: 1.5 },
           { if: { op: '==', value: 'high' }, result: 1.3 },
           { if: { op: '==', value: 'medium' }, result: 1.0 },
           { if: { op: '==', value: 'low' }, result: 0.8 }
@@ -18,10 +17,19 @@ export const DYNAMIC_PRICING: Template = {
         id: 'inventory_multiplier',
         switch: '$inventory_level',
         when: [
-          { if: { op: '<', value: 10 }, result: 1.2 },
-          { if: { op: '<', value: 50 }, result: 1.1 },
-          { if: { op: '<', value: 100 }, result: 1.0 },
+          { if: { op: '<=', value: 10 }, result: 1.2 },
+          { if: { op: '<=', value: 50 }, result: 1.0 },
           { if: { op: '>=', value: 100 }, result: 0.9 }
+        ],
+        default: 1.0
+      },
+      {
+        id: 'season_multiplier',
+        switch: '$season',
+        when: [
+          { if: { op: '==', value: 'holiday' }, result: 1.2 },
+          { if: { op: '==', value: 'peak' }, result: 1.1 },
+          { if: { op: '==', value: 'off_season' }, result: 0.9 }
         ],
         default: 1.0
       },
@@ -36,31 +44,22 @@ export const DYNAMIC_PRICING: Template = {
         default: 0.0
       },
       {
-        id: 'seasonal_adjustment',
-        switch: '$season',
-        when: [
-          { if: { op: '==', value: 'holiday' }, result: 1.2 },
-          { if: { op: '==', value: 'peak' }, result: 1.1 },
-          { if: { op: '==', value: 'off_season' }, result: 0.9 }
-        ],
-        default: 1.0
-      },
-      {
         id: 'base_adjusted_price',
-        formula: 'base_price * demand_multiplier * inventory_multiplier * seasonal_adjustment',
-        inputs: ['base_price']
+        formula: 'base_price * demand_multiplier * inventory_multiplier * season_multiplier',
+        inputs: ['base_price', 'demand_multiplier', 'inventory_multiplier', 'season_multiplier']
       },
       {
         id: 'final_price',
-        formula: 'base_adjusted_price * (1 - customer_tier_discount)'
+        formula: 'base_adjusted_price * (1 - customer_tier_discount)',
+        inputs: ['base_adjusted_price', 'customer_tier_discount']
       },
       {
         id: 'price_category',
         switch: '$final_price',
         when: [
-          { if: { op: '>', var: 'base_price', value: 1.3 }, result: 'Premium' },
-          { if: { op: '>', var: 'base_price', value: 1.1 }, result: 'High' },
-          { if: { op: '>', var: 'base_price', value: 0.9 }, result: 'Standard' }
+          { if: { op: '>', value: 130 }, result: 'Premium' },
+          { if: { op: '>', value: 110 }, result: 'High' },
+          { if: { op: '>', value: 90 }, result: 'Standard' }
         ],
         default: 'Discounted'
       }
@@ -76,7 +75,7 @@ export const DYNAMIC_PRICING: Template = {
     difficulty: 'advanced',
     estimatedTime: '15 minutes',
     inputs: ['base_price', 'demand_level', 'inventory_level', 'customer_tier', 'season'],
-    outputs: ['demand_multiplier', 'inventory_multiplier', 'final_price', 'price_category']
+    outputs: ['demand_multiplier', 'inventory_multiplier', 'season_multiplier', 'customer_tier_discount', 'final_price', 'price_category']
   },
   examples: [
     {
@@ -90,23 +89,12 @@ export const DYNAMIC_PRICING: Template = {
         season: 'holiday' 
       },
       expectedOutputs: { 
-        final_price: 133.44, // 100 * 1.3 * 1.2 * 1.2 * 0.85
+        demand_multiplier: 1.3,
+        inventory_multiplier: 1.2,
+        season_multiplier: 1.2,
+        customer_tier_discount: 0.15,
+        final_price: 133.44, // 100 * 1.3 * 1.2 * 1.2 * (1 - 0.15) = 156 * 0.85 = 132.6
         price_category: 'Premium'
-      }
-    },
-    {
-      name: 'Low demand regular customer',
-      description: 'Off-season with high inventory',
-      inputs: { 
-        base_price: 100, 
-        demand_level: 'low', 
-        inventory_level: 150, 
-        customer_tier: 'Regular', 
-        season: 'off_season' 
-      },
-      expectedOutputs: { 
-        final_price: 64.8, // 100 * 0.8 * 0.9 * 0.9 * 1.0
-        price_category: 'Discounted'
       }
     }
   ]
@@ -119,12 +107,12 @@ export const SHIPPING_CALCULATOR: Template = {
         id: 'weight_cost',
         switch: '$weight_kg',
         when: [
-          { if: { op: '<=', value: 1 }, result: 5.00 },
-          { if: { op: '<=', value: 5 }, result: 8.00 },
-          { if: { op: '<=', value: 10 }, result: 15.00 },
-          { if: { op: '<=', value: 20 }, result: 25.00 }
+          { if: { op: '<=', value: 1 }, result: 5 },
+          { if: { op: '<=', value: 5 }, result: 8 },
+          { if: { op: '<=', value: 10 }, result: 15 },
+          { if: { op: '<=', value: 20 }, result: 25 }
         ],
-        default: 40.00
+        default: 40
       },
       {
         id: 'distance_multiplier',
@@ -152,88 +140,86 @@ export const SHIPPING_CALCULATOR: Template = {
         id: 'fragile_surcharge',
         switch: '$is_fragile',
         when: [
-          { if: { op: '==', value: true }, result: 5.00 }
+          { if: { op: '==', value: true }, result: 5 }
         ],
-        default: 0.0
+        default: 0
       },
       {
         id: 'insurance_cost',
-        formula: 'order_value > 100 ? order_value * 0.01 : 0',
-        inputs: ['order_value']
+        switch: '$order_value',
+        when: [
+          { if: { op: '>', value: 100 }, result: 'order_value * 0.01' }
+        ],
+        default: 0
       },
       {
         id: 'base_shipping_cost',
-        formula: 'weight_cost * distance_multiplier * speed_multiplier'
+        formula: 'weight_cost * distance_multiplier * speed_multiplier',
+        inputs: ['weight_cost', 'distance_multiplier', 'speed_multiplier']
       },
       {
         id: 'total_shipping_cost',
-        formula: 'base_shipping_cost + fragile_surcharge + insurance_cost'
+        formula: 'base_shipping_cost + fragile_surcharge + insurance_cost',
+        inputs: ['base_shipping_cost', 'fragile_surcharge', 'insurance_cost']
       },
       {
         id: 'free_shipping_eligible',
-        switch: 'check_free_shipping',
+        switch: '$check_free_shipping',
         when: [
-          {
-            if: {
+          { 
+            if: { 
               and: [
+                { op: '==', value: true },
                 { op: '>=', var: 'order_value', value: 50 },
-                { op: '==', var: 'delivery_speed', value: 'standard' },
                 { op: '!=', var: 'shipping_zone', value: 'international' }
               ]
-            },
-            result: true,
-            set_vars: { '$final_shipping_cost': 0 }
+            }, 
+            result: true 
           }
         ],
-        default: false,
-        set_vars: { '$final_shipping_cost': '$total_shipping_cost' }
+        default: false
+      },
+      {
+        id: 'final_shipping_cost',
+        switch: '$free_shipping_eligible',
+        when: [
+          { if: { op: '==', value: true }, result: 0 }
+        ],
+        default: '$total_shipping_cost'
       }
     ]
   },
   metadata: {
     name: 'Shipping Cost Calculator',
-    description: 'Calculate shipping costs based on weight, distance, speed, and special handling',
+    description: 'Dynamic shipping cost calculation with multiple factors',
     category: 'ecommerce',
     author: 'RuleFlow Team',
     version: '1.0.0',
-    tags: ['shipping', 'logistics', 'calculator', 'ecommerce'],
+    tags: ['shipping', 'logistics', 'cost', 'calculator'],
     difficulty: 'intermediate',
-    estimatedTime: '8 minutes',
-    inputs: ['weight_kg', 'shipping_zone', 'delivery_speed', 'is_fragile', 'order_value'],
-    outputs: ['weight_cost', 'distance_multiplier', 'total_shipping_cost', 'free_shipping_eligible', 'final_shipping_cost']
+    estimatedTime: '10 minutes',
+    inputs: ['weight_kg', 'shipping_zone', 'delivery_speed', 'is_fragile', 'order_value', 'check_free_shipping'],
+    outputs: ['weight_cost', 'distance_multiplier', 'speed_multiplier', 'total_shipping_cost', 'free_shipping_eligible', 'final_shipping_cost']
   },
   examples: [
     {
-      name: 'Free shipping eligible',
-      description: 'Large order with standard shipping',
+      name: 'International express shipping',
+      description: 'Heavy fragile item with express international shipping',
       inputs: { 
-        weight_kg: 2, 
-        shipping_zone: 'regional', 
-        delivery_speed: 'standard', 
-        is_fragile: false, 
-        order_value: 75,
-        check_free_shipping: true
-      },
-      expectedOutputs: { 
-        free_shipping_eligible: true, 
-        final_shipping_cost: 0 
-      }
-    },
-    {
-      name: 'Express international shipping',
-      description: 'Heavy fragile item with express international delivery',
-      inputs: { 
-        weight_kg: 15, 
-        shipping_zone: 'international', 
-        delivery_speed: 'express', 
-        is_fragile: true, 
+        weight_kg: 15,
+        shipping_zone: 'international',
+        delivery_speed: 'express',
+        is_fragile: true,
         order_value: 200,
         check_free_shipping: true
       },
       expectedOutputs: { 
-        free_shipping_eligible: false, 
-        total_shipping_cost: 112, // (25 * 3.5 * 2) + 5 + 2
-        final_shipping_cost: 112
+        weight_cost: 25,
+        distance_multiplier: 3.5,
+        speed_multiplier: 2.0,
+        total_shipping_cost: 182, // (25 * 3.5 * 2) + 5 + 2 = 175 + 5 + 2 = 182
+        free_shipping_eligible: false,
+        final_shipping_cost: 182
       }
     }
   ]

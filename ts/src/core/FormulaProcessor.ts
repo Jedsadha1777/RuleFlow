@@ -61,8 +61,7 @@ export class FormulaProcessor {
   private processSwitch(formula: Formula, context: Record<string, any>): void {
     let switchValue: any;
 
-     if (formula.switch!.startsWith('$')) {
-      // ลบ $ prefix และหาตัวแปรใน context
+    if (formula.switch!.startsWith('$')) {
       const varName = formula.switch!.substring(1);
       switchValue = context[varName];
       
@@ -72,7 +71,6 @@ export class FormulaProcessor {
         );
       }
     } else {
-      // ใช้ชื่อตัวแปรโดยตรง
       switchValue = context[formula.switch!];
       
       if (switchValue === undefined) {
@@ -82,17 +80,15 @@ export class FormulaProcessor {
       }
     }
 
-    
-    if (switchValue === undefined) {
-      throw new RuleFlowException(`Switch variable '${formula.switch}' not found`);
-    }
-
     let matched = false;
 
     for (const when of formula.when || []) {
       if (this.evaluateCondition(when.if, switchValue, context)) {
         const storeAs = formula.as || formula.id;
-        context[storeAs.replace('$', '')] = when.result;
+        
+        //  Resolve variable references in result
+        const resolvedResult = this.resolveValue(when.result, context);
+        context[storeAs.replace('$', '')] = resolvedResult;
         
         // Handle variable setting in when condition
         if (when.set_vars) {
@@ -108,7 +104,9 @@ export class FormulaProcessor {
     if (!matched) {
       if (formula.default !== undefined) {
         const storeAs = formula.as || formula.id;
-        context[storeAs.replace('$', '')] = formula.default;
+        
+        const resolvedDefault = this.resolveValue(formula.default, context);
+        context[storeAs.replace('$', '')] = resolvedDefault;
       }
       
       // Handle default set_vars
@@ -117,8 +115,75 @@ export class FormulaProcessor {
       }
     }
   }
+
+  //  ปรับปรุง resolveValue() ให้ครอบคลุมทุกกรณี
+  private resolveValue(value: any, context: Record<string, any>): any {
+    // ถ้าไม่ใช่ string ก็ return ค่าเดิม
+    if (typeof value !== 'string') {
+      return value;
+    }
+
+    // ถ้าเป็น variable reference ($variable)
+    if (value.startsWith('$')) {
+      const varName = value.substring(1);
+      if (context[varName] !== undefined) {
+        return context[varName];
+      } else {
+        throw new RuleFlowException(`Variable reference '${value}' not found in context`);
+      }
+    }
+    
+    // ถ้าเป็น expression (มี operators หรือ functions)
+    if (this.isExpression(value)) {
+      try {
+        this.evaluator.setVariables(context);
+        return this.evaluator.evaluate(value);
+      } catch (error: any) {
+        throw new RuleFlowException(`Cannot evaluate expression '${value}': ${error.message}`);
+      }
+    }
+    
+    // ถ้าเป็น string literal ก็ลอง convert type
+    return this.convertStringValue(value);
+  }
+
+
+  private isExpression(value: string): boolean {
+    // Check for mathematical operators, variables, or function calls
+    return /[\$\w]+\s*[+\-*/]\s*[\$\w\d.]+|[\$\w]+\s*[+\-*/]\s*\d+|\d+\s*[+\-*/]\s*[\$\w]+|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(value);
+  }
+
+
+  private setVariables(setVars: Record<string, any>, context: Record<string, any>): void {
+    for (const [key, value] of Object.entries(setVars)) {
+      const variableName = key.replace('$', '');
+      
+      // ใช้ resolveValue() เพื่อจัดการทุกประเภทของ value
+      const resolvedValue = this.resolveValue(value, context);
+      context[variableName] = resolvedValue;
+    }
+  }
+
+  private convertStringValue(value: string): any {
+    // Boolean conversion
+    if (value.toLowerCase() === 'true') return true;
+    if (value.toLowerCase() === 'false') return false;
+    
+    // Number conversion
+    if (/^\d+$/.test(value)) {
+      return parseInt(value, 10);
+    }
+    
+    if (/^\d*\.\d+$/.test(value)) {
+      return parseFloat(value);
+    }
+    
+    // Return as string if no conversion possible
+    return value;
+  }
+
   private evaluateCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
-    // Handle logical conditions (AND/OR) - รองรับ nested logic
+    // Handle logical conditions (AND/OR)
     if (condition.and && Array.isArray(condition.and)) {
       return condition.and.every((subCondition: any) => 
         this.evaluateCondition(subCondition, switchValue, context)
@@ -131,11 +196,10 @@ export class FormulaProcessor {
       );
     }
 
-    // Handle simple condition with var property
+    // Handle condition with var property
     if (condition.var) {
       const valueToCompare = context[condition.var];
       if (valueToCompare === undefined) {
-        // Missing variable should return false for comparison
         return false;
       }
       return this.compareValues(valueToCompare, condition.op, condition.value);
@@ -146,7 +210,6 @@ export class FormulaProcessor {
       return this.compareValues(switchValue, condition.op, condition.value);
     }
 
-    // Fallback for boolean-like conditions
     return Boolean(condition);
   }
 
@@ -223,51 +286,5 @@ export class FormulaProcessor {
     if (result.breakdown) {
       context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
     }
-  }
-
-  private setVariables(setVars: Record<string, any>, context: Record<string, any>): void {
-    for (const [key, value] of Object.entries(setVars)) {
-      const variableName = key.replace('$', ''); // Remove $ prefix
-      
-      if (typeof value === 'string') {
-        // Check if it's an expression that needs evaluation
-        if (this.isExpression(value)) {
-          // Evaluate the expression (now supports functions!)
-          this.evaluator.setVariables(context);
-          context[variableName] = this.evaluator.evaluate(value);
-        } else {
-          // Try to convert string to appropriate type
-          context[variableName] = this.convertStringValue(value);
-        }
-      } else {
-        // Direct assignment for non-string values
-        context[variableName] = value;
-      }
-    }
-  }
-
-  private isExpression(value: string): boolean {
-    // Check if string contains variables, mathematical operators, or function calls
-    return /[\$\w]+\s*[+\-*/]\s*[\$\w]+|[\$\w]+\s*[+\-*/]\s*\d+|\d+\s*[+\-*/]\s*[\$\w]+|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(value);
-  }
-
-  private convertStringValue(value: string): any {
-    // Try to convert string to appropriate type
-    
-    // Boolean conversion
-    if (value.toLowerCase() === 'true') return true;
-    if (value.toLowerCase() === 'false') return false;
-    
-    // Number conversion
-    if (/^\d+$/.test(value)) {
-      return parseInt(value, 10); // Integer
-    }
-    
-    if (/^\d*\.\d+$/.test(value)) {
-      return parseFloat(value); // Float
-    }
-    
-    // Return as string if no conversion possible
-    return value;
   }
 }
