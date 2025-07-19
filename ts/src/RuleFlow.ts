@@ -1,3 +1,5 @@
+// ts/src/RuleFlow.ts - Enhanced with Function Templates
+
 import { RuleFlowConfig } from './types';
 import { FormulaProcessor } from './core/FormulaProcessor';
 import { ConfigValidator } from './validators/ConfigValidator';
@@ -5,31 +7,38 @@ import { FunctionRegistry } from './functions/FunctionRegistry';
 import { RuleFlowException } from './exceptions/RuleFlowException';
 import * as Templates from './templates/index';
 
+
+import { 
+  FunctionTemplateManager, 
+  type TemplateType, 
+  FUNCTION_TEMPLATES 
+} from './functions/templates/index';
+
 export class RuleFlow {
   private processor: FormulaProcessor;
   private validator: ConfigValidator;
   private functionRegistry: FunctionRegistry;
+  private templateManager: FunctionTemplateManager; 
 
   constructor() {
     this.functionRegistry = new FunctionRegistry();
     this.processor = new FormulaProcessor(this.functionRegistry);
     this.validator = new ConfigValidator();
+    this.templateManager = new FunctionTemplateManager(); 
   }
 
+  // ====================================
+  // CORE METHODS (unchanged)
+  // ====================================
+  
   async evaluate(config: RuleFlowConfig, inputs: Record<string, any>): Promise<Record<string, any>> {
-    // Validate configuration first
     const validation = this.validator.validateConfig(config);
     if (!validation.valid) {
       throw new RuleFlowException(`Configuration validation failed: ${validation.errors.join(', ')}`);
     }
-
-    // Process formulas
     return this.processor.process(config.formulas, inputs);
   }
 
-  /**
-   * Test configuration with sample data (เหมือน PHP testConfig)
-   */
   async testConfig(config: RuleFlowConfig, sampleInputs: Record<string, any>): Promise<{
     valid: boolean;
     errors: string[];
@@ -40,11 +49,9 @@ export class RuleFlow {
     const startTime = Date.now();
 
     try {
-      // 1. Validate configuration first
       const configValidation = this.validator.validateConfig(config);
 
       if (!configValidation.valid) {
-
         return {
           valid: false,
           errors: configValidation.errors,
@@ -52,7 +59,6 @@ export class RuleFlow {
         };
       }
 
-      // 2. Try to evaluate with sample inputs
       try {
         const result = await this.evaluate(config, sampleInputs);
         const executionTime = Date.now() - startTime;
@@ -66,8 +72,6 @@ export class RuleFlow {
         };
 
       } catch (evalError: any) {
-
-
         return {
           valid: false,
           errors: [`Test execution failed: ${evalError.message}`],
@@ -76,8 +80,6 @@ export class RuleFlow {
       }
 
     } catch (configError: any) {
-
-
       return {
         valid: false,
         errors: [`Configuration test failed: ${configError.message}`],
@@ -86,9 +88,6 @@ export class RuleFlow {
     }
   }
 
-  /**
-   * Validate multiple configurations (batch validation)
-   */
   validateBatch(configs: RuleFlowConfig[]): Array<{
     index: number;
     valid: boolean;
@@ -106,23 +105,22 @@ export class RuleFlow {
     });
   }
 
-  /**
-   * Get function registry for custom function management
-   */
   getFunctionRegistry(): FunctionRegistry {
     return this.functionRegistry;
   }
 
-  /**
-   * Get available functions (alias for getFunctionRegistry().listFunctions())
-   */
   getAvailableFunctions(): Array<{ name: string; category?: string; description?: string; }> {
     return this.functionRegistry.listFunctions();
   }
 
-  /**
-   * Get system information
-   */
+  registerFunction(name: string, handler: (...args: any[]) => any, info?: {
+    category?: string;
+    description?: string;
+    examples?: string[];
+  }): void {
+    this.functionRegistry.register(name, handler, info);
+  }
+
   getSystemInfo(): { version: string; engine: string; features: string[] } {
     return {
       version: '1.0.0-typescript',
@@ -132,6 +130,7 @@ export class RuleFlow {
         'Switch Logic',
         'Nested Conditions',
         'Custom Functions',
+        'Function Templates', 
         'Input Validation',
         'Configuration Testing',
         'Batch Processing'
@@ -139,69 +138,155 @@ export class RuleFlow {
     };
   }
 
+  // ====================================
+  // FUNCTION TEMPLATE METHODS
+  // ====================================
+
   /**
-   * Register a custom function
+   * Load a function template and register its functions
    */
-  registerFunction(name: string, handler: (...args: any[]) => any, info?: {
-    category?: string;
-    description?: string;
-    examples?: string[];
-  }): void {
-    this.functionRegistry.register(name, handler, info);
+  loadFunctionTemplate(templateName: TemplateType): void {
+    const template = FUNCTION_TEMPLATES[templateName];
+    if (!template) {
+      throw new RuleFlowException(`Template '${templateName}' not found`);
+    }
+
+    // Register all functions from the template
+    Object.entries(template.functions).forEach(([funcName, funcHandler]) => {
+      const funcInfo = template.info.functions[funcName];
+      this.functionRegistry.register(funcName, funcHandler, {
+        category: template.info.category,
+        description: funcInfo?.description,
+        parameters: funcInfo?.parameters,
+        returnType: funcInfo?.returnType
+      });
+    });
+
+    // Mark as loaded
+    this.templateManager.markAsLoaded(templateName);
   }
 
   /**
-   * Get all available templates
+   * Load multiple function templates
    */
+  loadFunctionTemplates(templateNames: TemplateType[]): void {
+    templateNames.forEach(name => this.loadFunctionTemplate(name));
+  }
+
+  /**
+   * Get all available function templates
+   */
+  getAvailableFunctionTemplates(): TemplateType[] {
+    return this.templateManager.getAvailableTemplates();
+  }
+
+  /**
+   * Get loaded function templates
+   */
+  getLoadedFunctionTemplates(): TemplateType[] {
+    return this.templateManager.getLoadedTemplates();
+  }
+
+  /**
+   * Get template information
+   */
+  getFunctionTemplateInfo(templateName: TemplateType): any {
+    return this.templateManager.getTemplateInfo(templateName);
+  }
+
+  /**
+   * Check if template is loaded
+   */
+  isFunctionTemplateLoaded(templateName: TemplateType): boolean {
+    return this.templateManager.isTemplateLoaded(templateName);
+  }
+
+  /**
+   * Search functions across all templates
+   */
+  searchTemplateFunctions(keyword: string): Array<{
+    name: string;
+    template: TemplateType;
+    description: string;
+    category: string;
+  }> {
+    return this.templateManager.searchFunctions(keyword);
+  }
+
+  /**
+   * Get template summary for display
+   */
+  getFunctionTemplateSummary(): Array<{
+    name: TemplateType;
+    title: string;
+    category: string;
+    functionCount: number;
+    description: string;
+    loaded: boolean;
+  }> {
+    return this.templateManager.getTemplateSummary();
+  }
+
+  /**
+   * Register a custom function template
+   */
+  registerFunctionTemplate(name: string, template: {
+    functions: Record<string, (...args: any[]) => any>;
+    info: {
+      name: string;
+      category: string;
+      description: string;
+      functions: Record<string, {
+        description: string;
+        parameters: string[];
+        returnType: string;
+      }>;
+    };
+  }): void {
+    // Register all functions from the custom template
+    Object.entries(template.functions).forEach(([funcName, funcHandler]) => {
+      const funcInfo = template.info.functions[funcName];
+      this.functionRegistry.register(funcName, funcHandler, {
+        category: template.info.category,
+        description: funcInfo?.description,
+        parameters: funcInfo?.parameters,
+        returnType: funcInfo?.returnType
+      });
+    });
+  }
+
+  // ====================================
+  // TEMPLATE METHODS (unchanged)
+  // ====================================
+  
   getAvailableTemplates(): string[] {
     return Templates.getAvailableTemplates();
   }
 
-  /**
-   * Get template config for evaluation
-   */
   getTemplate(name: string): RuleFlowConfig | null {
     return Templates.getTemplateConfig(name as any);
   }
 
-  /**
-   * Get templates by category
-   */
   getTemplatesByCategory(category: string): string[] {
     return Templates.getTemplatesByCategory(category as any);
   }
 
-  /**
-   * Get template metadata
-   */
   getTemplateInfo(name: string): any {
     return Templates.getTemplateMetadata(name as any);
   }
 
-  /**
-   * Get template examples
-   */
   getTemplateExamples(name: string): any[] {
     return Templates.getTemplateExamples(name as any);
   }
 
-  /**
-   * Search templates
-   */
   searchTemplates(keyword: string): string[] {
     return Templates.searchTemplates(keyword);
   }
 
-  /**
-   * Get template categories
-   */
   getTemplateCategories(): string[] {
     return Templates.getAvailableCategories();
   }
 
-  /**
-   * Evaluate using template
-   */
   async evaluateTemplate(templateName: string, inputs: Record<string, any>): Promise<Record<string, any>> {
     const config = this.getTemplate(templateName);
     if (!config) {
@@ -210,9 +295,6 @@ export class RuleFlow {
     return this.evaluate(config, inputs);
   }
 
-  /**
-   * Test template with example data
-   */
   async testTemplate(templateName: string, exampleIndex: number = 0): Promise<any> {
     const examples = this.getTemplateExamples(templateName);
     if (!examples[exampleIndex]) {
@@ -230,6 +312,4 @@ export class RuleFlow {
       expected: example.expectedOutputs
     };
   }
-
-
 }
