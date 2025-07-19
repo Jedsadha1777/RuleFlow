@@ -21,6 +21,8 @@ export interface Formula {
 export interface WhenCondition {
   if: Condition | LogicalCondition;
   result: any;
+  function_call?: string;
+  params?: any[]; 
   set_vars?: Record<string, any>;
 }
 

@@ -358,10 +358,10 @@ describe('Comprehensive Feature Tests', () => {
     it('should provide function information', () => {
       try {
         const functions = ruleFlow.getAvailableFunctions();
-        expect(functions.functions).toBeInstanceOf(Array);
-        expect(functions.categories).toBeInstanceOf(Object);
+        expect(functions).toBeInstanceOf(Array);
+        expect(functions).toBeInstanceOf(Object);
         console.log('✅ Function registry works');
-        console.log('Available functions:', functions.functions.slice(0, 5));
+        console.log('Available functions:', functions.slice(0, 5));
       } catch (error) {
         console.log('❌ Function registry not working:', error.message);
       }
