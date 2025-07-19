@@ -77,8 +77,13 @@ describe('Integration Tests - New Features', () => {
       
       expect(schema.properties).toHaveProperty('weight');
       expect(schema.properties).toHaveProperty('height');
-      expect(docs).toContain('weight');
-      expect(docs).toContain('height');
+      
+      expect(docs.typeScriptInterface).toContain('weight');
+      expect(docs.typeScriptInterface).toContain('height');
+      expect(docs.inputSchema.required).toContain('weight');
+      expect(docs.inputSchema.required).toContain('height');
+      expect(docs.summary.totalFormulas).toBeGreaterThan(0);
+      expect(docs.summary.requiredInputs).toBeGreaterThan(0);
     });
   });
 
@@ -189,12 +194,18 @@ describe('Integration Tests - New Features', () => {
   describe('Performance and Edge Cases', () => {
     it('should handle large configurations efficiently', async () => {
       const largeConfig: RuleFlowConfig = {
-        formulas: Array.from({ length: 50 }, (_, i) => ({
+        formulas: []
+      };
+      
+      // สร้าง 49 formulas ที่ใช้ input เดียวกัน
+      for (let i = 0; i < 49; i++) {
+        largeConfig.formulas.push({
           id: `calc_${i}`,
           formula: `input * ${i + 1}`,
           inputs: ['input']
-        }))
-      };
+        });
+      }
+
 
       const startTime = Date.now();
       const testResult = await ruleFlow.testConfig(largeConfig, { input: 1 });

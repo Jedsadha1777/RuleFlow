@@ -1,519 +1,399 @@
-// ไฟล์: ts/src/validators/InputValidator.ts
+// ไฟล์: ts/tests/input-validator.test.ts
 
-import { RuleFlowConfig, Formula } from '../types.js';
-import { RuleFlowException } from '../exceptions/RuleFlowException.js';
+import { describe, it, expect } from 'vitest';
+import { InputValidator } from '../src/validators/InputValidator.js';
+import type { RuleFlowConfig } from '../src/types.js';
 
-export interface FieldValidationResult {
-  valid: boolean;
-  converted_value: any;
-  type: string;
-  errors: string[];
-  warnings: string[];
-}
+describe('InputValidator', () => {
+  const validator = new InputValidator();
 
-export interface ValidationStatus {
-  ready_to_submit: boolean;
-  validation_score: number;
-  field_validation: {
-    valid: boolean;
-    missing_required: string[];
-    overall_progress: number;
-  };
-  summary: {
-    total_fields: number;
-    provided_fields: number;
-    missing_fields: number;
-    invalid_fields: number;
-  };
-}
-
-export interface SecurityValidationResult {
-  safe: boolean;
-  threats: Array<{
-    field: string;
-    threat_type: string;
-    message: string;
-  }>;
-}
-
-export interface SanitizationOptions {
-  trimStrings?: boolean;
-  removeHtml?: boolean;
-  maxStringLength?: number;
-  allowedKeys?: string[];
-}
-
-export class InputValidator {
-  /**
-   * Extract required inputs from configuration
-   */
-  extractRequiredInputs(config: RuleFlowConfig): string[] {
-    const requiredInputs: string[] = [];
-
-    config.formulas.forEach(formula => {
-      // Extract from inputs array
-      if (formula.inputs) {
-        requiredInputs.push(...formula.inputs);
-      }
-      
-      // Extract from formula string - parse variables
-      if (formula.formula) {
-        const variables = this.extractVariablesFromFormula(formula.formula);
-        requiredInputs.push(...variables);
-      }
-      
-      // Extract from switch variable
-      if (formula.switch) {
-        const switchVar = formula.switch.replace('$', '');
-        requiredInputs.push(switchVar);
-      }
-
-      // Extract from rules (scoring)
-      if ((formula as any).rules) {
-        (formula as any).rules.forEach((rule: any) => {
-          if (rule.var) {
-            requiredInputs.push(rule.var);
-          }
-        });
-      }
-
-      // Extract from scoring configuration
-      if ((formula as any).scoring?.ifs?.vars) {
-        requiredInputs.push(...(formula as any).scoring.ifs.vars);
-      }
-
-      // Extract variables from when conditions
-      if (formula.when) {
-        formula.when.forEach(whenCondition => {
-          if (whenCondition.if && typeof whenCondition.if === 'object') {
-            const conditionVars = this.extractVariablesFromCondition(whenCondition.if);
-            requiredInputs.push(...conditionVars);
-          }
-        });
-      }
-    });
-
-    // Remove duplicates and filter reserved words
-    const reserved = ['true', 'false', 'null', 'undefined', 'max', 'min', 'abs', 'sqrt', 'round'];
-    return [...new Set(requiredInputs)].filter(input => 
-      input && !reserved.includes(input.toLowerCase())
-    );
-  }
-
-  /**
-   * Extract only base inputs (not calculated fields)
-   */
-  private extractBaseInputs(config: RuleFlowConfig): string[] {
-    const baseInputs: string[] = [];
-    const calculatedFields: string[] = [];
-
-    config.formulas.forEach(formula => {
-      // Formula ID is a calculated field
-      if (formula.id) {
-        calculatedFields.push(formula.id);
-      }
-
-      // Extract from inputs array (these are base inputs)
-      if (formula.inputs) {
-        baseInputs.push(...formula.inputs);
-      }
-      
-      // Extract from formula string - parse variables
-      if (formula.formula) {
-        const variables = this.extractVariablesFromFormula(formula.formula);
-        variables.forEach(variable => {
-          if (!calculatedFields.includes(variable)) {
-            baseInputs.push(variable);
-          }
-        });
-      }
-
-      // Extract from rules (scoring) - these are base inputs
-      if ((formula as any).rules) {
-        (formula as any).rules.forEach((rule: any) => {
-          if (rule.var && !calculatedFields.includes(rule.var)) {
-            baseInputs.push(rule.var);
-          }
-        });
-      }
-
-      // Extract from scoring configuration
-      if ((formula as any).scoring?.ifs?.vars) {
-        (formula as any).scoring.ifs.vars.forEach((variable: string) => {
-          if (!calculatedFields.includes(variable)) {
-            baseInputs.push(variable);
-          }
-        });
-      }
-
-      // Extract variables from when conditions
-      if (formula.when) {
-        formula.when.forEach(whenCondition => {
-          if (whenCondition.if && typeof whenCondition.if === 'object') {
-            const conditionVars = this.extractVariablesFromCondition(whenCondition.if);
-            conditionVars.forEach(variable => {
-              if (!calculatedFields.includes(variable)) {
-                baseInputs.push(variable);
-              }
-            });
-          }
-        });
-      }
-    });
-
-    // Remove duplicates and filter reserved words
-    const reserved = ['true', 'false', 'null', 'undefined', 'max', 'min', 'abs', 'sqrt', 'round'];
-    return [...new Set(baseInputs)].filter(input => 
-      input && !reserved.includes(input.toLowerCase()) && !calculatedFields.includes(input)
-    );
-  }
-
-  /**
-   * Extract variables from formula string
-   */
-  private extractVariablesFromFormula(formula: string): string[] {
-    // Simple regex to find variable names (letters, numbers, underscore)
-    // Exclude function calls by checking for parentheses
-    const variableRegex = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b(?!\s*\()/g;
-    const variables: string[] = [];
-    let match;
-    
-    while ((match = variableRegex.exec(formula)) !== null) {
-      const variable = match[1];
-      // Filter out mathematical functions and operators
-      if (!this.isMathFunction(variable)) {
-        variables.push(variable);
-      }
-    }
-    
-    return variables;
-  }
-
-  /**
-   * Extract variables from condition object
-   */
-  private extractVariablesFromCondition(condition: any): string[] {
-    const variables: string[] = [];
-    
-    if (condition.var) {
-      variables.push(condition.var);
-    }
-    
-    if (condition.and && Array.isArray(condition.and)) {
-      condition.and.forEach((subCondition: any) => {
-        variables.push(...this.extractVariablesFromCondition(subCondition));
-      });
-    }
-    
-    if (condition.or && Array.isArray(condition.or)) {
-      condition.or.forEach((subCondition: any) => {
-        variables.push(...this.extractVariablesFromCondition(subCondition));
-      });
-    }
-    
-    return variables;
-  }
-
-  /**
-   * Check if a string is a mathematical function
-   */
-  private isMathFunction(str: string): boolean {
-    const mathFunctions = [
-      'abs', 'acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'exp', 'floor',
-      'log', 'max', 'min', 'pow', 'random', 'round', 'sin', 'sqrt', 'tan',
-      'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'number', 'string'
-    ];
-    return mathFunctions.includes(str.toLowerCase());
-  }
-
-  /**
-   * Get missing inputs
-   */
-  getMissingInputs(userInputs: Record<string, any>, config: RuleFlowConfig): string[] {
-    const requiredInputs = this.extractRequiredInputs(config);
-    return requiredInputs.filter(input => !(input in userInputs) || userInputs[input] === null || userInputs[input] === undefined || userInputs[input] === '');
-  }
-
-  /**
-   * Convert string values to appropriate types
-   */
-  convertValue(value: any): any {
-    if (value === null || value === undefined) {
-      return value;
-    }
-
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      
-      // Try to convert to number
-      if (/^-?\d+\.?\d*$/.test(trimmed)) {
-        const num = parseFloat(trimmed);
-        return isNaN(num) ? trimmed : num;
-      }
-      
-      // Try to convert to boolean
-      if (trimmed.toLowerCase() === 'true') return true;
-      if (trimmed.toLowerCase() === 'false') return false;
-      
-      return trimmed;
-    }
-
-    return value;
-  }
-
-  /**
-   * 🆕 Validate single field (เหมือน PHP validateField)
-   */
-  validateField(fieldName: string, value: any, config: RuleFlowConfig): FieldValidationResult {
-    const requiredInputs = this.extractRequiredInputs(config);
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Check if field is required by configuration
-    if (!requiredInputs.includes(fieldName)) {
-      warnings.push(`Field '${fieldName}' is not required by configuration`);
-    }
-
-    // Convert value
-    let convertedValue: any;
-    try {
-      convertedValue = this.convertValue(value);
-    } catch (error) {
-      errors.push(`Cannot convert '${fieldName}' value: ${error}`);
-      convertedValue = value;
-    }
-
-    // ตรวจสอบค่าว่าง (สำหรับ required fields)
-    if (requiredInputs.includes(fieldName)) {
-      if (value === null || value === undefined || value === '') {
-        errors.push(`Field '${fieldName}' is required and cannot be empty`);
-      }
-    }
-
-    return {
-      valid: errors.length === 0,
-      converted_value: convertedValue,
-      type: typeof convertedValue,
-      errors,
-      warnings
-    };
-  }
-
-  /**
-   * 🆕 Validate multiple fields at once (เหมือน PHP validateFields)
-   */
-  validateFields(userInputs: Record<string, any>, config: RuleFlowConfig): Record<string, FieldValidationResult> {
-    const results: Record<string, FieldValidationResult> = {};
-    
-    Object.entries(userInputs).forEach(([fieldName, value]) => {
-      results[fieldName] = this.validateField(fieldName, value, config);
-    });
-    
-    return results;
-  }
-
-  /**
-   * 🆕 Validate partial inputs (เหมือน PHP validatePartial)
-   */
-  validatePartial(userInputs: Record<string, any>, config: RuleFlowConfig): {
-    valid: boolean;
-    missing_required: string[];
-    overall_progress: number;
-  } {
-    const requiredInputs = this.extractRequiredInputs(config);
-    const missingInputs = this.getMissingInputs(userInputs, config);
-    const providedCount = requiredInputs.length - missingInputs.length;
-    const progress = requiredInputs.length > 0 ? 
-      Math.round((providedCount / requiredInputs.length) * 100) : 100;
-
-    return {
-      valid: missingInputs.length === 0,
-      missing_required: missingInputs,
-      overall_progress: progress
-    };
-  }
-
-  /**
-   * 🆕 Check if inputs are complete
-   */
-  isComplete(userInputs: Record<string, any>, config: RuleFlowConfig): boolean {
-    const baseInputs = this.extractBaseInputs(config);
-    const missingBaseInputs = baseInputs.filter(input => 
-      !(input in userInputs) || userInputs[input] === null || userInputs[input] === undefined || userInputs[input] === ''
-    );
-    return missingBaseInputs.length === 0;
-  }
-
-  /**
-   * 🆕 Get completion percentage
-   */
-  getCompletionPercentage(userInputs: Record<string, any>, config: RuleFlowConfig): number {
-    const requiredInputs = this.extractRequiredInputs(config);
-    if (requiredInputs.length === 0) return 100;
-    
-    const missingInputs = this.getMissingInputs(userInputs, config);
-    const providedCount = requiredInputs.length - missingInputs.length;
-    return Math.round((providedCount / requiredInputs.length) * 100);
-  }
-
-  /**
-   * 🆕 Get validation status for UI (use base inputs for UI calculation)
-   */
-  getValidationStatus(userInputs: Record<string, any>, config: RuleFlowConfig): ValidationStatus {
-    const baseInputs = this.extractBaseInputs(config);
-    const allInputs = this.extractRequiredInputs(config);
-    
-    // Calculate progress based on base inputs for UI
-    const missingBaseInputs = baseInputs.filter(input => 
-      !(input in userInputs) || userInputs[input] === null || userInputs[input] === undefined || userInputs[input] === ''
-    );
-    
-    const baseProgress = baseInputs.length > 0 ? 
-      Math.round(((baseInputs.length - missingBaseInputs.length) / baseInputs.length) * 100) : 100;
-
-    const fieldResults = this.validateFields(userInputs, config);
-    
-    const providedInputs = Object.keys(userInputs).filter(key => 
-      userInputs[key] !== null && userInputs[key] !== undefined && userInputs[key] !== ''
-    );
-    
-    const invalidFields = Object.values(fieldResults).filter(result => !result.valid).length;
-    const validFieldsCount = Object.values(fieldResults).filter(result => result.valid).length;
-    
-    const validationScore = baseInputs.length > 0 ? 
-      Math.max(0, ((baseInputs.length - missingBaseInputs.length) / baseInputs.length) * 100)
-      : 100;
-
-    return {
-      ready_to_submit: missingBaseInputs.length === 0 && invalidFields === 0,
-      validation_score: Math.round(validationScore),
-      field_validation: {
-        valid: missingBaseInputs.length === 0,
-        missing_required: missingBaseInputs,
-        overall_progress: baseProgress
+  const sampleConfig: RuleFlowConfig = {
+    formulas: [
+      {
+        id: 'bmi',
+        formula: 'weight / (height ** 2)',
+        inputs: ['weight', 'height']
       },
-      summary: {
-        total_fields: allInputs.length,
-        provided_fields: providedInputs.length,
-        missing_fields: missingBaseInputs.length,
-        invalid_fields: invalidFields
-      }
-    };
-  }
+      {
+        id: 'category',
+        switch: '$bmi',
+        when: [
+          { if: { op: '<', value: 18.5 }, result: 'Underweight' },
+          { if: { op: '<', value: 25 }, result: 'Normal' },
+          { if: { op: '<', value: 30 }, result: 'Overweight' }
+        ],
+        default: 'Obese'
+      },
+     
+    ]
+  };
 
-  /**
-   * 🆕 Basic sanitization (เก็บไว้เพื่อ backward compatibility)
-   */
-  sanitizeInputs(userInputs: Record<string, any>): Record<string, any> {
-    const sanitized: Record<string, any> = {};
-    
-    Object.entries(userInputs).forEach(([key, value]) => {
-      if (typeof value === 'string') {
-        // Basic sanitization
-        sanitized[key] = value.trim();
-      } else {
-        sanitized[key] = value;
-      }
-    });
-    
-    return sanitized;
-  }
+  const validInputs = { weight: 70, height: 1.75 };
+  const partialInputs = { weight: 70 }; // missing height
 
-  /**
-   * 🆕 Advanced sanitization (เหมือน PHP security features)
-   */
-  sanitizeInputsAdvanced(userInputs: Record<string, any>, options: SanitizationOptions = {}): Record<string, any> {
-    const {
-      trimStrings = true,
-      removeHtml = true,
-      maxStringLength = 1000,
-      allowedKeys = null
-    } = options;
+  // ========================================
+  // Test Required Inputs Extraction
+  // ========================================
 
-    const sanitized: Record<string, any> = {};
-    
-    Object.entries(userInputs).forEach(([key, value]) => {
-      // Filter allowed keys
-      if (allowedKeys && !allowedKeys.includes(key)) {
-        return; // Skip this key
-      }
-
-      let cleanValue = value;
-
-      if (typeof value === 'string') {
-        // Trim whitespace
-        if (trimStrings) {
-          cleanValue = value.trim();
-        }
-
-        // Remove HTML tags (improved regex)
-        if (removeHtml) {
-          // Remove script tags completely
-          cleanValue = cleanValue.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-          // Remove all other HTML tags
-          cleanValue = cleanValue.replace(/<[^>]*>/g, '');
-          // Remove text that looks like function calls or alerts
-          cleanValue = cleanValue.replace(/\b(alert|eval|function)\s*\([^)]*\)/gi, '');
-        }
-
-        // Limit string length
-        if (cleanValue.length > maxStringLength) {
-          cleanValue = cleanValue.substring(0, maxStringLength);
-        }
-
-        // Remove dangerous characters for SQL injection prevention
-        cleanValue = cleanValue.replace(/(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b)/gi, '');
-        cleanValue = cleanValue.replace(/['"`;]/g, '');
-      }
-
-      sanitized[key] = cleanValue;
-    });
-    
-    return sanitized;
-  }
-
-  /**
-   * 🆕 Validate input security (ตรวจหา injection attempts)
-   */
-  validateInputSecurity(userInputs: Record<string, any>): SecurityValidationResult {
-    const threats: Array<{ field: string; threat_type: string; message: string; }> = [];
-
-    Object.entries(userInputs).forEach(([key, value]) => {
-      if (typeof value === 'string') {
-        // Check for SQL injection patterns
-        if (/(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b)/i.test(value)) {
-          threats.push({
-            field: key,
-            threat_type: 'SQL_INJECTION',
-            message: 'Potential SQL injection detected'
-          });
-        }
-
-        // Check for script injection
-        if (/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(value)) {
-          threats.push({
-            field: key,
-            threat_type: 'XSS',
-            message: 'Script injection detected'
-          });
-        }
-
-        // Check for excessively long input
-        if (value.length > 10000) {
-          threats.push({
-            field: key,
-            threat_type: 'DOS',
-            message: 'Input too long - potential DoS attack'
-          });
-        }
-      }
+  describe('extractRequiredInputs()', () => {
+    it('should extract inputs from formula inputs array', () => {
+      const inputs = validator.extractRequiredInputs(sampleConfig);
+      
+      expect(inputs).toContain('weight');
+      expect(inputs).toContain('height');
     });
 
-    return {
-      safe: threats.length === 0,
-      threats
-    };
-  }
-  
-  
-}
+    it('should extract variables from formula expressions', () => {
+      const config: RuleFlowConfig = {
+        formulas: [
+          {
+            id: 'test',
+            formula: 'x + y * z',
+            inputs: []
+          }
+        ]
+      };
+      
+      const inputs = validator.extractRequiredInputs(config);
+      expect(inputs).toContain('x');
+      expect(inputs).toContain('y');
+      expect(inputs).toContain('z');
+    });
+
+    it('should extract switch variables', () => {
+      const inputs = validator.extractRequiredInputs(sampleConfig);
+      expect(inputs).toContain('bmi');
+    });
+
+    it('should extract from scoring rules', () => {
+        const configWithRules: RuleFlowConfig = {
+        formulas: [
+          {
+            id: 'score',
+            rules: [
+              { var: 'experience', score: 10 }
+            ]
+          }
+        ]
+      };
+      
+      const inputs = validator.extractRequiredInputs(configWithRules);
+      expect(inputs).toContain('experience');
+    });
+
+    it('should remove duplicates', () => {
+      const inputs = validator.extractRequiredInputs(sampleConfig);
+      const uniqueInputs = [...new Set(inputs)];
+      expect(inputs.length).toBe(uniqueInputs.length);
+    });
+  });
+
+  // ========================================
+  // Test Field Validation
+  // ========================================
+
+  describe('validateField()', () => {
+    it('should validate valid field', () => {
+      const result = validator.validateField('weight', '75.5', sampleConfig);
+      
+      expect(result.valid).toBe(true);
+      expect(result.converted_value).toBe(75.5);
+      expect(result.type).toBe('number');
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should detect empty required field', () => {
+      const result = validator.validateField('height', '', sampleConfig);
+      
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Field 'height' is required and cannot be empty");
+    });
+
+    it('should warn about non-required fields', () => {
+      const result = validator.validateField('unknown', 'value', sampleConfig);
+      
+      expect(result.warnings).toContain("Field 'unknown' is not required by configuration");
+    });
+
+    it('should convert values correctly', () => {
+      const numberResult = validator.validateField('weight', '75', sampleConfig);
+      const boolResult = validator.validateField('active', 'true', sampleConfig);
+      
+      expect(numberResult.converted_value).toBe(75);
+      expect(boolResult.converted_value).toBe(true);
+    });
+  });
+
+  // ========================================
+  // Test Multiple Fields Validation
+  // ========================================
+
+  describe('validateFields()', () => {
+    it('should validate multiple fields', () => {
+      const inputs = { weight: '70', height: '1.75', extra: 'test' };
+      const results = validator.validateFields(inputs, sampleConfig);
+      
+      expect(results.weight.valid).toBe(true);
+      expect(results.height.valid).toBe(true);
+      expect(results.extra.warnings.length).toBeGreaterThan(0);
+    });
+
+    it('should handle empty inputs', () => {
+      const results = validator.validateFields({}, sampleConfig);
+      expect(Object.keys(results)).toHaveLength(0);
+    });
+  });
+
+  // ========================================
+  // Test Partial Validation
+  // ========================================
+
+  describe('validatePartial()', () => {
+    it('should validate complete inputs', () => {
+      const result = validator.validatePartial(validInputs, sampleConfig);
+      
+      expect(result.valid).toBe(true);
+      expect(result.missing_required).toHaveLength(0);
+      expect(result.overall_progress).toBe(100);
+    });
+
+    it('should validate incomplete inputs', () => {
+      const result = validator.validatePartial(partialInputs, sampleConfig);
+      
+      expect(result.valid).toBe(false);
+      expect(result.missing_required).toContain('height');
+      expect(result.overall_progress).toBe(50);
+    });
+  });
+
+  // ========================================
+  // Test Completion Status
+  // ========================================
+
+  describe('isComplete() and getCompletionPercentage()', () => {
+    it('should check completion status', () => {
+      expect(validator.isComplete(validInputs, sampleConfig)).toBe(true);
+      expect(validator.isComplete(partialInputs, sampleConfig)).toBe(false);
+    });
+
+    it('should calculate completion percentage', () => {
+      expect(validator.getCompletionPercentage(validInputs, sampleConfig)).toBe(100);
+      expect(validator.getCompletionPercentage(partialInputs, sampleConfig)).toBe(50);
+      expect(validator.getCompletionPercentage({}, sampleConfig)).toBe(0);
+    });
+  });
+
+  // ========================================
+  // Test Validation Status
+  // ========================================
+
+  describe('getValidationStatus()', () => {
+    it('should calculate validation status correctly', () => {
+      const status = validator.getValidationStatus(validInputs, sampleConfig);
+      
+      expect(status.ready_to_submit).toBe(true);
+      expect(status.validation_score).toBe(100);
+      expect(status.field_validation.valid).toBe(true);
+      expect(status.field_validation.overall_progress).toBe(100);
+      expect(status.summary.total_fields).toBeGreaterThan(0);
+      expect(status.summary.provided_fields).toBe(2);
+    });
+
+    it('should handle partial inputs', () => {
+      const status = validator.getValidationStatus(partialInputs, sampleConfig);
+      
+      expect(status.ready_to_submit).toBe(false);
+      expect(status.validation_score).toBe(50);
+      expect(status.field_validation.valid).toBe(false);
+      expect(status.field_validation.missing_required).toContain('height');
+    });
+  });
+
+  // ========================================
+  // Test Security Validation
+  // ========================================
+
+  describe('validateInputSecurity()', () => {
+    it('should detect SQL injection attempts', () => {
+      const sqlInputs = {
+        username: "admin'; DROP TABLE users; --"
+      };
+
+      const result = validator.validateInputSecurity(sqlInputs);
+      
+      expect(result.safe).toBe(false);
+      expect(result.threats).toHaveLength(1);
+      expect(result.threats[0].threat_type).toBe('SQL_INJECTION');
+    });
+
+    it('should detect XSS attempts', () => {
+      const xssInputs = {
+        comment: '<script>alert("xss")</script>'
+      };
+
+      const result = validator.validateInputSecurity(xssInputs);
+      
+      expect(result.safe).toBe(false);
+      expect(result.threats).toHaveLength(1);
+      expect(result.threats[0].threat_type).toBe('XSS');
+    });
+
+    it('should detect DoS attempts (long input)', () => {
+      const dosInputs = {
+        field: 'a'.repeat(15000)
+      };
+
+      const result = validator.validateInputSecurity(dosInputs);
+      
+      expect(result.safe).toBe(false);
+      expect(result.threats).toHaveLength(1);
+      expect(result.threats[0].threat_type).toBe('DOS');
+    });
+
+    it('should pass clean inputs', () => {
+      const cleanInputs = {
+        name: 'John Doe',
+        age: '30',
+        email: 'john@example.com'
+      };
+
+      const result = validator.validateInputSecurity(cleanInputs);
+      
+      expect(result.safe).toBe(true);
+      expect(result.threats).toHaveLength(0);
+    });
+  });
+
+  // ========================================
+  // Test Sanitization
+  // ========================================
+
+  describe('sanitizeInputs()', () => {
+    it('should sanitize basic inputs', () => {
+      const inputs = {
+        name: '  John Doe  ',
+        age: 30
+      };
+
+      const result = validator.sanitizeInputs(inputs);
+      
+      expect(result.name).toBe('John Doe');
+      expect(result.age).toBe(30);
+    });
+  });
+
+  describe('sanitizeInputsAdvanced()', () => {
+    it('should remove HTML tags', () => {
+      const inputs = {
+        comment: '<script>alert("test")</script>Hello <b>World</b>'
+      };
+
+      const result = validator.sanitizeInputsAdvanced(inputs, {
+        removeHtml: true
+      });
+      
+      expect(result.comment).not.toContain('<script>');
+      expect(result.comment).not.toContain('<b>');
+      expect(result.comment).toContain('Hello');
+      expect(result.comment).toContain('World');
+    });
+
+    it('should limit string length', () => {
+      const inputs = {
+        text: 'a'.repeat(2000)
+      };
+
+      const result = validator.sanitizeInputsAdvanced(inputs, {
+        maxStringLength: 100
+      });
+      
+      expect(result.text.length).toBe(100);
+    });
+
+    it('should filter allowed keys', () => {
+      const inputs = {
+        allowed: 'value1',
+        blocked: 'value2'
+      };
+
+      const result = validator.sanitizeInputsAdvanced(inputs, {
+        allowedKeys: ['allowed']
+      });
+      
+      expect(result.allowed).toBe('value1');
+      expect(result.blocked).toBeUndefined();
+    });
+  });
+
+  // ========================================
+  // Test Backward Compatibility
+  // ========================================
+
+  describe('Backward Compatibility', () => {
+    it('should maintain original validate method', () => {
+      expect(() => {
+        validator.validate(validInputs, ['weight', 'height']);
+      }).not.toThrow();
+
+      expect(() => {
+        validator.validate({}, ['weight']);
+      }).toThrow('Required input \'weight\' is missing');
+    });
+
+    it('should maintain validateBeforeEvaluate method', () => {
+      expect(() => {
+        validator.validateBeforeEvaluate(validInputs, sampleConfig);
+      }).not.toThrow();
+
+      expect(() => {
+        validator.validateBeforeEvaluate(partialInputs, sampleConfig);
+      }).toThrow();
+    });
+  });
+
+  // ========================================
+  // Test Missing Inputs Detection
+  // ========================================
+
+  describe('getMissingInputs()', () => {
+    it('should detect missing inputs', () => {
+      const missing = validator.getMissingInputs(partialInputs, sampleConfig);
+      expect(missing).toContain('height');
+    });
+
+    it('should return empty array for complete inputs', () => {
+       const completeInputs = { weight: 70, height: 1.75, bmi: 22.86 };
+      const missing = validator.getMissingInputs(completeInputs, sampleConfig);
+      expect(missing).toHaveLength(0);;
+    });
+  });
+
+  // ========================================
+  // Test Value Conversion
+  // ========================================
+
+  describe('convertValue()', () => {
+    it('should convert string numbers', () => {
+      expect(validator.convertValue('42')).toBe(42);
+      expect(validator.convertValue('3.14')).toBe(3.14);
+      expect(validator.convertValue('-10')).toBe(-10);
+    });
+
+    it('should convert boolean strings', () => {
+      expect(validator.convertValue('true')).toBe(true);
+      expect(validator.convertValue('false')).toBe(false);
+      expect(validator.convertValue('TRUE')).toBe(true);
+      expect(validator.convertValue('FALSE')).toBe(false);
+    });
+
+    it('should preserve non-convertible values', () => {
+      expect(validator.convertValue('hello')).toBe('hello');
+      expect(validator.convertValue(null)).toBe(null);
+      expect(validator.convertValue(undefined)).toBe(undefined);
+    });
+
+    it('should trim string values', () => {
+      expect(validator.convertValue('  test  ')).toBe('test');
+    });
+  });
+});

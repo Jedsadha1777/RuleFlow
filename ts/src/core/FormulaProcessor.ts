@@ -1,9 +1,9 @@
-import { Formula, Condition, LogicalCondition } from '../types.js';
-import { ExpressionEvaluator } from './ExpressionEvaluator.js';
-import { InputValidator } from '../validators/InputValidator.js';
-import { ScoringProcessor } from './ScoringProcessor.js';
-import { RuleFlowException } from '../exceptions/RuleFlowException.js';
-import { FunctionRegistry } from '../functions/FunctionRegistry.js';
+import { Formula } from '../types.js';
+import { ExpressionEvaluator } from './ExpressionEvaluator';
+import { InputValidator } from '../validators/InputValidator';
+import { ScoringProcessor } from './ScoringProcessor';
+import { RuleFlowException } from '../exceptions/RuleFlowException';
+import { FunctionRegistry } from '../functions/FunctionRegistry';
 
 export class FormulaProcessor {
   private evaluator: ExpressionEvaluator;
@@ -118,9 +118,35 @@ export class FormulaProcessor {
     }
   }
   private evaluateCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
+    // Handle logical conditions (AND/OR) - รองรับ nested logic
+    if (condition.and && Array.isArray(condition.and)) {
+      return condition.and.every((subCondition: any) => 
+        this.evaluateCondition(subCondition, switchValue, context)
+      );
+    }
+    
+    if (condition.or && Array.isArray(condition.or)) {
+      return condition.or.some((subCondition: any) => 
+        this.evaluateCondition(subCondition, switchValue, context)
+      );
+    }
+
+    // Handle simple condition with var property
+    if (condition.var) {
+      const valueToCompare = context[condition.var];
+      if (valueToCompare === undefined) {
+        // Missing variable should return false for comparison
+        return false;
+      }
+      return this.compareValues(valueToCompare, condition.op, condition.value);
+    }
+
+    // Handle direct comparison with switchValue
     if (condition.op && 'value' in condition) {
       return this.compareValues(switchValue, condition.op, condition.value);
     }
+
+    // Fallback for boolean-like conditions
     return Boolean(condition);
   }
 

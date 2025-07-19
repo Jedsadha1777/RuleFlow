@@ -1,4 +1,4 @@
-import { RuleFlowConfig, Formula } from '../types.js';
+import { RuleFlowConfig, Formula } from '../types';
 
 export interface ValidationResult {
   valid: boolean;

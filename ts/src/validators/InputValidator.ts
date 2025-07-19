@@ -1,5 +1,5 @@
-import { RuleFlowConfig } from '../types.js';
-import { RuleFlowException } from '../exceptions/RuleFlowException.js';
+import { RuleFlowConfig } from '../types';
+import { RuleFlowException } from '../exceptions/RuleFlowException';
 
 export interface FieldValidationResult {
   valid: boolean;

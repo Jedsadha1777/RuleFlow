@@ -1,5 +1,5 @@
-import { RuleFlowException } from '../exceptions/RuleFlowException.js';
-import { FunctionRegistry } from '../functions/FunctionRegistry.js';
+import { RuleFlowException } from '../exceptions/RuleFlowException';
+import { FunctionRegistry } from '../functions/FunctionRegistry';
 
 export class ExpressionEvaluator {
   private variables: Record<string, any> = {};

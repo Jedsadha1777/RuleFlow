@@ -1,4 +1,4 @@
-import { RuleFlowConfig } from '../types.js';
+import { RuleFlowConfig } from '../types';
 
 export interface JSONSchema {
   type: string;
