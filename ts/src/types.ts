@@ -12,6 +12,7 @@ export interface Formula {
   set_vars?: Record<string, any>;
   rules?: AccumulativeRule[];
   scoring?: ScoringConfig;
+  function_call?: string;
   as?: string;
 }
 

@@ -22,16 +22,18 @@ export class FormulaProcessor {
 
     for (const formula of formulas) {
       try {
-        if (formula.formula) {
+         if (formula.formula) {
           this.processFormula(formula, context);
         } else if (formula.switch) {
           this.processSwitch(formula, context);
+        } else if (formula.function_call) {  // 🆕 เพิ่มบรรทัดนี้
+          this.processFunctionCall(formula, context);
         } else if (formula.rules) {
           this.processAccumulativeScoring(formula, context);
         } else if (formula.scoring) {
           this.processAdvancedScoring(formula, context);
         } else {
-          throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, rules, or scoring`);
+          throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, function_call, rules, or scoring`);
         }
       } catch (error: any) {
         throw new RuleFlowException(`Error processing formula '${formula.id}': ${error.message}`);
@@ -39,6 +41,62 @@ export class FormulaProcessor {
     }
 
     return context;
+  }
+
+  private processFunctionCall(formula: Formula, context: Record<string, any>): void {
+    if (!formula.function_call) {
+      throw new RuleFlowException(`Function call name is required for formula '${formula.id}'`);
+    }
+
+    const functionName = formula.function_call;
+    const params = formula.params || [];
+
+    // Resolve parameters from context
+    const resolvedParams = params.map(param => {
+      if (typeof param === 'string') {
+        // Handle $ variable references
+        if (param.startsWith('$')) {
+          const varName = param.substring(1);
+          if (context[varName] !== undefined) {
+            return context[varName];
+          } else {
+            throw new RuleFlowException(`Variable '${param}' not found in context`);
+          }
+        }
+        
+        // Handle direct variable references
+        if (context[param] !== undefined) {
+          return context[param];
+        }
+        
+        // Handle nested function calls or expressions
+        if (param.includes('(') || param.includes('+') || param.includes('-') || param.includes('*') || param.includes('/')) {
+          try {
+            this.evaluator.setVariables(context);
+            return this.evaluator.evaluate(param);
+          } catch (error: any) {
+            throw new RuleFlowException(`Cannot evaluate parameter '${param}': ${error.message}`);
+          }
+        }
+      }
+      
+      // Return literal value
+      return param;
+    });
+
+    try {
+      const result = this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
+      
+      const storeAs = formula.as || formula.id;
+      context[storeAs.replace('$', '')] = result;
+
+      // Handle variable setting
+      if (formula.set_vars) {
+        this.setVariables(formula.set_vars, context);
+      }
+    } catch (error: any) {
+      throw new RuleFlowException(`Function call '${functionName}' failed: ${error.message}`);
+    }
   }
 
   private processFormula(formula: Formula, context: Record<string, any>): void {

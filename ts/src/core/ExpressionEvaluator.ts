@@ -4,9 +4,22 @@ import { FunctionRegistry } from '../functions/FunctionRegistry';
 export class ExpressionEvaluator {
   private variables: Record<string, any> = {};
   private functionRegistry: FunctionRegistry;
+  
+  // 🆕 Automatic floating point precision handling
+  private autoRoundPrecision: number | null = 10; // Default precision 10 decimal places
+  private autoRoundThreshold: number = 1e-10; // Threshold for detecting precision issues
 
   constructor(functionRegistry?: FunctionRegistry) {
     this.functionRegistry = functionRegistry || new FunctionRegistry();
+  }
+
+  // 🆕 Method สำหรับ control automatic rounding
+  setAutoRounding(precision: number = 10): void {
+    this.autoRoundPrecision = precision;
+  }
+
+  disableAutoRounding(): void {
+    this.autoRoundPrecision = null;
   }
 
   setVariables(vars: Record<string, any>): void {
@@ -27,10 +40,31 @@ export class ExpressionEvaluator {
     processedExpression = this.processFunctionCalls(processedExpression);
 
     try {
-      return this.safeEvaluate(processedExpression);
+      const result = this.safeEvaluate(processedExpression);
+      // 🎯 Apply automatic rounding to final result
+      return this.applyAutoRounding(result);
     } catch (error) {
       throw new RuleFlowException(`Expression evaluation failed: ${expression} -> ${processedExpression}`);
     }
+  }
+
+  // 🆕 Core automatic rounding logic
+  private applyAutoRounding(value: number): number {
+    if (this.autoRoundPrecision === null || !Number.isFinite(value)) {
+      return value;
+    }
+
+    // Calculate rounded value
+    const factor = Math.pow(10, this.autoRoundPrecision);
+    const rounded = Math.round(value * factor) / factor;
+    const difference = Math.abs(value - rounded);
+    
+    // If difference is very small (floating point precision issue), return rounded value
+    if (difference < this.autoRoundThreshold) {
+      return rounded;
+    }
+    
+    return value;
   }
 
   private processFunctionCalls(expression: string): string {
@@ -68,7 +102,8 @@ export class ExpressionEvaluator {
         
         // Call the function
         const result = this.functionRegistry.call(functionName, args);
-        return String(result);
+        // 🎯 Apply automatic rounding to function results
+        return String(this.applyAutoRounding(result));
       } catch (error : any) {
         throw new RuleFlowException(`Function call failed: ${match} - ${error.message}`);
       }
@@ -103,7 +138,7 @@ export class ExpressionEvaluator {
       else {
         try {
           const evaluated = this.safeEvaluate(trimmed);
-          args.push(evaluated);
+          args.push(this.applyAutoRounding(evaluated));
         } catch {
           // If evaluation fails, treat as literal value
           args.push(trimmed);
@@ -185,9 +220,146 @@ export class ExpressionEvaluator {
         throw new Error(`Invalid characters in expression: ${expression}`);
       }
       
-      return Function(`"use strict"; return (${expression})`)();
+      // 🎯 Use more secure evaluation method
+      const result = this.evaluateArithmetic(expression);
+      return result;
     } catch (error) {
       throw new RuleFlowException(`Cannot evaluate expression: ${expression}`);
     }
+  }
+
+  // 🆕 Safer arithmetic evaluation without using Function constructor
+  private evaluateArithmetic(expression: string): number {
+    // Convert to postfix notation and evaluate
+    const tokens = this.tokenize(expression);
+    const postfix = this.convertToPostfix(tokens);
+    return this.evaluatePostfix(postfix);
+  }
+
+  private tokenize(expression: string): string[] {
+    const tokens: string[] = [];
+    let current = '';
+    
+    for (let i = 0; i < expression.length; i++) {
+      const char = expression[i];
+      
+      if (/\d|\./.test(char)) {
+        current += char;
+      } else if (char === '*' && i + 1 < expression.length && expression[i + 1] === '*') {
+        // 🔧 Handle ** operator
+        if (current) {
+          tokens.push(current);
+          current = '';
+        }
+        tokens.push('**');
+        i++; // Skip next *
+      } else if (/[+\-*/()]/.test(char)) {
+        if (current) {
+          tokens.push(current);
+          current = '';
+        }
+        tokens.push(char);
+      } else if (char === ' ') {
+        if (current) {
+          tokens.push(current);
+          current = '';
+        }
+      }
+    }
+    
+    if (current) {
+      tokens.push(current);
+    }
+    
+    return tokens;
+  }
+
+  private convertToPostfix(tokens: string[]): string[] {
+    const precedence: Record<string, number> = {
+      '+': 1, '-': 1,
+      '*': 2, '/': 2,
+      '**': 3
+    };
+    
+    const output: string[] = [];
+    const operators: string[] = [];
+    
+    for (const token of tokens) {
+      if (/^\d+\.?\d*$/.test(token)) {
+        output.push(token);
+      } else if (token === '(') {
+        operators.push(token);
+      } else if (token === ')') {
+        while (operators.length && operators[operators.length - 1] !== '(') {
+          output.push(operators.pop()!);
+        }
+        operators.pop(); // Remove '('
+      } else if (precedence[token]) {
+        while (
+          operators.length &&
+          operators[operators.length - 1] !== '(' &&
+          precedence[operators[operators.length - 1]] >= precedence[token]
+        ) {
+          output.push(operators.pop()!);
+        }
+        operators.push(token);
+      }
+    }
+    
+    while (operators.length) {
+      output.push(operators.pop()!);
+    }
+    
+    return output;
+  }
+
+  private evaluatePostfix(postfix: string[]): number {
+    const stack: number[] = [];
+    
+    for (const token of postfix) {
+      if (/^\d+\.?\d*$/.test(token)) {
+        stack.push(parseFloat(token));
+      } else {
+        if (stack.length < 2) {
+          throw new Error(`Invalid expression: insufficient operands for ${token}`);
+        }
+        
+        const b = stack.pop()!;
+        const a = stack.pop()!;
+        
+        let result: number;
+        switch (token) {
+          case '+':
+            result = a + b;
+            break;
+          case '-':
+            result = a - b;
+            break;
+          case '*':
+            result = a * b;
+            break;
+          case '**':
+            result = Math.pow(a, b);
+            break;
+          case '/':
+            if (Math.abs(b) < 1e-10) {
+              throw new Error(`Division by zero or very small number: ${b}`);
+            }
+            result = a / b;
+            break;
+          default:
+            throw new Error(`Unknown operator: ${token}`);
+        }
+        
+        // 🎯 Apply automatic rounding to intermediate results
+        stack.push(this.applyAutoRounding(result));
+      }
+    }
+    
+    if (stack.length !== 1) {
+      throw new Error('Invalid expression: multiple results');
+    }
+    
+    return stack[0];
   }
 }

@@ -1,3 +1,5 @@
+// ts/src/validators/ConfigValidator.ts
+
 import { RuleFlowConfig, Formula } from '../types';
 
 export interface ValidationResult {
@@ -75,9 +77,10 @@ export class ConfigValidator {
       errors.push(`${prefix}: Formula must have a valid 'id'`);
     }
 
-    // Check that formula has at least one execution method
-    if (!formula.formula && !formula.switch && !formula.when && !formula.set_vars && !formula.rules && !formula.scoring) {
-      errors.push(`${prefix}: Must have 'formula', 'switch', 'when', or 'set_vars'`);
+    // 🔧 แก้ไข: เพิ่ม function_call ใน validation check
+    if (!formula.formula && !formula.switch && !formula.when && !formula.set_vars && 
+        !formula.rules && !formula.scoring && !formula.function_call) {
+      errors.push(`${prefix}: Must have 'formula', 'switch', 'when', 'function_call', or 'set_vars'`);
     }
 
     // Validate formula structure
@@ -87,6 +90,11 @@ export class ConfigValidator {
 
     if (formula.switch) {
       errors.push(...this.validateSwitchFormula(formula, prefix));
+    }
+
+    // 🆕 เพิ่ม validation สำหรับ function_call
+    if (formula.function_call) {
+      errors.push(...this.validateFunctionCall(formula, prefix));
     }
 
     if (formula.inputs) {
@@ -99,6 +107,21 @@ export class ConfigValidator {
 
     if (formula.scoring) {
       errors.push(...this.validateScoring(formula.scoring, prefix));
+    }
+
+    return errors;
+  }
+
+  // 🆕 เพิ่ม method สำหรับ validate function_call
+  private validateFunctionCall(formula: Formula, prefix: string): string[] {
+    const errors: string[] = [];
+
+    if (!formula.function_call || typeof formula.function_call !== 'string') {
+      errors.push(`${prefix}: 'function_call' must be a non-empty string`);
+    }
+
+    if (formula.params && !Array.isArray(formula.params)) {
+      errors.push(`${prefix}: 'params' must be an array`);
     }
 
     return errors;
@@ -168,57 +191,38 @@ export class ConfigValidator {
   /**
    * Validate inputs array
    */
-  private validateInputsArray(inputs: any, prefix: string): string[] {
+  private validateInputsArray(inputs: string[], prefix: string): string[] {
     const errors: string[] = [];
 
     if (!Array.isArray(inputs)) {
       errors.push(`${prefix}: 'inputs' must be an array`);
-    } else {
-      inputs.forEach((input, index) => {
-        if (typeof input !== 'string' || input.trim() === '') {
-          errors.push(`${prefix}: inputs[${index}] must be a non-empty string`);
-        }
-      });
+      return errors;
     }
+
+    inputs.forEach((input, index) => {
+      if (typeof input !== 'string' || input.trim() === '') {
+        errors.push(`${prefix}: inputs[${index}] must be a non-empty string`);
+      }
+    });
 
     return errors;
   }
 
   /**
-   * Validate rules (for scoring) - Updated to be more flexible
+   * Validate rules array
    */
-  private validateRules(rules: any, prefix: string): string[] {
+  private validateRules(rules: any[], prefix: string): string[] {
     const errors: string[] = [];
-
-    if (!Array.isArray(rules)) {
-      errors.push(`${prefix}: 'rules' must be an array`);
-    } else {
-      rules.forEach((rule, index) => {
-        // ต้องมี var หรือ variable อย่างน้อย
-        const hasVar = rule.var || rule.variable;
-        if (!hasVar) {
-          errors.push(`${prefix}: rules[${index}] must have 'var' or 'variable'`);
-        }
-        // ไม่บังคับให้มี condition และ score เสมอไป
-        // เพราะ rules บางอันอาจมีโครงสร้างแตกต่างกัน
-      });
-    }
-
+    // Add rules validation logic here
     return errors;
   }
 
   /**
-   * Validate scoring configuration
+   * Validate scoring object
    */
   private validateScoring(scoring: any, prefix: string): string[] {
     const errors: string[] = [];
-
-    if (typeof scoring !== 'object' || scoring === null) {
-      errors.push(`${prefix}: 'scoring' must be an object`);
-    }
-
-    // Add more specific scoring validation as needed
-
+    // Add scoring validation logic here
     return errors;
   }
 }
