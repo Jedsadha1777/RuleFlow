@@ -3,6 +3,7 @@ import { FormulaProcessor } from './core/FormulaProcessor';
 import { ConfigValidator } from './validators/ConfigValidator';
 import { FunctionRegistry } from './functions/FunctionRegistry';
 import { RuleFlowException } from './exceptions/RuleFlowException';
+import * as Templates from './templates/index';
 
 export class RuleFlow {
   private processor: FormulaProcessor;
@@ -147,6 +148,87 @@ export class RuleFlow {
     examples?: string[];
   }): void {
     this.functionRegistry.register(name, handler, info);
+  }
+
+  /**
+   * Get all available templates
+   */
+  getAvailableTemplates(): string[] {
+    return Templates.getAvailableTemplates();
+  }
+
+  /**
+   * Get template config for evaluation
+   */
+  getTemplate(name: string): RuleFlowConfig | null {
+    return Templates.getTemplateConfig(name as any);
+  }
+
+  /**
+   * Get templates by category
+   */
+  getTemplatesByCategory(category: string): string[] {
+    return Templates.getTemplatesByCategory(category as any);
+  }
+
+  /**
+   * Get template metadata
+   */
+  getTemplateInfo(name: string): any {
+    return Templates.getTemplateMetadata(name as any);
+  }
+
+  /**
+   * Get template examples
+   */
+  getTemplateExamples(name: string): any[] {
+    return Templates.getTemplateExamples(name as any);
+  }
+
+  /**
+   * Search templates
+   */
+  searchTemplates(keyword: string): string[] {
+    return Templates.searchTemplates(keyword);
+  }
+
+  /**
+   * Get template categories
+   */
+  getTemplateCategories(): string[] {
+    return Templates.getAvailableCategories();
+  }
+
+  /**
+   * Evaluate using template
+   */
+  async evaluateTemplate(templateName: string, inputs: Record<string, any>): Promise<Record<string, any>> {
+    const config = this.getTemplate(templateName);
+    if (!config) {
+      throw new RuleFlowException(`Template '${templateName}' not found`);
+    }
+    return this.evaluate(config, inputs);
+  }
+
+  /**
+   * Test template with example data
+   */
+  async testTemplate(templateName: string, exampleIndex: number = 0): Promise<any> {
+    const examples = this.getTemplateExamples(templateName);
+    if (!examples[exampleIndex]) {
+      throw new RuleFlowException(`Example ${exampleIndex} not found for template '${templateName}'`);
+    }
+
+    const example = examples[exampleIndex];
+    const result = await this.evaluateTemplate(templateName, example.inputs);
+    
+    return {
+      template: templateName,
+      example: example.name,
+      inputs: example.inputs,
+      outputs: result,
+      expected: example.expectedOutputs
+    };
   }
 
 

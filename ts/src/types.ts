@@ -180,3 +180,35 @@ export interface FunctionCategories {
 // Type Aliases for Export
 // ================================
 export type ConfigValidationResult = ValidationResult;
+
+
+
+// ================================
+// Template Types
+// ================================
+
+export interface TemplateMetadata {
+  name: string;
+  description: string;
+  category: string;
+  author: string;
+  version: string;
+  tags: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: string;
+  inputs: string[];
+  outputs: string[];
+}
+
+export interface Template {
+  config: RuleFlowConfig;
+  metadata: TemplateMetadata;
+  examples: TemplateExample[];
+}
+
+export interface TemplateExample {
+  name: string;
+  description: string;
+  inputs: Record<string, any>;
+  expectedOutputs: Record<string, any>;
+}
