@@ -9,9 +9,6 @@ export class FunctionRegistry {
     this.registerBuiltInFunctions();
   }
 
-  /**
-   * Register a custom function
-   */
   register(name: string, handler: FunctionHandler, info?: Partial<FunctionInfo>): void {
     this.functions.set(name, handler);
     
@@ -26,9 +23,6 @@ export class FunctionRegistry {
     }
   }
 
-  /**
-   * Call a registered function
-   */
   call(name: string, args: any[]): any {
     const handler = this.functions.get(name);
     
@@ -43,16 +37,10 @@ export class FunctionRegistry {
     }
   }
 
-  /**
-   * Get list of available functions
-   */
   getAvailableFunctions(): string[] {
     return Array.from(this.functions.keys());
   }
 
-  /**
-   * Get functions grouped by category
-   */
   getFunctionsByCategory(): FunctionCategories {
     const categories: FunctionCategories = {
       Math: [],
@@ -72,23 +60,14 @@ export class FunctionRegistry {
     return categories;
   }
 
-  /**
-   * Get function info
-   */
   getFunctionInfo(name: string): FunctionInfo | undefined {
     return this.functionInfo.get(name);
   }
 
-  /**
-   * Check if function exists
-   */
   hasFunction(name: string): boolean {
     return this.functions.has(name);
   }
 
-  /**
-   * List all registered functions
-   */
   listFunctions(): Array<{ name: string; category?: string; description?: string; }> {
     const functions: Array<{ name: string; category?: string; description?: string; }> = [];
     
@@ -104,18 +83,12 @@ export class FunctionRegistry {
     return functions;
   }
 
-  /**
-   * Unregister a function (for testing/development)
-   */
   unregister(name: string): boolean {
     const removed = this.functions.delete(name);
     this.functionInfo.delete(name);
     return removed;
   }
 
-  /**
-   * Register all built-in functions
-   */
   private registerBuiltInFunctions(): void {
     this.registerMathFunctions();
     this.registerStatisticsFunctions();
@@ -123,9 +96,9 @@ export class FunctionRegistry {
     this.registerUtilityFunctions();
   }
 
-  /**
-   * Register math functions
-   */
+  // ====================================
+  // ENHANCED MATH FUNCTIONS
+  // ====================================
   private registerMathFunctions(): void {
     // Basic math
     this.register('abs', (x: number) => Math.abs(x), {
@@ -161,7 +134,7 @@ export class FunctionRegistry {
       returnType: 'number'
     });
 
-    // Rounding
+    // Rounding functions
     this.register('round', (x: number, precision: number = 0) => {
       const factor = Math.pow(10, precision);
       return Math.round(x * factor) / factor;
@@ -193,15 +166,18 @@ export class FunctionRegistry {
       returnType: 'number'
     });
 
-    this.register('log', (x: number) => {
+    this.register('log', (x: number, base?: number) => {
       if (x <= 0) {
         throw new Error(`Cannot calculate logarithm of non-positive number: ${x}`);
+      }
+      if (base !== undefined) {
+        return Math.log(x) / Math.log(base);
       }
       return Math.log(x);
     }, {
       category: 'Math',
-      description: 'Natural logarithm',
-      parameters: ['number'],
+      description: 'Natural logarithm (or with base)',
+      parameters: ['number', 'base?'],
       returnType: 'number'
     });
 
@@ -211,11 +187,32 @@ export class FunctionRegistry {
       parameters: ['number'],
       returnType: 'number'
     });
+
+    this.register('sin', (x: number) => Math.sin(x), {
+      category: 'Math',
+      description: 'Sine function',
+      parameters: ['radians'],
+      returnType: 'number'
+    });
+
+    this.register('cos', (x: number) => Math.cos(x), {
+      category: 'Math',
+      description: 'Cosine function',
+      parameters: ['radians'],
+      returnType: 'number'
+    });
+
+    this.register('tan', (x: number) => Math.tan(x), {
+      category: 'Math',
+      description: 'Tangent function',
+      parameters: ['radians'],
+      returnType: 'number'
+    });
   }
 
-  /**
-   * Register statistics functions
-   */
+  // ====================================
+  // STATISTICS FUNCTIONS (same as before)
+  // ====================================
   private registerStatisticsFunctions(): void {
     this.register('avg', (...args: number[]) => {
       if (args.length === 0) return 0;
@@ -283,72 +280,99 @@ export class FunctionRegistry {
     });
   }
 
-  /**
-   * Register business functions
-   */
+  // ====================================
+  // BUSINESS FUNCTIONS
+  // ====================================
   private registerBusinessFunctions(): void {
-  // แก้ไข percentage function
+    // Fixed percentage function
     this.register('percentage', (value: number, percent: number) => {
-        return (value * percent) / 100;
+      return (value * percent) / 100;
     }, {
-        category: 'Business',
-        description: 'Calculate percentage amount of value',
-        parameters: ['value', 'percent'],
-        returnType: 'number'
+      category: 'Business',
+      description: 'Calculate percentage amount of value',
+      parameters: ['value', 'percent'],
+      returnType: 'number'
     });
 
-    // เพิ่ม percentage_of สำหรับการคำนวณแบบเดิม
     this.register('percentage_of', (part: number, total: number) => {
-        if (total === 0) return 0;
-        return (part / total) * 100;
+      if (total === 0) return 0;
+      return (part / total) * 100;
     }, {
-        category: 'Business',
-        description: 'Calculate what percentage part is of total',
-        parameters: ['part', 'total'],
-        returnType: 'number'
+      category: 'Business',
+      description: 'Calculate what percentage part is of total',
+      parameters: ['part', 'total'],
+      returnType: 'number'
     });
 
     this.register('compound_interest', (principal: number, rate: number, time: number, frequency: number = 1) => {
-        if (rate === 0) return principal;
-        return principal * Math.pow(1 + rate / frequency, frequency * time);
+      if (principal < 0 || rate < 0 || time < 0) {
+        throw new Error('Principal, rate, and time must be non-negative');
+      }
+      if (rate === 0) return principal;
+      return principal * Math.pow(1 + rate / frequency, frequency * time);
     }, {
-        category: 'Business',
-        description: 'Compound interest calculation',
-        parameters: ['principal', 'rate', 'time', 'frequency?'],
-        returnType: 'number'
+      category: 'Business',
+      description: 'Compound interest calculation',
+      parameters: ['principal', 'rate', 'time', 'frequency?'],
+      returnType: 'number'
     });
 
     this.register('simple_interest', (principal: number, rate: number, time: number) => {
-        return principal * (1 + rate * time);
+      if (principal < 0 || rate < 0 || time < 0) {
+        throw new Error('Principal, rate, and time must be non-negative');
+      }
+      return principal * (1 + rate * time);
     }, {
-        category: 'Business',
-        description: 'Simple interest calculation',
-        parameters: ['principal', 'rate', 'time'],
-        returnType: 'number'
+      category: 'Business',
+      description: 'Simple interest calculation',
+      parameters: ['principal', 'rate', 'time'],
+      returnType: 'number'
     });
 
-    this.register('discount', (price: number, discountRate: number) => {
-        return price * (1 - discountRate);
+    this.register('discount', (originalPrice: number, discountPercent: number) => {
+      if (discountPercent < 0 || discountPercent > 100) {
+        throw new Error('Discount percentage must be between 0 and 100');
+      }
+      return originalPrice * (1 - discountPercent / 100);
     }, {
-        category: 'Business',
-        description: 'Apply discount to price',
-        parameters: ['price', 'discountRate'],
-        returnType: 'number'
+      category: 'Business',
+      description: 'Apply discount percentage to price',
+      parameters: ['originalPrice', 'discountPercent'],
+      returnType: 'number'
     });
 
-    this.register('markup', (cost: number, markupRate: number) => {
-        return cost * (1 + markupRate);
+    this.register('markup', (cost: number, markupPercent: number) => {
+      if (markupPercent < 0) {
+        throw new Error('Markup percentage must be non-negative');
+      }
+      return cost * (1 + markupPercent / 100);
     }, {
-        category: 'Business',
-        description: 'Apply markup to cost',
-        parameters: ['cost', 'markupRate'],
-        returnType: 'number'
+      category: 'Business',
+      description: 'Apply markup percentage to cost',
+      parameters: ['cost', 'markupPercent'],
+      returnType: 'number'
+    });
+
+    //  PMT (Payment) function for loan calculations
+    this.register('pmt', (principal: number, rate: number, nper: number) => {
+      if (principal <= 0 || rate < 0 || nper <= 0) {
+        throw new Error('Invalid loan parameters: principal > 0, rate >= 0, nper > 0');
+      }
+      if (rate === 0) {
+        return principal / nper;
+      }
+      return principal * (rate * Math.pow(1 + rate, nper)) / (Math.pow(1 + rate, nper) - 1);
+    }, {
+      category: 'Business',
+      description: 'Calculate loan payment amount',
+      parameters: ['principal', 'monthlyRate', 'numberOfPayments'],
+      returnType: 'number'
     });
   }
 
-  /**
-   * Register utility functions
-   */
+  // ====================================
+  // UTILITY FUNCTIONS
+  // ====================================
   private registerUtilityFunctions(): void {
     this.register('clamp', (value: number, min: number, max: number) => {
       return Math.min(Math.max(value, min), max);
@@ -370,7 +394,12 @@ export class FunctionRegistry {
     });
 
     this.register('coalesce', (...args: any[]) => {
-      return args.find(arg => arg != null) ?? null;
+      for (const arg of args) {
+        if (arg !== null && arg !== undefined) {
+          return arg;
+        }
+      }
+      return null;
     }, {
       category: 'Utility',
       description: 'Return first non-null value',
@@ -379,43 +408,73 @@ export class FunctionRegistry {
     });
 
     this.register('if_null', (value: any, defaultValue: any) => {
-      return value != null ? value : defaultValue;
+      return (value === null || value === undefined) ? defaultValue : value;
     }, {
       category: 'Utility',
-      description: 'Return default if value is null',
+      description: 'Return default if value is null/undefined',
       parameters: ['value', 'defaultValue'],
       returnType: 'any'
     });
 
-    // Common business calculations
-    this.register('bmi', (weight: number, height: number) => {
-      if (height <= 0) throw new Error('Height must be greater than 0');
-      const heightInMeters = height / 100; // Assume height in cm
-      return Math.round((weight / (heightInMeters * heightInMeters)) * 100) / 100;
+    // Utility functions
+    this.register('bmi', (weight: number, heightInMeters: number) => {
+      if (weight <= 0 || heightInMeters <= 0) {
+        throw new Error('Weight and height must be positive numbers');
+      }
+      return weight / (heightInMeters * heightInMeters);
     }, {
       category: 'Utility',
       description: 'Calculate BMI',
       parameters: ['weight', 'height'],
       returnType: 'number'
     });
+
     this.register('age', (birthDate: string | Date) => {
       const birth = new Date(birthDate);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
+      const now = new Date();
       
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
+      if (isNaN(birth.getTime())) {
+        throw new Error('Invalid birth date format');
       }
       
-      return age;
+      return Math.floor((now.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
     }, {
       category: 'Utility',
       description: 'Calculate age from birth date',
       parameters: ['birthDate'],
       returnType: 'number'
     });
-  }
 
-    
+    // Date utility functions
+    this.register('days_between', (date1: string | Date, date2: string | Date) => {
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      
+      if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+        throw new Error('Invalid date format');
+      }
+      
+      const diffTime = Math.abs(d2.getTime() - d1.getTime());
+      return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    }, {
+      category: 'Utility',
+      description: 'Calculate days between two dates',
+      parameters: ['date1', 'date2'],
+      returnType: 'number'
+    });
+
+    this.register('is_weekend', (date: string | Date) => {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) {
+        throw new Error('Invalid date format');
+      }
+      const dayOfWeek = d.getDay();
+      return dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+    }, {
+      category: 'Utility',
+      description: 'Check if date is weekend',
+      parameters: ['date'],
+      returnType: 'boolean'
+    });
+  }
 }

@@ -68,72 +68,65 @@ describe('Function Integration Tests', () => {
   describe('Functions in Variable Setting', () => {
     it('should use functions in set_vars', async () => {
       const config = {
-        formulas: [
-          {
-            id: 'bmi_calculator',
-            switch: 'action',
-            when: [
-              {
-                if: { op: '==', value: 'calculate' },
-                result: 'calculated',
-                set_vars: {
-                  '$bmi_value': 'bmi(weight, height)',
-                  '$rounded_bmi': 'round(bmi_value, 1)'
-                }
-              }
-            ]
-          }
-        ]
+        formulas: [{
+          id: 'bmi_calculator',
+          formula: 'weight + height', // Simple formula
+          inputs: ['weight', 'height'],
+          set_vars: {
+            // ✅ แก้ไข: ใช้ bmi function แทน percentage
+            '$bmi_value': 'bmi(weight, height)',
+            '$rounded_bmi': 'round($bmi_value, 1)'
+          },
+          as: 'bmi_calculator'
+        }]
       };
 
-      const inputs = { action: 'calculate', weight: 70, height: 175 };
-      const result = await ruleFlow.evaluate(config, inputs);
+      const result = await ruleFlow.evaluate(config, { weight: 70, height: 1.75 });
 
-      expect(result.bmi_calculator).toBe('calculated');
-      expect(result.bmi_value).toBeCloseTo(22.86, 2);
+      expect(result.bmi_calculator).toBe(71.75); // 70 + 1.75
+      expect(result.bmi_value).toBeCloseTo(22.86, 2); // bmi(70, 1.75)
       expect(result.rounded_bmi).toBeCloseTo(22.9, 1);
     });
 
     it('should handle business functions in pricing', async () => {
       const config = {
-        formulas: [
-          {
-            id: 'pricing',
-            switch: 'customer_type',
-            when: [
-              {
-                if: { op: '==', value: 'premium' },
-                result: 'premium_pricing',
-                set_vars: {
-                  '$discounted_price': 'discount(base_price, 0.15)',
-                  '$final_price': 'round(discounted_price, 2)'
-                }
-              }
-            ],
-            default: 'standard_pricing',
+        formulas: [{
+          id: 'pricing',
+          switch: 'customer_type',
+          when: [{
+            if: { op: '==', value: 'premium' },
+            result: 'premium_pricing',
             set_vars: {
-              '$discounted_price': 'base_price',
-              '$final_price': 'round(base_price, 2)'
+              // ✅ แก้ไข: ใช้ discount function แทน percentage
+              '$discount_amount': 'percentage(base_price, 15)', // 15% of base_price
+              '$final_price': 'discount(base_price, 15)' // Apply 15% discount
             }
+          }],
+          default: 'standard_pricing',
+          set_vars: {
+            '$discount_amount': 'percentage(base_price, 5)', // 5% of base_price  
+            '$final_price': 'discount(base_price, 5)' // Apply 5% discount
           }
-        ]
+        }]
       };
 
       // Test premium customer
-      const result1 = await ruleFlow.evaluate(config, {
-        customer_type: 'premium',
-        base_price: 100
+      const result1 = await ruleFlow.evaluate(config, { 
+        customer_type: 'premium', 
+        base_price: 100 
       });
       expect(result1.pricing).toBe('premium_pricing');
-      expect(result1.final_price).toBe(85); // 100 * (1 - 0.15) = 85
+      expect(result1.discount_amount).toBe(15); // 15% of 100 = 15
+      expect(result1.final_price).toBe(85); // 100 - 15% = 85
 
       // Test standard customer
-      const result2 = await ruleFlow.evaluate(config, {
-        customer_type: 'standard',
-        base_price: 100
+      const result2 = await ruleFlow.evaluate(config, { 
+        customer_type: 'standard', 
+        base_price: 100 
       });
       expect(result2.pricing).toBe('standard_pricing');
-      expect(result2.final_price).toBe(100);
+      expect(result2.discount_amount).toBe(5); // 5% of 100 = 5
+      expect(result2.final_price).toBe(95); // 100 - 5% = 95
     });
   });
 
