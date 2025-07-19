@@ -69,7 +69,7 @@ export class ExpressionEvaluator {
         // Call the function
         const result = this.functionRegistry.call(functionName, args);
         return String(result);
-      } catch (error) {
+      } catch (error : any) {
         throw new RuleFlowException(`Function call failed: ${match} - ${error.message}`);
       }
     });

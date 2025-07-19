@@ -6,6 +6,8 @@ export interface ValidationResult {
   warnings: string[];
 }
 
+export type ConfigValidationResult = ValidationResult;
+
 export class ConfigValidator {
   /**
    * Validate complete RuleFlow configuration

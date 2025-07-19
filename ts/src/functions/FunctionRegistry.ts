@@ -1,4 +1,4 @@
-import { FunctionHandler, FunctionInfo, FunctionCategories } from './types.js';
+import { FunctionHandler, FunctionInfo, FunctionCategories } from '../types.js';
 import { RuleFlowException } from '../exceptions/RuleFlowException.js';
 
 export class FunctionRegistry {

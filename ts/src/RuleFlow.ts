@@ -1,10 +1,8 @@
-// ไฟล์: ts/src/RuleFlow.ts
-
-import { RuleFlowConfig } from './types.js';
-import { FormulaProcessor } from './core/FormulaProcessor.js';
-import { ConfigValidator } from './validators/ConfigValidator.js';
-import { FunctionRegistry } from './functions/FunctionRegistry.js';
-import { RuleFlowException } from './exceptions/RuleFlowException.js';
+import { RuleFlowConfig } from './types';
+import { FormulaProcessor } from './core/FormulaProcessor';
+import { ConfigValidator } from './validators/ConfigValidator';
+import { FunctionRegistry } from './functions/FunctionRegistry';
+import { RuleFlowException } from './exceptions/RuleFlowException';
 
 export class RuleFlow {
   private processor: FormulaProcessor;
