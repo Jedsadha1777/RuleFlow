@@ -327,7 +327,7 @@ class ExpressionEvaluator
                     default => throw new RuleFlowException("Unknown operator: {$token}")
                 };
 
-                // 🎯 Apply automatic rounding to intermediate results
+                //  Apply automatic rounding to intermediate results
                 $stack[] = $this->applyAutoRounding($result);
             }
         }

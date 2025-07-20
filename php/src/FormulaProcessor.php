@@ -78,7 +78,7 @@ class FormulaProcessor
     }
     
     /**
-     * 🆕 Process direct function call
+     * Process direct function call
      */
     private function processFunctionCall(array $formula, array $context): mixed
     {
@@ -130,7 +130,7 @@ class FormulaProcessor
     }
     
     /**
-     * 🆕 Resolve parameter value from context or use literal
+     *  Resolve parameter value from context or use literal
      */
     private function resolveParameter($param, array $context): mixed
     {

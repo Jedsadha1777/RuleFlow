@@ -187,7 +187,7 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * 🆕 Process unary operators (missing from original TypeScript version)
+   * Process unary operators (missing from original TypeScript version)
    */
   private processUnaryOperators(tokens: string[]): string[] {
     const processed: string[] = [];
@@ -209,7 +209,7 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * 🆕 Check if minus is unary (missing from original TypeScript version)
+   * Check if minus is unary (missing from original TypeScript version)
    */
   private isUnaryMinus(tokens: string[], index: number): boolean {
     // If it's the first token = unary
