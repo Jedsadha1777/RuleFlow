@@ -83,10 +83,10 @@ try {
                     [
                         'var' => 'credit_score',
                         'ranges' => [
-                            ['if' => ['op' => '>=', 'value' => 750], 'score' => 100],
-                            ['if' => ['op' => '>=', 'value' => 700], 'score' => 80],
-                            ['if' => ['op' => '>=', 'value' => 650], 'score' => 60],
-                            ['if' => ['op' => '>=', 'value' => 600], 'score' => 40]
+                            ['if' => ['op' => '>=', 'value' => 750], 'result' => 100],
+                            ['if' => ['op' => '>=', 'value' => 700], 'result' => 80],
+                            ['if' => ['op' => '>=', 'value' => 650], 'result' => 60],
+                            ['if' => ['op' => '>=', 'value' => 600], 'result' => 40]
                         ]
                     ]
                 ]
