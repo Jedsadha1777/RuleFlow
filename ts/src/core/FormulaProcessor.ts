@@ -268,7 +268,7 @@ export class FormulaProcessor {
     return /[\$\w]+\s*[+\-*/]\s*[\$\w\d.]+|[\$\w]+\s*[+\-*/]\s*\d+|\d+\s*[+\-*/]\s*[\$\w]+|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(value);
   }
 
-  // 🆕 ENHANCED: รองรับ expression evaluation ใน set_vars 
+  // ENHANCED: รองรับ expression evaluation ใน set_vars 
   private setVariables(setVars: Record<string, any>, context: Record<string, any>): void {
     for (const [key, value] of Object.entries(setVars)) {
       // แก้ไขให้ใช้ $ notation อย่างถูกต้อง
@@ -278,7 +278,7 @@ export class FormulaProcessor {
       }
 
       if (typeof value === 'string') {
-        // 🆕 Check if it's a simple reference (e.g., '$base_points')
+        // Check if it's a simple reference (e.g., '$base_points')
         if (this.isSimpleReference(value)) {
           const referenceKey = value.substring(1);
           if (context[referenceKey] !== undefined) {
@@ -288,7 +288,7 @@ export class FormulaProcessor {
             throw new RuleFlowException(`Reference variable '${value}' not found in context`);
           }
         }
-        // 🆕 Check if it contains variables or operators (expression)
+        // Check if it contains variables or operators (expression)
         else if (this.hasVariablesOrOperators(value)) {
           try {
             // แก้ไขให้ preprocess $ notation ก่อน evaluate
@@ -311,7 +311,7 @@ export class FormulaProcessor {
     }
   }
 
-  // 🆕 Check if value is a simple reference (e.g., '$variable_name')
+  // Check if value is a simple reference (e.g., '$variable_name')
   private isSimpleReference(value: string): boolean {
     if (typeof value !== 'string') {
       return false;
@@ -322,7 +322,7 @@ export class FormulaProcessor {
     return /^\$[a-zA-Z_][a-zA-Z0-9_]*$/.test(trimmed);
   }
 
-  // 🆕 Check if string contains variables or operators
+  // Check if string contains variables or operators
   private hasVariablesOrOperators(value: string): boolean {
     if (typeof value !== 'string') {
       return false;
@@ -395,7 +395,7 @@ export class FormulaProcessor {
       );
     }
 
-    // 🆕 Handle function-based conditions
+    // Handle function-based conditions
     if (condition.op === 'function' && condition.function) {
       return this.evaluateFunctionCondition(condition, switchValue, context);
     }
@@ -412,14 +412,14 @@ export class FormulaProcessor {
         return false;
       }
       
-      // 🆕 Resolve condition value with variable substitution
+      // Resolve condition value with variable substitution
       const resolvedConditionValue = this.resolveConditionValue(condition.value, context);
       return this.compareValues(valueToCompare, condition.op, resolvedConditionValue);
     }
 
     // Handle direct comparison with switchValue
     if (condition.op && 'value' in condition) {
-      // 🆕 Resolve condition value with variable substitution
+      // Resolve condition value with variable substitution
       const resolvedConditionValue = this.resolveConditionValue(condition.value, context);
       return this.compareValues(switchValue, condition.op, resolvedConditionValue);
     }
@@ -427,7 +427,7 @@ export class FormulaProcessor {
     return Boolean(condition);
   }
 
-  // 🆕 NEW: Resolve condition values with variable substitution
+  // NEW: Resolve condition values with variable substitution
   private resolveConditionValue(value: any, context: Record<string, any>): any {
     if (typeof value === 'string' && value.startsWith('$')) {
       const varName = value.substring(1);
@@ -441,7 +441,7 @@ export class FormulaProcessor {
     return value;
   }
 
-  // 🆕 Function operator in conditions
+  // Function operator in conditions
   private evaluateFunctionCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
     try {
       const functionName = condition.function;

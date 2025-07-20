@@ -386,7 +386,7 @@ export class InputValidator {
   }
 
   /**
-   * 🆕 Basic sanitization (เก็บไว้เพื่อ backward compatibility)
+   * Basic sanitization (เก็บไว้เพื่อ backward compatibility)
    */
   sanitizeInputs(userInputs: Record<string, any>): Record<string, any> {
     const sanitized: Record<string, any> = {};

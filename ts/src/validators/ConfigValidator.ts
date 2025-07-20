@@ -92,7 +92,7 @@ export class ConfigValidator {
       errors.push(...this.validateSwitchFormula(formula, prefix));
     }
 
-    // 🆕 เพิ่ม validation สำหรับ function_call
+    // เพิ่ม validation สำหรับ function_call
     if (formula.function_call) {
       errors.push(...this.validateFunctionCall(formula, prefix));
     }
@@ -112,7 +112,7 @@ export class ConfigValidator {
     return errors;
   }
 
-  // 🆕 เพิ่ม method สำหรับ validate function_call
+  // เพิ่ม method สำหรับ validate function_call
   private validateFunctionCall(formula: Formula, prefix: string): string[] {
     const errors: string[] = [];
 
