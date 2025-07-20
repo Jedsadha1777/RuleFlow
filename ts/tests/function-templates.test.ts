@@ -19,14 +19,14 @@ describe('Function Templates System', () => {
 
     describe('Template Registry', () => {
         it('should have all required templates', () => {
-            const expectedTemplates = ['hotel', 'financial', 'ecommerce', 'healthcare'];
+            const expectedTemplates = ['hotel', 'financial', 'ecommerce', 'healthcare', 'date', 'business', 'education' ];
             const availableTemplates = ruleFlow.getAvailableFunctionTemplates();
 
             expectedTemplates.forEach(template => {
                 expect(availableTemplates).toContain(template);
             });
 
-            expect(availableTemplates.length).toBe(4);
+            expect(availableTemplates.length).toBe(7);
         });
 
         it('should provide template information', () => {
@@ -43,7 +43,7 @@ describe('Function Templates System', () => {
         it('should provide template summary', () => {
             const summary = ruleFlow.getFunctionTemplateSummary();
 
-            expect(summary).toHaveLength(4);
+            expect(summary).toHaveLength(7);
             expect(summary[0]).toHaveProperty('name');
             expect(summary[0]).toHaveProperty('title');
             expect(summary[0]).toHaveProperty('category');

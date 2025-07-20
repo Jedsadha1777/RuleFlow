@@ -24,18 +24,29 @@ export { FINANCIAL_TEMPLATE } from './financial.js';
 export { ECOMMERCE_TEMPLATE } from './ecommerce.js';
 export { HEALTHCARE_TEMPLATE } from './healthcare.js';
 
+// Import new templates
+export { DATE_TEMPLATE } from './date.js';
+export { BUSINESS_TEMPLATE } from './business.js';
+export { EDUCATION_TEMPLATE } from './education.js';
+
 // Re-import for local use
 import { HOTEL_TEMPLATE } from './hotel.js';
 import { FINANCIAL_TEMPLATE } from './financial.js';
 import { ECOMMERCE_TEMPLATE } from './ecommerce.js';
 import { HEALTHCARE_TEMPLATE } from './healthcare.js';
+import { DATE_TEMPLATE } from './date.js';
+import { BUSINESS_TEMPLATE } from './business.js';
+import { EDUCATION_TEMPLATE } from './education.js';
 
 // Template Registry
 export const FUNCTION_TEMPLATES = {
   hotel: HOTEL_TEMPLATE,
   financial: FINANCIAL_TEMPLATE,
   ecommerce: ECOMMERCE_TEMPLATE,
-  healthcare: HEALTHCARE_TEMPLATE
+  healthcare: HEALTHCARE_TEMPLATE,
+  date: DATE_TEMPLATE,
+  business: BUSINESS_TEMPLATE,
+  education: EDUCATION_TEMPLATE
 } as const;
 
 export type TemplateType = keyof typeof FUNCTION_TEMPLATES;

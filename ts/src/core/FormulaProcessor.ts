@@ -22,7 +22,7 @@ export class FormulaProcessor {
 
     for (const formula of formulas) {
       try {
-         if (formula.formula) {
+        if (formula.formula) {
           this.processFormula(formula, context);
         } else if (formula.switch) {
           this.processSwitch(formula, context);
@@ -63,12 +63,12 @@ export class FormulaProcessor {
             throw new RuleFlowException(`Variable '${param}' not found in context`);
           }
         }
-        
+
         // Handle direct variable references
         if (context[param] !== undefined) {
           return context[param];
         }
-        
+
         // Handle nested function calls or expressions
         if (param.includes('(') || param.includes('+') || param.includes('-') || param.includes('*') || param.includes('/')) {
           try {
@@ -79,14 +79,14 @@ export class FormulaProcessor {
           }
         }
       }
-      
+
       // Return literal value
       return param;
     });
 
     try {
       const result = this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
-      
+
       const storeAs = formula.as || formula.id;
       context[storeAs.replace('$', '')] = result;
 
@@ -106,7 +106,7 @@ export class FormulaProcessor {
 
     this.evaluator.setVariables(context);
     const result = this.evaluator.evaluate(formula.formula!);
-    
+
     const storeAs = formula.as || formula.id;
     context[storeAs.replace('$', '')] = result;
 
@@ -122,7 +122,7 @@ export class FormulaProcessor {
     if (formula.switch!.startsWith('$')) {
       const varName = formula.switch!.substring(1);
       switchValue = context[varName];
-      
+
       if (switchValue === undefined) {
         throw new RuleFlowException(
           `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
@@ -130,7 +130,7 @@ export class FormulaProcessor {
       }
     } else {
       switchValue = context[formula.switch!];
-      
+
       if (switchValue === undefined) {
         throw new RuleFlowException(
           `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
@@ -143,7 +143,7 @@ export class FormulaProcessor {
     for (const when of formula.when || []) {
       if (this.evaluateCondition(when.if, switchValue, context)) {
         const storeAs = formula.as || formula.id;
-        
+
         if (when.function_call) {
           const functionResult = this.executeFunctionCall(when, context);
           context[storeAs.replace('$', '')] = functionResult;
@@ -151,12 +151,12 @@ export class FormulaProcessor {
           const resolvedResult = this.resolveValue(when.result, context);
           context[storeAs.replace('$', '')] = resolvedResult;
         }
-        
+
         // Handle variable setting in when condition
         if (when.set_vars) {
           this.setVariables(when.set_vars, context);
         }
-        
+
         matched = true;
         break;
       }
@@ -166,7 +166,7 @@ export class FormulaProcessor {
     if (!matched) {
       if (formula.default !== undefined) {
         const storeAs = formula.as || formula.id;
-        
+
         // 🆕 Check for function call in default
         if (typeof formula.default === 'object' && formula.default.function_call) {
           const functionResult = this.executeFunctionCall(formula.default, context);
@@ -176,7 +176,7 @@ export class FormulaProcessor {
           context[storeAs.replace('$', '')] = resolvedDefault;
         }
       }
-      
+
       // Handle default set_vars
       if (formula.set_vars) {
         this.setVariables(formula.set_vars, context);
@@ -189,7 +189,7 @@ export class FormulaProcessor {
     try {
       const functionName = when.function_call;
       const params = when.params || [];
-      
+
       // Resolve parameters from context
       const resolvedParams = params.map((param: any) => {
         if (typeof param === 'string' && param.startsWith('$')) {
@@ -221,7 +221,7 @@ export class FormulaProcessor {
         throw new RuleFlowException(`Variable reference '${value}' not found in context`);
       }
     }
-    
+
     // ถ้าเป็น expression (มี operators หรือ functions)
     if (this.isExpression(value)) {
       try {
@@ -231,7 +231,7 @@ export class FormulaProcessor {
         throw new RuleFlowException(`Cannot evaluate expression '${value}': ${error.message}`);
       }
     }
-    
+
     // ถ้าเป็น string literal ก็ลอง convert type
     return this.convertStringValue(value);
   }
@@ -246,7 +246,7 @@ export class FormulaProcessor {
   private setVariables(setVars: Record<string, any>, context: Record<string, any>): void {
     for (const [key, value] of Object.entries(setVars)) {
       const variableName = key.replace('$', '');
-      
+
       // ใช้ resolveValue() เพื่อจัดการทุกประเภทของ value
       const resolvedValue = this.resolveValue(value, context);
       context[variableName] = resolvedValue;
@@ -257,16 +257,16 @@ export class FormulaProcessor {
     // Boolean conversion
     if (value.toLowerCase() === 'true') return true;
     if (value.toLowerCase() === 'false') return false;
-    
+
     // Number conversion
     if (/^\d+$/.test(value)) {
       return parseInt(value, 10);
     }
-    
+
     if (/^\d*\.\d+$/.test(value)) {
       return parseFloat(value);
     }
-    
+
     // Return as string if no conversion possible
     return value;
   }
@@ -274,13 +274,13 @@ export class FormulaProcessor {
   private evaluateCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
     // Handle logical conditions (AND/OR)
     if (condition.and && Array.isArray(condition.and)) {
-      return condition.and.every((subCondition: any) => 
+      return condition.and.every((subCondition: any) =>
         this.evaluateCondition(subCondition, switchValue, context)
       );
     }
-    
+
     if (condition.or && Array.isArray(condition.or)) {
-      return condition.or.some((subCondition: any) => 
+      return condition.or.some((subCondition: any) =>
         this.evaluateCondition(subCondition, switchValue, context)
       );
     }
@@ -307,11 +307,11 @@ export class FormulaProcessor {
     return Boolean(condition);
   }
 
-    private evaluateFunctionCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
+  private evaluateFunctionCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
     try {
       const functionName = condition.function;
       const params = condition.params || [switchValue];
-      
+
       // Resolve parameters from context
       const resolvedParams = params.map((param: any) => {
         if (typeof param === 'string' && param.startsWith('$')) {
@@ -336,40 +336,40 @@ export class FormulaProcessor {
 
     switch (operator) {
       // ✅ Existing operators (already implemented)
-      case '<': 
+      case '<':
         return left < right;
-      case '<=': 
+      case '<=':
         return left <= right;
-      case '>': 
+      case '>':
         return left > right;
-      case '>=': 
+      case '>=':
         return left >= right;
-      case '==': 
-      case '=': 
+      case '==':
+      case '=':
         return left == right;
-      case '!=': 
-      case '<>': 
+      case '!=':
+      case '<>':
         return left != right;
 
       case 'between':
         return this.evaluateBetween(left, rightValue);
-      
+
       case 'in':
         return this.evaluateIn(left, rightValue);
-      
+
       case 'not_in':
         return this.evaluateNotIn(left, rightValue);
-      
+
       case 'contains':
         return this.evaluateContains(left, rightValue);
-      
+
       case 'starts_with':
         return this.evaluateStartsWith(left, rightValue);
-      
+
       case 'ends_with':
         return this.evaluateEndsWith(left, rightValue);
 
-      default: 
+      default:
         throw new RuleFlowException(`Unknown operator: ${operator}`);
     }
   }
@@ -454,19 +454,19 @@ export class FormulaProcessor {
     }
 
     const result = this.scoringProcessor.processAccumulativeScore(formula.rules, context);
-    
+
     const storeAs = formula.as || formula.id;
     context[storeAs.replace('$', '')] = result.score;
-    
+
     // Store additional metadata
     if (result.breakdown) {
       context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
     }
-    
+
     if (result.decision) {
       context[`${storeAs.replace('$', '')}_decision`] = result.decision;
     }
-    
+
     if (result.level) {
       context[`${storeAs.replace('$', '')}_level`] = result.level;
     }
@@ -478,7 +478,7 @@ export class FormulaProcessor {
     }
 
     let result;
-    
+
     if (formula.scoring.ifs) {
       // Multi-dimensional scoring
       result = this.scoringProcessor.processMultiDimensionalScore(formula.scoring, context);
@@ -490,19 +490,19 @@ export class FormulaProcessor {
     } else {
       throw new RuleFlowException(`Invalid scoring configuration for formula '${formula.id}'`);
     }
-    
+
     const storeAs = formula.as || formula.id;
     context[storeAs.replace('$', '')] = result.score;
-    
+
     // Store additional metadata
     if (result.decision) {
       context[`${storeAs.replace('$', '')}_decision`] = result.decision;
     }
-    
+
     if (result.level) {
       context[`${storeAs.replace('$', '')}_level`] = result.level;
     }
-    
+
     if (result.breakdown) {
       context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
     }

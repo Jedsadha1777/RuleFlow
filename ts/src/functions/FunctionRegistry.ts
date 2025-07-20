@@ -368,7 +368,20 @@ export class FunctionRegistry {
       parameters: ['principal', 'monthlyRate', 'numberOfPayments'],
       returnType: 'number'
     });
-  }
+
+    // percentage_of function - Calculate what percentage part is of total
+    this.register('percentage_of', (part: number, total: number) => {
+      if (total === 0) return 0;
+      return (part / total) * 100;
+    }, {
+      category: 'Business',
+      description: 'Calculate what percentage part is of total',
+      parameters: ['part', 'total'],
+      returnType: 'number'
+    });
+
+    
+  }  
 
   // ====================================
   // UTILITY FUNCTIONS
