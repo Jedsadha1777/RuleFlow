@@ -479,7 +479,7 @@ describe('PHP-TypeScript Parity Tests', () => {
                 },
                 result: 'loan_approved',
                 set_vars: {
-                  '$final_interest_rate': '$calculated_rate',
+                    '$final_interest_rate': 'calculateInterestRate($credit_score, $loan_amount)',  // หรือ
                   '$decision_timestamp': '$current_timestamp',
                   '$loan_officer_id': '$processing_officer'
                 }
