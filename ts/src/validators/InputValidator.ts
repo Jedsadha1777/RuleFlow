@@ -504,7 +504,13 @@ export class InputValidator {
    */
   validate(inputs: Record<string, any>, requiredInputs: string[]): void {
     for (const required of requiredInputs) {
-      if (!(required in inputs)) {
+      let inputKey = required;
+      if (required.startsWith('$')) {
+        inputKey = required.substring(1); // ลบ $ ออก
+      }
+
+      // ตรวจสอบทั้ง required เดิมและ inputKey (ไม่มี $)
+      if (!(required in inputs) && !(inputKey in inputs)) {
         throw new RuleFlowException(`Required input '${required}' is missing`);
       }
     }

@@ -10,9 +10,11 @@ export interface Formula {
   when?: WhenCondition[];
   default?: any;
   set_vars?: Record<string, any>;
+  default_vars?: Record<string, any>; 
   rules?: AccumulativeRule[];
   scoring?: ScoringConfig;
   function_call?: string;
+  params?: any[];
   as?: string;
 }
 
@@ -25,6 +27,11 @@ export interface WhenCondition {
   function_call?: string;
   params?: any[]; 
   set_vars?: Record<string, any>;
+}
+
+export interface DefaultFunctionCall {
+  function_call: string;
+  params?: any[];
 }
 
 export interface Condition {
@@ -93,6 +100,7 @@ export interface ScoringResult {
   level?: string;
   breakdown?: Record<string, number>;
   metadata?: Record<string, any>;
+  [key: string]: any;
 }
 
 // ================================

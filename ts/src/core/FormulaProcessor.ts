@@ -1,4 +1,4 @@
-import { Formula } from '../types.js';
+import { Formula, DefaultFunctionCall } from '../types.js';
 import { ExpressionEvaluator } from './ExpressionEvaluator';
 import { InputValidator } from '../validators/InputValidator';
 import { ScoringProcessor } from './ScoringProcessor';
@@ -26,7 +26,7 @@ export class FormulaProcessor {
           this.processFormula(formula, context);
         } else if (formula.switch) {
           this.processSwitch(formula, context);
-        } else if (formula.function_call) {  // 🆕 เพิ่มบรรทัดนี้
+        } else if (formula.function_call) {
           this.processFunctionCall(formula, context);
         } else if (formula.rules) {
           this.processAccumulativeScoring(formula, context);
@@ -87,8 +87,8 @@ export class FormulaProcessor {
     try {
       const result = this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
 
-      const storeAs = formula.as || formula.id;
-      context[storeAs.replace('$', '')] = result;
+      const roundedResult = typeof result === 'number' ? this.evaluator.applyAutoRounding(result) : result;
+      this.storeResult(formula, roundedResult, context);
 
       // Handle variable setting
       if (formula.set_vars) {
@@ -100,15 +100,22 @@ export class FormulaProcessor {
   }
 
   private processFormula(formula: Formula, context: Record<string, any>): void {
+    // แก้ไขการ validate inputs ให้รองรับ $ notation
     if (formula.inputs) {
-      this.inputValidator.validate(context, formula.inputs);
+      const processedInputs = this.preprocessInputs(formula.inputs, context);
+      this.inputValidator.validate(context, processedInputs);
     }
 
-    this.evaluator.setVariables(context);
-    const result = this.evaluator.evaluate(formula.formula!);
+    // แก้ไขการประมวลผล formula ให้รองรับ $ notation
+    let processedFormula = formula.formula!;
+    
+    // Replace $variable with actual variable names for evaluation
+    processedFormula = this.preprocessFormulaExpression(processedFormula, context);
 
-    const storeAs = formula.as || formula.id;
-    context[storeAs.replace('$', '')] = result;
+    this.evaluator.setVariables(context);
+    const result = this.evaluator.evaluate(processedFormula);
+
+    this.storeResult(formula, result, context);
 
     // Handle variable setting
     if (formula.set_vars) {
@@ -117,39 +124,25 @@ export class FormulaProcessor {
   }
 
   private processSwitch(formula: Formula, context: Record<string, any>): void {
-    let switchValue: any;
+    
+    const switchValue = this.resolveSwitchValue(formula.switch!, context);
 
-    if (formula.switch!.startsWith('$')) {
-      const varName = formula.switch!.substring(1);
-      switchValue = context[varName];
-
-      if (switchValue === undefined) {
-        throw new RuleFlowException(
-          `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
-        );
-      }
-    } else {
-      switchValue = context[formula.switch!];
-
-      if (switchValue === undefined) {
-        throw new RuleFlowException(
-          `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
-        );
-      }
+    if (switchValue === undefined) {
+      throw new RuleFlowException(
+        `Switch variable '${formula.switch}' not found. Available variables: ${Object.keys(context).join(', ')}`
+      );
     }
 
     let matched = false;
 
     for (const when of formula.when || []) {
       if (this.evaluateCondition(when.if, switchValue, context)) {
-        const storeAs = formula.as || formula.id;
-
-        if (when.function_call) {
+         if (when.function_call) {
           const functionResult = this.executeFunctionCall(when, context);
-          context[storeAs.replace('$', '')] = functionResult;
+          this.storeResult(formula, functionResult, context);
         } else {
           const resolvedResult = this.resolveValue(when.result, context);
-          context[storeAs.replace('$', '')] = resolvedResult;
+          this.storeResult(formula, resolvedResult, context);
         }
 
         // Handle variable setting in when condition
@@ -165,26 +158,56 @@ export class FormulaProcessor {
     // Use default if no condition matched
     if (!matched) {
       if (formula.default !== undefined) {
-        const storeAs = formula.as || formula.id;
-
-        // 🆕 Check for function call in default
-        if (typeof formula.default === 'object' && formula.default.function_call) {
-          const functionResult = this.executeFunctionCall(formula.default, context);
-          context[storeAs.replace('$', '')] = functionResult;
+      // แก้ไขการจัดการ function_call ใน default
+      if (typeof formula.default === 'object' && 
+            formula.default !== null && 
+            'function_call' in formula.default) {
+          const functionResult = this.executeFunctionCall(formula.default as DefaultFunctionCall, context);
+          this.storeResult(formula, functionResult, context);
         } else {
           const resolvedDefault = this.resolveValue(formula.default, context);
-          context[storeAs.replace('$', '')] = resolvedDefault;
+          this.storeResult(formula, resolvedDefault, context);
         }
       }
 
-      // Handle default set_vars
+      // เพิ่มการจัดการ default_vars
+      if (formula.default_vars) {
+        this.setVariables(formula.default_vars, context);
+      }
+
+      // Handle regular set_vars (ถ้ามี)
       if (formula.set_vars) {
         this.setVariables(formula.set_vars, context);
       }
     }
   }
 
-  // 🆕 Execute function call in switch result
+  // Preprocess inputs ให้รองรับ $ notation
+  private preprocessInputs(inputs: string[], context: Record<string, any>): string[] {
+    return inputs.map(input => {
+      if (input.startsWith('$')) {
+        // Convert $variable to variable name และตรวจสอบว่ามีใน context หรือไม่
+        const varName = input.substring(1);
+        if (context[varName] === undefined) {
+          throw new RuleFlowException(`Input variable '${input}' not found in context`);
+        }
+        return varName;
+      }
+      return input;
+    });
+  }
+
+  //  NEW: Preprocess formula expression ให้รองรับ $ notation
+  private preprocessFormulaExpression(formula: string, context: Record<string, any>): string {
+    // Replace $variable with actual variable names for evaluation
+    return formula.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, varName) => {
+      if (context[varName] === undefined) {
+        throw new RuleFlowException(`Variable '${match}' referenced in formula not found in context`);
+      }
+      return varName;
+    });
+  }
+
   private executeFunctionCall(when: any, context: Record<string, any>): any {
     try {
       const functionName = when.function_call;
@@ -199,13 +222,14 @@ export class FormulaProcessor {
         return param;
       });
 
-      return this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
+      const result = this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
+      return typeof result === 'number' ? this.evaluator.applyAutoRounding(result) : result;
+
     } catch (error: any) {
       throw new RuleFlowException(`Function call '${when.function_call}' failed: ${error.message}`);
     }
   }
 
-  //  ปรับปรุง resolveValue() ให้ครอบคลุมทุกกรณี
   private resolveValue(value: any, context: Record<string, any>): any {
     // ถ้าไม่ใช่ string ก็ return ค่าเดิม
     if (typeof value !== 'string') {
@@ -225,8 +249,10 @@ export class FormulaProcessor {
     // ถ้าเป็น expression (มี operators หรือ functions)
     if (this.isExpression(value)) {
       try {
+        // แก้ไขให้ preprocess $ notation ก่อน evaluate
+        const processedExpression = this.preprocessFormulaExpression(value, context);
         this.evaluator.setVariables(context);
-        return this.evaluator.evaluate(value);
+        return this.evaluator.evaluate(processedExpression);
       } catch (error: any) {
         throw new RuleFlowException(`Cannot evaluate expression '${value}': ${error.message}`);
       }
@@ -236,21 +262,52 @@ export class FormulaProcessor {
     return this.convertStringValue(value);
   }
 
-
   private isExpression(value: string): boolean {
     // Check for mathematical operators, variables, or function calls
     return /[\$\w]+\s*[+\-*/]\s*[\$\w\d.]+|[\$\w]+\s*[+\-*/]\s*\d+|\d+\s*[+\-*/]\s*[\$\w]+|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(value);
   }
 
-
   private setVariables(setVars: Record<string, any>, context: Record<string, any>): void {
     for (const [key, value] of Object.entries(setVars)) {
-      const variableName = key.replace('$', '');
-
-      // ใช้ resolveValue() เพื่อจัดการทุกประเภทของ value
+      // แก้ไขให้ใช้ $ notation อย่างถูกต้อง
+      let variableName = key;
+      if (key.startsWith('$')) {
+        variableName = key.substring(1);
+      }
+      
+      // Resolve value ถ้าเป็น $ reference หรือ expression
       const resolvedValue = this.resolveValue(value, context);
       context[variableName] = resolvedValue;
     }
+  }
+
+  /**
+   *  Resolve switch values with $ notation support
+   */
+  private resolveSwitchValue(switchField: string, context: Record<string, any>): any {
+    // Handle $ notation in switch field
+    if (switchField.startsWith('$')) {
+      const varName = switchField.substring(1);
+      return context[varName];
+    }
+    
+    // Handle direct variable reference
+    return context[switchField];
+  }
+
+  /**
+   * Store results with $ notation support in 'as' field
+   */
+  private storeResult(formula: Formula, result: any, context: Record<string, any>): void {
+    const storeAs = formula.as || formula.id;
+    
+    // Handle $ notation in 'as' field
+    let variableName = storeAs;
+    if (typeof storeAs === 'string' && storeAs.startsWith('$')) {
+      variableName = storeAs.substring(1);
+    }
+    
+    context[variableName] = result;
   }
 
   private convertStringValue(value: string): any {
@@ -285,14 +342,19 @@ export class FormulaProcessor {
       );
     }
 
-    // 🆕 Handle function-based conditions
+    // Handle function-based conditions
     if (condition.op === 'function' && condition.function) {
       return this.evaluateFunctionCondition(condition, switchValue, context);
     }
 
-    // Handle condition with var property
+    // แก้ไข: Handle condition with var property (รองรับ $ notation)
     if (condition.var) {
-      const valueToCompare = context[condition.var];
+      let varName = condition.var;
+      if (varName.startsWith('$')) {
+        varName = varName.substring(1);
+      }
+      
+      const valueToCompare = context[varName];
       if (valueToCompare === undefined) {
         return false;
       }
@@ -329,13 +391,11 @@ export class FormulaProcessor {
     }
   }
 
-
   private compareValues(leftValue: any, operator: string, rightValue: any): boolean {
     const left = typeof leftValue === 'string' ? parseFloat(leftValue) || leftValue : leftValue;
     const right = typeof rightValue === 'string' ? parseFloat(rightValue) || rightValue : rightValue;
 
     switch (operator) {
-      // ✅ Existing operators (already implemented)
       case '<':
         return left < right;
       case '<=':
@@ -350,31 +410,23 @@ export class FormulaProcessor {
       case '!=':
       case '<>':
         return left != right;
-
       case 'between':
         return this.evaluateBetween(left, rightValue);
-
       case 'in':
         return this.evaluateIn(left, rightValue);
-
       case 'not_in':
         return this.evaluateNotIn(left, rightValue);
-
       case 'contains':
         return this.evaluateContains(left, rightValue);
-
       case 'starts_with':
         return this.evaluateStartsWith(left, rightValue);
-
       case 'ends_with':
         return this.evaluateEndsWith(left, rightValue);
-
       default:
         throw new RuleFlowException(`Unknown operator: ${operator}`);
     }
   }
 
-  // 🆕 Between operator: value in range [min, max]
   private evaluateBetween(leftValue: any, rightValue: any): boolean {
     if (!Array.isArray(rightValue) || rightValue.length !== 2) {
       throw new RuleFlowException(`Between operator requires array with 2 values, got: ${JSON.stringify(rightValue)}`);
@@ -391,62 +443,37 @@ export class FormulaProcessor {
     return numericLeft >= min && numericLeft <= max;
   }
 
-  // 🆕 In operator: value exists in array
   private evaluateIn(leftValue: any, rightValue: any): boolean {
     if (!Array.isArray(rightValue)) {
       throw new RuleFlowException(`In operator requires array value, got: ${typeof rightValue}`);
     }
-
-    // Use strict equality for accurate matching
     return rightValue.includes(leftValue);
   }
 
-  // 🆕 Not In operator: value does not exist in array
   private evaluateNotIn(leftValue: any, rightValue: any): boolean {
     if (!Array.isArray(rightValue)) {
       throw new RuleFlowException(`Not_in operator requires array value, got: ${typeof rightValue}`);
     }
-
     return !rightValue.includes(leftValue);
   }
 
-  // 🆕 Contains operator: string contains substring
   private evaluateContains(leftValue: any, rightValue: any): boolean {
     const leftStr = String(leftValue);
     const rightStr = String(rightValue);
-
-    if (typeof leftValue !== 'string' && leftValue !== null && leftValue !== undefined) {
-      console.warn(`Contains operator: converting ${typeof leftValue} to string`);
-    }
-
     return leftStr.includes(rightStr);
   }
 
-  // 🆕 Starts With operator: string starts with prefix
   private evaluateStartsWith(leftValue: any, rightValue: any): boolean {
     const leftStr = String(leftValue);
     const rightStr = String(rightValue);
-
-    if (typeof leftValue !== 'string' && leftValue !== null && leftValue !== undefined) {
-      console.warn(`Starts_with operator: converting ${typeof leftValue} to string`);
-    }
-
     return leftStr.startsWith(rightStr);
   }
 
-  // 🆕 Ends With operator: string ends with suffix
   private evaluateEndsWith(leftValue: any, rightValue: any): boolean {
     const leftStr = String(leftValue);
     const rightStr = String(rightValue);
-
-    if (typeof leftValue !== 'string' && leftValue !== null && leftValue !== undefined) {
-      console.warn(`Ends_with operator: converting ${typeof leftValue} to string`);
-    }
-
     return leftStr.endsWith(rightStr);
   }
-
-
 
   private processAccumulativeScoring(formula: Formula, context: Record<string, any>): void {
     if (!formula.rules) {
@@ -455,20 +482,23 @@ export class FormulaProcessor {
 
     const result = this.scoringProcessor.processAccumulativeScore(formula.rules, context);
 
-    const storeAs = formula.as || formula.id;
-    context[storeAs.replace('$', '')] = result.score;
+    // ✅ ใช้ storeResult แทน
+    this.storeResult(formula, result.score, context);
 
     // Store additional metadata
+    const storeAs = formula.as || formula.id;
+    const variableName = typeof storeAs === 'string' && storeAs.startsWith('$') ? storeAs.substring(1) : storeAs;
+
     if (result.breakdown) {
-      context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
+      context[`${variableName}_breakdown`] = result.breakdown;
     }
 
     if (result.decision) {
-      context[`${storeAs.replace('$', '')}_decision`] = result.decision;
+      context[`${variableName}_decision`] = result.decision;
     }
 
     if (result.level) {
-      context[`${storeAs.replace('$', '')}_level`] = result.level;
+      context[`${variableName}_level`] = result.level;
     }
   }
 
@@ -485,26 +515,39 @@ export class FormulaProcessor {
     } else if (formula.scoring.if) {
       // Simple weighted scoring
       const storeAs = formula.as || formula.id;
-      const value = context[storeAs.replace('$', '')];
+      const variableName = typeof storeAs === 'string' && storeAs.startsWith('$') ? storeAs.substring(1) : storeAs;
+      const value = context[variableName];
       result = this.scoringProcessor.processSimpleScore(formula.scoring, value, context);
     } else {
       throw new RuleFlowException(`Invalid scoring configuration for formula '${formula.id}'`);
     }
 
-    const storeAs = formula.as || formula.id;
-    context[storeAs.replace('$', '')] = result.score;
+    // ใช้ storeResult แทน
+    this.storeResult(formula, result.score, context);
 
     // Store additional metadata
+    const storeAs = formula.as || formula.id;
+    const variableName = typeof storeAs === 'string' && storeAs.startsWith('$') ? storeAs.substring(1) : storeAs;
+
     if (result.decision) {
-      context[`${storeAs.replace('$', '')}_decision`] = result.decision;
+      context[`${variableName}_decision`] = result.decision;
     }
 
     if (result.level) {
-      context[`${storeAs.replace('$', '')}_level`] = result.level;
+      context[`${variableName}_level`] = result.level;
     }
 
     if (result.breakdown) {
-      context[`${storeAs.replace('$', '')}_breakdown`] = result.breakdown;
+      context[`${variableName}_breakdown`] = result.breakdown;
+    }
+
+    if (result && typeof result === 'object') {
+      const excludedKeys = ['score', 'decision', 'level', 'breakdown'];
+      for (const [key, value] of Object.entries(result)) {
+        if (!excludedKeys.includes(key) && value !== undefined && value !== null) {
+          context[`${variableName}_${key}`] = value;
+        }
+      }
     }
   }
 }

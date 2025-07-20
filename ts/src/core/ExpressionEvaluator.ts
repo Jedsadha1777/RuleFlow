@@ -4,8 +4,8 @@ import { FunctionRegistry } from '../functions/FunctionRegistry';
 export class ExpressionEvaluator {
   private variables: Record<string, any> = {};
   private functionRegistry: FunctionRegistry;
-  
-  // 🆕 Automatic floating point precision handling
+
+  // Automatic floating point precision handling
   private autoRoundPrecision: number | null = 10; // Default precision 10 decimal places
   private autoRoundThreshold: number = 1e-10; // Threshold for detecting precision issues
 
@@ -13,7 +13,7 @@ export class ExpressionEvaluator {
     this.functionRegistry = functionRegistry || new FunctionRegistry();
   }
 
-  // 🆕 Method สำหรับ control automatic rounding
+  // Method สำหรับ control automatic rounding
   setAutoRounding(precision: number = 10): void {
     this.autoRoundPrecision = precision;
   }
@@ -30,12 +30,47 @@ export class ExpressionEvaluator {
     return this.functionRegistry;
   }
 
+  // ✅ เพิ่ม method สำหรับประมวลผล $ expressions โดยตรง
+  evaluateDollarExpression(expression: string, context: Record<string, any>): any {
+    // Set variables from context
+    this.setVariables(context);
+
+    // Evaluate expression with $ notation
+    return this.evaluate(expression);
+  }
+
+  private preprocessDollarNotation(expression: string): string {
+    // ✅ ปรับปรุงให้รองรับ $ notation อย่างครบถ้วน
+    return expression.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, varName) => {
+      if (this.variables[varName] !== undefined) {
+        const value = this.variables[varName];
+        // If it's a number, return as string for expression
+        if (typeof value === 'number') {
+          return String(value);
+        }
+        // If it's a string that looks like a number, return as is
+        if (typeof value === 'string' && /^-?\d+\.?\d*$/.test(value)) {
+          return value;
+        }
+        // For other types, convert to string
+        return String(value);
+      } else {
+        throw new RuleFlowException(
+          `Variable '${match}' not found in context. Available variables: ${Object.keys(this.variables).join(', ')}`
+        );
+      }
+    });
+  }
+
   evaluate(expression: string): any {
     let processedExpression = expression;
-    
+
+    // ✅ NEW: Add $ notation preprocessing
+    processedExpression = this.preprocessDollarNotation(processedExpression);
+
     // First, replace variables
     processedExpression = this.replaceVariables(processedExpression);
-    
+
     // Then, process function calls (including nested ones)
     processedExpression = this.processFunctionCalls(processedExpression);
 
@@ -48,8 +83,8 @@ export class ExpressionEvaluator {
     }
   }
 
-  // 🆕 Core automatic rounding logic
-  private applyAutoRounding(value: number): number {
+  //  Core automatic rounding logic
+  public applyAutoRounding(value: number): number {
     if (this.autoRoundPrecision === null || !Number.isFinite(value)) {
       return value;
     }
@@ -58,12 +93,12 @@ export class ExpressionEvaluator {
     const factor = Math.pow(10, this.autoRoundPrecision);
     const rounded = Math.round(value * factor) / factor;
     const difference = Math.abs(value - rounded);
-    
+
     // If difference is very small (floating point precision issue), return rounded value
     if (difference < this.autoRoundThreshold) {
       return rounded;
     }
-    
+
     return value;
   }
 
@@ -71,17 +106,17 @@ export class ExpressionEvaluator {
     let processed = expression;
     let maxIterations = 10; // Prevent infinite loops
     let iteration = 0;
-    
+
     // Keep processing until no more function calls found
     while (this.hasFunctionCalls(processed) && iteration < maxIterations) {
       processed = this.processInnerMostFunctions(processed);
       iteration++;
     }
-    
+
     if (iteration >= maxIterations) {
       throw new RuleFlowException(`Too many nested function calls or circular references in: ${expression}`);
     }
-    
+
     return processed;
   }
 
@@ -92,19 +127,19 @@ export class ExpressionEvaluator {
   private processInnerMostFunctions(expression: string): string {
     // Find and replace innermost function calls first
     // This handles nested functions like round(sqrt(pow(x, 2)))
-    
+
     const functionPattern = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^()]*)\)/g;
-    
+
     return expression.replace(functionPattern, (match, functionName, argsString) => {
       try {
         // Parse and evaluate arguments
         const args = this.parseArguments(argsString);
-        
+
         // Call the function
         const result = this.functionRegistry.call(functionName, args);
         // 🎯 Apply automatic rounding to function results
         return String(this.applyAutoRounding(result));
-      } catch (error : any) {
+      } catch (error: any) {
         throw new RuleFlowException(`Function call failed: ${match} - ${error.message}`);
       }
     });
@@ -112,13 +147,13 @@ export class ExpressionEvaluator {
 
   private parseArguments(argsString: string): any[] {
     if (!argsString.trim()) return [];
-    
+
     const args: any[] = [];
     const argStrings = this.splitArgumentsCorrectly(argsString);
-    
+
     for (const argString of argStrings) {
       const trimmed = argString.trim();
-      
+
       // Try to parse as number
       if (/^-?\d*\.?\d+$/.test(trimmed)) {
         args.push(parseFloat(trimmed));
@@ -145,7 +180,7 @@ export class ExpressionEvaluator {
         }
       }
     }
-    
+
     return args;
   }
 
@@ -156,10 +191,10 @@ export class ExpressionEvaluator {
     let depth = 0;
     let inQuotes = false;
     let quoteChar = '';
-    
+
     for (let i = 0; i < argsString.length; i++) {
       const char = argsString[i];
-      
+
       if (!inQuotes) {
         if (char === '"' || char === "'") {
           inQuotes = true;
@@ -185,24 +220,21 @@ export class ExpressionEvaluator {
         }
       }
     }
-    
+
     if (current.trim()) {
       args.push(current.trim());
     }
-    
+
     return args;
   }
 
   private replaceVariables(expression: string): string {
     let processedExpression = expression;
-    
-    // Replace variables (both $variable and variable)
+
+    // ✅ ปรับปรุงการ replace variables ให้ดีขึ้น
     for (const [key, value] of Object.entries(this.variables)) {
-      // Replace $variable
-      const dollarRegex = new RegExp(`\\$${key}\\b`, 'g');
-      processedExpression = processedExpression.replace(dollarRegex, String(value));
-      
       // Replace variable (not prefixed with $) - but avoid replacing function names
+      // ใช้ word boundary และตรวจสอบว่าไม่ใช่ชื่อ function
       const directRegex = new RegExp(`\\b${key}\\b(?!\\s*\\()`, 'g');
       processedExpression = processedExpression.replace(directRegex, String(value));
     }
@@ -213,13 +245,13 @@ export class ExpressionEvaluator {
   private safeEvaluate(expression: string): any {
     // Remove whitespace
     expression = expression.trim();
-    
+
     try {
-      // Allow numbers, operators, parentheses, and dots
-      if (!/^[0-9+\-*/().\ ]+$/.test(expression)) {
+      // ✅ ปรับปรุงการตรวจสอบ pattern ให้รองรับ $ notation และตัวอักษรมากขึ้น
+      if (!/^[0-9+\-*/.() \w$]+$/.test(expression)) {
         throw new Error(`Invalid characters in expression: ${expression}`);
       }
-      
+
       // 🎯 Use more secure evaluation method
       const result = this.evaluateArithmetic(expression);
       return result;
@@ -239,10 +271,10 @@ export class ExpressionEvaluator {
   private tokenize(expression: string): string[] {
     const tokens: string[] = [];
     let current = '';
-    
+
     for (let i = 0; i < expression.length; i++) {
       const char = expression[i];
-      
+
       if (/\d|\./.test(char)) {
         current += char;
       } else if (char === '*' && i + 1 < expression.length && expression[i + 1] === '*') {
@@ -266,11 +298,11 @@ export class ExpressionEvaluator {
         }
       }
     }
-    
+
     if (current) {
       tokens.push(current);
     }
-    
+
     return tokens;
   }
 
@@ -280,10 +312,10 @@ export class ExpressionEvaluator {
       '*': 2, '/': 2,
       '**': 3
     };
-    
+
     const output: string[] = [];
     const operators: string[] = [];
-    
+
     for (const token of tokens) {
       if (/^\d+\.?\d*$/.test(token)) {
         output.push(token);
@@ -305,17 +337,17 @@ export class ExpressionEvaluator {
         operators.push(token);
       }
     }
-    
+
     while (operators.length) {
       output.push(operators.pop()!);
     }
-    
+
     return output;
   }
 
   private evaluatePostfix(postfix: string[]): number {
     const stack: number[] = [];
-    
+
     for (const token of postfix) {
       if (/^\d+\.?\d*$/.test(token)) {
         stack.push(parseFloat(token));
@@ -323,10 +355,10 @@ export class ExpressionEvaluator {
         if (stack.length < 2) {
           throw new Error(`Invalid expression: insufficient operands for ${token}`);
         }
-        
+
         const b = stack.pop()!;
         const a = stack.pop()!;
-        
+
         let result: number;
         switch (token) {
           case '+':
@@ -350,16 +382,64 @@ export class ExpressionEvaluator {
           default:
             throw new Error(`Unknown operator: ${token}`);
         }
-        
+
         // 🎯 Apply automatic rounding to intermediate results
         stack.push(this.applyAutoRounding(result));
       }
     }
-    
+
     if (stack.length !== 1) {
       throw new Error('Invalid expression: multiple results');
     }
-    
+
     return stack[0];
+  }
+
+  // ✅ เพิ่ม helper methods สำหรับ $ notation
+
+  /**
+   * ✅ NEW: Safe evaluation method with better error handling
+   */
+  safeEval(expression: string, context: Record<string, any>): any {
+    try {
+      this.setVariables(context);
+      return this.evaluate(expression);
+    } catch (error: any) {
+      throw new RuleFlowException(`Safe evaluation failed for '${expression}': ${error.message}`);
+    }
+  }
+
+  /**
+   * ✅ NEW: Check if expression contains $ notation
+   */
+  hasDollarNotation(expression: string): boolean {
+    return /\$[a-zA-Z_][a-zA-Z0-9_]*/.test(expression);
+  }
+
+  /**
+   * ✅ NEW: Extract all $ variables from expression
+   */
+  extractDollarVariables(expression: string): string[] {
+    const matches = expression.match(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g);
+    return matches ? matches.map(match => match.substring(1)) : [];
+  }
+
+  /**
+   * ✅ NEW: Validate that all $ variables exist in context
+   */
+  validateDollarVariables(expression: string, context: Record<string, any>): { valid: boolean; missing: string[] } {
+    const dollarVars = this.extractDollarVariables(expression);
+    const missing: string[] = [];
+
+    for (const varName of dollarVars) {
+      if (context[varName] === undefined) {
+        missing.push(`$${varName}`);
+      }
+    }
+
+    return {
+      valid: missing.length === 0,
+      missing
+    };
   }
 }

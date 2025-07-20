@@ -119,6 +119,9 @@ export class ScoringProcessor {
               
               if (range.decision) result.decision = range.decision;
               if (range.level) result.level = range.level;
+
+              const additionalProps = this.extractAdditionalProperties(range);
+              Object.assign(result, additionalProps);
               
               // Handle variable setting
               if (range.set_vars) {
@@ -137,6 +140,9 @@ export class ScoringProcessor {
           
           if (node.decision) result.decision = node.decision;
           if (node.level) result.level = node.level;
+
+          const additionalProps = this.extractAdditionalProperties(node);
+          Object.assign(result, additionalProps);
           
           // Handle variable setting
           if (node.set_vars) {
@@ -150,6 +156,28 @@ export class ScoringProcessor {
     
     // No match found
     return { score: 0 };
+  }
+
+  // เพิ่ม method สำหรับดึง additional properties
+  private extractAdditionalProperties(item: any): Record<string, any> {
+    // ✅ เพิ่ม excluded keys ให้ครบถ้วนขึ้น
+    const excluded = [
+      'if', 'score', 'result', 'decision', 'level', 'set_vars', 'ranges',
+      'op', 'value', 'var', 'and', 'or', 'function', 'params'
+    ];
+    const additional: Record<string, any> = {};
+    
+    if (!item || typeof item !== 'object') {
+      return additional;
+    }
+    
+    for (const [key, value] of Object.entries(item)) {
+      if (!excluded.includes(key) && value !== undefined && value !== null) {
+        additional[key] = value;
+      }
+    }
+    
+    return additional;
   }
 
   /**

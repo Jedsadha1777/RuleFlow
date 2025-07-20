@@ -230,8 +230,6 @@ class ExpressionEvaluator
      */
     private function evaluateArgument(string $arg): mixed
     {
-        $arg = trim($arg);
-        
         // Check if it's a string literal
         if (preg_match('/^["\'](.*)["\']\s*$/', $arg, $matches)) {
             return $matches[1];
@@ -246,13 +244,13 @@ class ExpressionEvaluator
             return (float)$arg;
         }
         
-        // 🔧 แก้ไข: Evaluate expression properly
+        // If it contains functions or variables, evaluate as expression
         try {
-            // ถ้าเป็น expression ให้ประมวลผลอย่างถูกต้อง
             $result = $this->evaluateNumericExpression($arg);
             return $this->applyAutoRounding($result);
         } catch (Exception $e) {
-            throw new RuleFlowException("Cannot evaluate argument '$arg': " . $e->getMessage());
+            // If evaluation fails, treat as literal string
+            return $arg;
         }
     }
 
