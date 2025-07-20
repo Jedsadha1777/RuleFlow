@@ -108,7 +108,7 @@ export class FormulaProcessor {
 
     // แก้ไขการประมวลผล formula ให้รองรับ $ notation
     let processedFormula = formula.formula!;
-    
+
     // Replace $variable with actual variable names for evaluation
     processedFormula = this.preprocessFormulaExpression(processedFormula, context);
 
@@ -124,7 +124,7 @@ export class FormulaProcessor {
   }
 
   private processSwitch(formula: Formula, context: Record<string, any>): void {
-    
+
     const switchValue = this.resolveSwitchValue(formula.switch!, context);
 
     if (switchValue === undefined) {
@@ -137,7 +137,7 @@ export class FormulaProcessor {
 
     for (const when of formula.when || []) {
       if (this.evaluateCondition(when.if, switchValue, context)) {
-         if (when.function_call) {
+        if (when.function_call) {
           const functionResult = this.executeFunctionCall(when, context);
           this.storeResult(formula, functionResult, context);
         } else {
@@ -158,10 +158,10 @@ export class FormulaProcessor {
     // Use default if no condition matched
     if (!matched) {
       if (formula.default !== undefined) {
-      // แก้ไขการจัดการ function_call ใน default
-      if (typeof formula.default === 'object' && 
-            formula.default !== null && 
-            'function_call' in formula.default) {
+        // แก้ไขการจัดการ function_call ใน default
+        if (typeof formula.default === 'object' &&
+          formula.default !== null &&
+          'function_call' in formula.default) {
           const functionResult = this.executeFunctionCall(formula.default as DefaultFunctionCall, context);
           this.storeResult(formula, functionResult, context);
         } else {
@@ -179,6 +179,29 @@ export class FormulaProcessor {
       if (formula.set_vars) {
         this.setVariables(formula.set_vars, context);
       }
+    }
+  }
+
+  //  Execute function call in switch result
+  private executeFunctionCall(when: any, context: Record<string, any>): any {
+    try {
+      const functionName = when.function_call;
+      const params = when.params || [];
+
+      // Resolve parameters from context
+      const resolvedParams = params.map((param: any) => {
+        if (typeof param === 'string' && param.startsWith('$')) {
+          const varName = param.substring(1);
+          return context[varName] !== undefined ? context[varName] : param;
+        }
+        return param;
+      });
+
+      const result = this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
+      return typeof result === 'number' ? this.evaluator.applyAutoRounding(result) : result;
+
+    } catch (error: any) {
+      throw new RuleFlowException(`Function call failed: ${error.message}`);
     }
   }
 
@@ -206,28 +229,6 @@ export class FormulaProcessor {
       }
       return varName;
     });
-  }
-
-  private executeFunctionCall(when: any, context: Record<string, any>): any {
-    try {
-      const functionName = when.function_call;
-      const params = when.params || [];
-
-      // Resolve parameters from context
-      const resolvedParams = params.map((param: any) => {
-        if (typeof param === 'string' && param.startsWith('$')) {
-          const varName = param.substring(1);
-          return context[varName] !== undefined ? context[varName] : param;
-        }
-        return param;
-      });
-
-      const result = this.evaluator.getFunctionRegistry().call(functionName, resolvedParams);
-      return typeof result === 'number' ? this.evaluator.applyAutoRounding(result) : result;
-
-    } catch (error: any) {
-      throw new RuleFlowException(`Function call '${when.function_call}' failed: ${error.message}`);
-    }
   }
 
   private resolveValue(value: any, context: Record<string, any>): any {
@@ -267,6 +268,7 @@ export class FormulaProcessor {
     return /[\$\w]+\s*[+\-*/]\s*[\$\w\d.]+|[\$\w]+\s*[+\-*/]\s*\d+|\d+\s*[+\-*/]\s*[\$\w]+|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(value);
   }
 
+  // 🆕 ENHANCED: รองรับ expression evaluation ใน set_vars 
   private setVariables(setVars: Record<string, any>, context: Record<string, any>): void {
     for (const [key, value] of Object.entries(setVars)) {
       // แก้ไขให้ใช้ $ notation อย่างถูกต้อง
@@ -274,11 +276,62 @@ export class FormulaProcessor {
       if (key.startsWith('$')) {
         variableName = key.substring(1);
       }
-      
-      // Resolve value ถ้าเป็น $ reference หรือ expression
-      const resolvedValue = this.resolveValue(value, context);
-      context[variableName] = resolvedValue;
+
+      if (typeof value === 'string') {
+        // 🆕 Check if it's a simple reference (e.g., '$base_points')
+        if (this.isSimpleReference(value)) {
+          const referenceKey = value.substring(1);
+          if (context[referenceKey] !== undefined) {
+            // Direct assignment to preserve type
+            context[variableName] = context[referenceKey];
+          } else {
+            throw new RuleFlowException(`Reference variable '${value}' not found in context`);
+          }
+        }
+        // 🆕 Check if it contains variables or operators (expression)
+        else if (this.hasVariablesOrOperators(value)) {
+          try {
+            // แก้ไขให้ preprocess $ notation ก่อน evaluate
+            const processedExpression = this.preprocessFormulaExpression(value, context);
+            this.evaluator.setVariables(context);
+            const evaluatedValue = this.evaluator.evaluate(processedExpression);
+            context[variableName] = evaluatedValue;
+          } catch (error: any) {
+            throw new RuleFlowException(`Error evaluating set_vars expression '${value}': ${error.message}`);
+          }
+        }
+        else {
+          // Simple literal string - apply type conversion
+          context[variableName] = this.convertStringValue(value);
+        }
+      } else {
+        // Direct assignment for non-string values
+        context[variableName] = value;
+      }
     }
+  }
+
+  // 🆕 Check if value is a simple reference (e.g., '$variable_name')
+  private isSimpleReference(value: string): boolean {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    
+    const trimmed = value.trim();
+    // Match exactly: $variable_name (no operators, no extra text)
+    return /^\$[a-zA-Z_][a-zA-Z0-9_]*$/.test(trimmed);
+  }
+
+  // 🆕 Check if string contains variables or operators
+  private hasVariablesOrOperators(value: string): boolean {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    
+    const hasVar = value.includes('$');
+    const hasOp = /[+\-*\/()]/.test(value);
+    
+    return hasVar || hasOp;
   }
 
   /**
@@ -290,7 +343,7 @@ export class FormulaProcessor {
       const varName = switchField.substring(1);
       return context[varName];
     }
-    
+
     // Handle direct variable reference
     return context[switchField];
   }
@@ -300,13 +353,13 @@ export class FormulaProcessor {
    */
   private storeResult(formula: Formula, result: any, context: Record<string, any>): void {
     const storeAs = formula.as || formula.id;
-    
+
     // Handle $ notation in 'as' field
     let variableName = storeAs;
     if (typeof storeAs === 'string' && storeAs.startsWith('$')) {
       variableName = storeAs.substring(1);
     }
-    
+
     context[variableName] = result;
   }
 
@@ -342,7 +395,7 @@ export class FormulaProcessor {
       );
     }
 
-    // Handle function-based conditions
+    // 🆕 Handle function-based conditions
     if (condition.op === 'function' && condition.function) {
       return this.evaluateFunctionCondition(condition, switchValue, context);
     }
@@ -353,26 +406,63 @@ export class FormulaProcessor {
       if (varName.startsWith('$')) {
         varName = varName.substring(1);
       }
-      
+
       const valueToCompare = context[varName];
       if (valueToCompare === undefined) {
         return false;
       }
-      return this.compareValues(valueToCompare, condition.op, condition.value);
+      
+      // 🆕 Resolve condition value with variable substitution
+      const resolvedConditionValue = this.resolveConditionValue(condition.value, context);
+      return this.compareValues(valueToCompare, condition.op, resolvedConditionValue);
     }
 
     // Handle direct comparison with switchValue
     if (condition.op && 'value' in condition) {
-      return this.compareValues(switchValue, condition.op, condition.value);
+      // 🆕 Resolve condition value with variable substitution
+      const resolvedConditionValue = this.resolveConditionValue(condition.value, context);
+      return this.compareValues(switchValue, condition.op, resolvedConditionValue);
     }
 
     return Boolean(condition);
   }
 
+  // 🆕 NEW: Resolve condition values with variable substitution
+  private resolveConditionValue(value: any, context: Record<string, any>): any {
+    if (typeof value === 'string' && value.startsWith('$')) {
+      const varName = value.substring(1);
+      if (context[varName] !== undefined) {
+        return context[varName];
+      } else {
+        throw new RuleFlowException(`Condition variable '${value}' not found in context`);
+      }
+    }
+    
+    return value;
+  }
+
+  // 🆕 Function operator in conditions
   private evaluateFunctionCondition(condition: any, switchValue: any, context: Record<string, any>): boolean {
     try {
       const functionName = condition.function;
-      const params = condition.params || [switchValue];
+      
+      // 🔧 FIX: ใช้ condition.var ถ้ามี แทน switchValue
+      let params = condition.params || [switchValue];
+      
+      if (condition.var) {
+        let varName = condition.var;
+        if (varName.startsWith('$')) {
+          varName = varName.substring(1);
+        }
+        
+        const varValue = context[varName];
+        if (varValue === undefined) {
+          return false;
+        }
+        
+        // ใช้ค่าจาก var แทน switchValue
+        params = condition.params || [varValue];
+      }
 
       // Resolve parameters from context
       const resolvedParams = params.map((param: any) => {
