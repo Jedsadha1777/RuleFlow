@@ -9,7 +9,7 @@ A powerful, flexible rule engine for TypeScript/JavaScript applications with adv
 - **Switch Logic**: Conditional branching with AND/OR operations
 - **Variable Management**: `$notation` for intermediate calculations and references
 - **Code Generation**: Convert rule configurations to optimized TypeScript functions
-- **Performance**: Generated code runs 10-100x faster than interpreted rules
+- **Performance**: Generated code runs 5-10x faster than interpreted rules
 
 ### Built-in Functions
 - **Math**: `sqrt()`, `pow()`, `abs()`, `min()`, `max()`, `round()`, `ceil()`, `floor()`
@@ -338,7 +338,7 @@ RuleFlow TypeScript offers excellent performance:
 
 - **Rule Engine**: ~1-5ms per evaluation
 - **Generated Code**: ~0.01-0.1ms per execution
-- **Performance Gain**: 10-100x faster with code generation
+- **Performance Gain**: 5-10x faster with code generation
 - **Memory Usage**: Minimal overhead
 - **Scalability**: Handles complex configurations efficiently
 
