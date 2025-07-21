@@ -13,11 +13,8 @@ Full-featured implementation with templates, custom functions, and comprehensive
 Modern TypeScript implementation with advanced code generation capabilities and type safety.
 
 ```bash
-# PHP Installation
+# PHP & TypeScript Installation
 git clone https://github.com/Jedsadha1777/RuleFlow.git
-
-# TypeScript Installation  
-npm install ruleflow-ts
 ```
 
 ## Key Features
