@@ -133,7 +133,7 @@ const loanConfig = {
 };
 ```
 
-## ⚡ Code Generation
+## Code Generation
 
 Generate optimized TypeScript functions from your rule configurations:
 
