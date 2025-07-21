@@ -1,13 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 require_once __DIR__ . '/ExpressionParser.php';
 
-
 class ExpressionEvaluator
 {
     private FunctionRegistry $functions;
+    
+    private ?int $autoRoundPrecision = 10; // Default precision 10 decimal places
+    private float $autoRoundThreshold = 1e-10; // Threshold for detecting precision issues
 
     public function getFunctionRegistry(): FunctionRegistry
     {
@@ -17,6 +18,16 @@ class ExpressionEvaluator
     public function __construct(FunctionRegistry $functions)
     {
         $this->functions = $functions;
+    }
+
+    public function setAutoRounding(int $precision = 10): void
+    {
+        $this->autoRoundPrecision = $precision;
+    }
+
+    public function disableAutoRounding(): void
+    {
+        $this->autoRoundPrecision = null;
     }
 
     /**
@@ -34,8 +45,31 @@ class ExpressionEvaluator
         
         $result = $this->evaluatePostfix($postfix);
         
+        // 🎯 Apply automatic rounding to final result
+        $result = $this->applyAutoRounding($result);
+        
         // Ensure result is proper numeric type
         return $this->convertToNumericType($result);
+    }
+
+    // 🆕 Core automatic rounding logic
+    private function applyAutoRounding(float $value): float
+    {
+        if ($this->autoRoundPrecision === null || !is_finite($value)) {
+            return $value;
+        }
+
+        // Calculate rounded value
+        $factor = pow(10, $this->autoRoundPrecision);
+        $rounded = round($value * $factor) / $factor;
+        $difference = abs($value - $rounded);
+        
+        // If difference is very small (floating point precision issue), return rounded value
+        if ($difference < $this->autoRoundThreshold) {
+            return $rounded;
+        }
+        
+        return $value;
     }
 
     /**
@@ -97,88 +131,127 @@ class ExpressionEvaluator
     private function processFunction(string $expr, string $funcName): string
     {
         $pattern = '/\b' . $funcName . '\s*\(/';
+        
         if (!preg_match($pattern, $expr, $matches, PREG_OFFSET_CAPTURE)) {
             return $expr;
         }
-
-        $startPos = $matches[0][1] + strlen($matches[0][0]);
-        $openParens = 1;
-        $pos = $startPos;
-        $length = strlen($expr);
-
-        while ($pos < $length && $openParens > 0) {
+        
+        $startPos = (int)$matches[0][1];
+        $openParenPos = $startPos + strlen($matches[0][0]) - 1;
+        
+        // 🔧 แก้ไข: Find matching closing parenthesis correctly
+        $parenCount = 1;
+        $pos = $openParenPos + 1;
+        $endPos = strlen($expr);
+        
+        while ($pos < $endPos && $parenCount > 0) {
             if ($expr[$pos] === '(') {
-                $openParens++;
+                $parenCount++;
             } elseif ($expr[$pos] === ')') {
-                $openParens--;
+                $parenCount--;
             }
             $pos++;
         }
-
-        if ($openParens > 0) {
+        
+        if ($parenCount !== 0) {
             throw new RuleFlowException("Unmatched parentheses in function call: $funcName");
         }
-
-        $argsStr = substr($expr, $startPos, $pos - $startPos - 1);
-        $args = $this->parseArguments($argsStr);
         
-        $result = $this->functions->call($funcName, $args);
+        // Extract complete function call and arguments
+        $funcCallLength = $pos - $startPos;
+        $argsString = substr($expr, $openParenPos + 1, $pos - $openParenPos - 2);
         
-        $functionCall = substr($expr, $matches[0][1], $pos - $matches[0][1]);
-        return str_replace($functionCall, (string)$result, $expr);
+        // Parse and evaluate arguments
+        $args = $this->parseArguments($argsString);
+        
+        try {
+            $result = $this->functions->call($funcName, $args);
+            $result = $this->applyAutoRounding($result);
+            
+            return substr_replace($expr, (string)$result, $startPos, $funcCallLength);
+        } catch (Exception $e) {
+            throw new RuleFlowException("Function '$funcName' call failed: " . $e->getMessage());
+        }
     }
 
     /**
-     * Parse function arguments handling nested expressions
+     * Parse function arguments with support for nested functions and expressions
      */
-    private function parseArguments(string $argsStr): array
+    private function parseArguments(string $argsString): array
     {
-        if (trim($argsStr) === '') {
+        if (trim($argsString) === '') {
             return [];
         }
-
-        $args = [];
-        $current = '';
-        $parenLevel = 0;
-        $length = strlen($argsStr);
-
-        for ($i = 0; $i < $length; $i++) {
-            $char = $argsStr[$i];
-            
-            if ($char === '(') {
-                $parenLevel++;
-                $current .= $char;
-            } elseif ($char === ')') {
-                $parenLevel--;
-                $current .= $char;
-            } elseif ($char === ',' && $parenLevel === 0) {
-                $args[] = trim($current);
-                $current = '';
-            } else {
-                $current .= $char;
-            }
-        }
         
-        if (!empty($current)) {
-            $args[] = trim($current);
-        }
-
-        // Evaluate each argument
-        $evaluatedArgs = [];
-        foreach ($args as $arg) {
-            $arg = trim($arg);
-            if (is_numeric($arg)) {
-                $evaluatedArgs[] = (float)$arg;
+        $args = [];
+        $currentArg = '';
+        $parenDepth = 0;
+        $inQuotes = false;
+        $quoteChar = '';
+        
+        for ($i = 0; $i < strlen($argsString); $i++) {
+            $char = $argsString[$i];
+            
+            if (!$inQuotes) {
+                if ($char === '"' || $char === "'") {
+                    $inQuotes = true;
+                    $quoteChar = $char;
+                    $currentArg .= $char;
+                } elseif ($char === '(') {
+                    $parenDepth++;
+                    $currentArg .= $char;
+                } elseif ($char === ')') {
+                    $parenDepth--;
+                    $currentArg .= $char;
+                } elseif ($char === ',' && $parenDepth === 0) {
+                    $args[] = $this->evaluateArgument(trim($currentArg));
+                    $currentArg = '';
+                } else {
+                    $currentArg .= $char;
+                }
             } else {
-                try {
-                    $evaluatedArgs[] = $this->evaluateNumericExpression($arg);
-                } catch (Exception $e) {
-                    throw new RuleFlowException("Error evaluating argument '$arg': " . $e->getMessage());
+                $currentArg .= $char;
+                if ($char === $quoteChar && ($i === 0 || $argsString[$i - 1] !== '\\')) {
+                    $inQuotes = false;
+                    $quoteChar = '';
                 }
             }
         }
+        
+        if ($currentArg !== '') {
+            $args[] = $this->evaluateArgument(trim($currentArg));
+        }
+        
+        return $args;
+    }
 
-        return $evaluatedArgs;
+    /**
+     * Evaluate a single function argument
+     */
+    private function evaluateArgument(string $arg): mixed
+    {
+        // Check if it's a string literal
+        if (preg_match('/^["\'](.*)["\']\s*$/', $arg, $matches)) {
+            return $matches[1];
+        }
+        
+        // Check if it's a boolean
+        if ($arg === 'true') return true;
+        if ($arg === 'false') return false;
+        
+        // Check if it's a simple number
+        if (is_numeric($arg)) {
+            return (float)$arg;
+        }
+        
+        // If it contains functions or variables, evaluate as expression
+        try {
+            $result = $this->evaluateNumericExpression($arg);
+            return $this->applyAutoRounding($result);
+        } catch (Exception $e) {
+            // If evaluation fails, treat as literal string
+            return $arg;
+        }
     }
 
     /**
@@ -191,12 +264,11 @@ class ExpressionEvaluator
         }
 
         $tokens = ExpressionParser::tokenize($expr);
-        $tokens = ExpressionParser::processUnaryOperators($tokens); // เพิ่มการประมวลผล unary operators
+        $tokens = ExpressionParser::processUnaryOperators($tokens);
         $postfix = ExpressionParser::convertToPostfix($tokens);
         
         return $this->evaluatePostfix($postfix);
     }
-
 
     /**
      * Validate final expression after variable replacement
@@ -214,15 +286,13 @@ class ExpressionEvaluator
             throw new RuleFlowException("Expression contains unresolved variables or invalid characters: '$expr'");
         }
         
-        // อัปเดต regex pattern ให้รองรับ negative numbers
         if (!preg_match('/^[0-9+\-*\/\(\)\s\.\*]+$/', $expr)) {
             throw new RuleFlowException("Expression contains unresolved variables or invalid characters: '$expr'");
         }
     }
 
-
     /**
-     * Evaluate postfix expression - ปรับปรุงให้รองรับ unary operators
+     * Evaluate postfix expression with automatic rounding
      */
     private function evaluatePostfix(array $postfix): float
     {
@@ -232,7 +302,7 @@ class ExpressionEvaluator
             if (is_numeric($token)) {
                 $stack[] = $token;
             } elseif ($token === 'u-') {
-                // Unary minus - ต้องการ operand เดียว
+                // Unary minus
                 if (count($stack) < 1) {
                     throw new RuleFlowException("Invalid expression: insufficient operands for unary minus");
                 }
@@ -240,7 +310,7 @@ class ExpressionEvaluator
                 $a = array_pop($stack);
                 $stack[] = -$a;
             } else {
-                // Binary operators - ต้องการ operand สองตัว
+                // Binary operators
                 if (count($stack) < 2) {
                     throw new RuleFlowException("Invalid expression: insufficient operands");
                 }
@@ -257,7 +327,8 @@ class ExpressionEvaluator
                     default => throw new RuleFlowException("Unknown operator: {$token}")
                 };
 
-                $stack[] = $result;
+                //  Apply automatic rounding to intermediate results
+                $stack[] = $this->applyAutoRounding($result);
             }
         }
 
@@ -269,16 +340,16 @@ class ExpressionEvaluator
     }
 
     /**
-     * Safe division operation
+     * Safe division operation with automatic rounding
      */
     private function safeDivision(float $a, float $b): float
     {
-        // 1. check special values 
+        // Check special values 
         if (!is_finite($a) || !is_finite($b)) {
             throw new RuleFlowException("Invalid operands: non-finite numbers");
         }
         
-        // 2. use epsilon for floating point comparison
+        // Use epsilon for floating point comparison
         $epsilon = 1e-10;
         if (abs($b) < $epsilon) {
             throw new RuleFlowException("Division by zero (or very small number)");
@@ -286,7 +357,7 @@ class ExpressionEvaluator
         
         $result = $a / $b;
         
-        // 3. check result
+        // Check result
         if (!is_finite($result)) {
             throw new RuleFlowException("Division result is not finite");
         }

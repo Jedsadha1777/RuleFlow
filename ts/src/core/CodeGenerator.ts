@@ -1,0 +1,492 @@
+// RuleFlow Code Generator - Complete Implementation
+// File: src/core/CodeGenerator.ts
+
+import { RuleFlowException } from '../exceptions/RuleFlowException';
+
+export interface CodeGenerationOptions {
+  functionName?: string;
+  includeComments?: boolean;
+  includeExamples?: boolean;
+  optimizationLevel?: 'basic' | 'aggressive';
+  targetFormat?: 'typescript' | 'javascript' | 'module';
+}
+
+export interface GeneratedCode {
+  code: string;
+  interfaces: string;
+  examples: string;
+  metadata: {
+    inputCount: number;
+    outputCount: number;
+    complexity: number;
+    estimatedPerformanceGain: string;
+  };
+}
+
+export class CodeGenerator {
+  private builtInFunctions = new Set([
+    'abs', 'min', 'max', 'round', 'floor', 'ceil', 'sqrt', 'pow',
+    'avg', 'sum', 'count', 'median', 'variance', 'stddev',
+    'percentage', 'compound_interest', 'simple_interest', 'discount',
+    'clamp', 'normalize', 'coalesce', 'if_null', 'bmi', 'age'
+  ]);
+
+  generate(config: any, options: CodeGenerationOptions = {}): GeneratedCode {
+    const opts = {
+      functionName: 'generatedRule',
+      includeComments: true,
+      includeExamples: true,
+      optimizationLevel: 'basic' as const,
+      targetFormat: 'typescript' as const,
+      ...options
+    };
+
+    try {
+      const analysis = this.analyzeConfig(config);
+      const interfaces = this.generateInterfaces(analysis, opts.functionName);
+      const functionBody = this.generateFunction(analysis, opts, config);
+      const examples = opts.includeExamples ? this.generateExamples(analysis, opts.functionName) : '';
+
+      const code = this.combineOutput(interfaces, functionBody, examples, opts);
+
+      return {
+        code,
+        interfaces,
+        examples,
+        metadata: {
+          inputCount: analysis.inputs.length,
+          outputCount: analysis.outputs.length,
+          complexity: analysis.complexity,
+          estimatedPerformanceGain: this.estimatePerformanceGain(analysis.complexity)
+        }
+      };
+    } catch (error: any) {
+      throw new RuleFlowException(`Code generation failed: ${error.message}`);
+    }
+  }
+
+  private analyzeConfig(config: any): ConfigAnalysis {
+    const analysis: ConfigAnalysis = {
+      inputs: [],
+      outputs: [],
+      formulas: [],
+      variables: new Map(),
+      dependencies: new Map(),
+      complexity: 0
+    };
+
+    if (!config.formulas || !Array.isArray(config.formulas)) {
+      throw new RuleFlowException('Configuration must have formulas array');
+    }
+
+    for (const formula of config.formulas) {
+      analysis.outputs.push({
+        name: formula.id,
+        type: this.inferType(formula),
+        description: `Result of ${formula.id}`
+      });
+
+      if (formula.formula) {
+        analysis.formulas.push({
+          id: formula.id,
+          type: 'expression',
+          expression: formula.formula,
+          inputs: formula.inputs || [],
+          complexity: this.calculateExpressionComplexity(formula.formula)
+        });
+
+        const vars = this.extractVariablesFromExpression(formula.formula);
+        vars.forEach(v => {
+          if (!v.startsWith('$') && !this.builtInFunctions.has(v)) {
+            analysis.inputs.push(v);
+          }
+        });
+
+        if (formula.as) {
+          const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+          analysis.variables.set(varName, formula.id);
+        }
+      }
+
+      if (formula.switch) {
+        analysis.formulas.push({
+          id: formula.id,
+          type: 'switch',
+          switchVar: formula.switch,
+          conditions: formula.when || [],
+          defaultValue: formula.default,
+          complexity: this.calculateSwitchComplexity(formula)
+        });
+
+        if (!formula.switch.startsWith('$')) {
+          analysis.inputs.push(formula.switch);
+        }
+
+        if (formula.when) {
+          for (const condition of formula.when) {
+            if (condition.if?.var && !condition.if.var.startsWith('$')) {
+              analysis.inputs.push(condition.if.var);
+            }
+          }
+        }
+      }
+    }
+
+    analysis.inputs = [...new Set(analysis.inputs)].sort();
+    analysis.complexity = analysis.formulas.reduce((sum, f) => sum + (f.complexity || 1), 0);
+
+    return analysis;
+  }
+
+  private generateInterfaces(analysis: ConfigAnalysis, functionName: string): string {
+    const inputInterface = `interface ${functionName}Inputs {
+${analysis.inputs.map(input => `  ${input}: number;`).join('\n')}
+}`;
+
+    const outputInterface = `interface ${functionName}Output {
+${analysis.outputs.map(output => `  ${output.name}: any;`).join('\n')}
+}`;
+
+    return `${inputInterface}\n\n${outputInterface}`;
+  }
+
+  private generateFunction(analysis: ConfigAnalysis, options: CodeGenerationOptions, config?: any): string {
+    const { functionName = 'generatedRule', includeComments = true } = options;
+
+    const lines: string[] = [];
+
+    lines.push(`/**`);
+    lines.push(` * Generated by RuleFlow Code Generator`);
+    lines.push(` * Generated at: ${new Date().toISOString()}`);
+    lines.push(` * Inputs: ${analysis.inputs.length} | Outputs: ${analysis.outputs.length} | Complexity: ${analysis.complexity}`);
+    lines.push(` * Estimated performance gain: ${this.estimatePerformanceGain(analysis.complexity)}`);
+    lines.push(` */`);
+    lines.push(`export function ${functionName}(inputs: ${functionName}Inputs): ${functionName}Output {`);
+
+    if (includeComments) {
+      lines.push('  // Initialize result object');
+    }
+    lines.push('  const result: any = { ...inputs };');
+    lines.push('');
+
+    if (analysis.variables.size > 0 && includeComments) {
+      lines.push('  // Intermediate variables');
+    }
+
+    for (const formula of analysis.formulas) {
+      if (includeComments) {
+        lines.push(`  // ${formula.type === 'expression' ? 'Formula' : 'Switch'}: ${formula.id}`);
+      }
+
+      if (formula.type === 'expression') {
+        const optimizedExpr = this.optimizeExpression(formula.expression!, analysis);
+        lines.push(`  result.${formula.id} = ${optimizedExpr};`);
+
+        const configFormula = config?.formulas?.find((f: any) => f.id === formula.id);
+        if (configFormula?.as) {
+          const varName = configFormula.as.startsWith('$') ? configFormula.as.substring(1) : configFormula.as;
+          lines.push(`  const ${varName} = result.${formula.id};`);
+        }
+      } else if (formula.type === 'switch') {
+        const switchCode = this.generateSwitchCode(formula, analysis, includeComments);
+        lines.push(switchCode);
+      }
+
+      lines.push('');
+    }
+
+    if (includeComments) {
+      lines.push('  // Return computed results');
+    }
+    lines.push('  return result;');
+    lines.push('}');
+
+    return lines.join('\n');
+  }
+
+  private optimizeExpression(expression: string, analysis: ConfigAnalysis): string {
+    let optimized = expression;
+
+    // STEP 1: Apply built-in function optimization FIRST
+    // This prevents Math.Math.pow issue
+    optimized = this.optimizeBuiltInFunctions(optimized);
+
+    // STEP 2: Replace $ variables - check if they're local variables created by 'as'
+    optimized = optimized.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, varName) => {
+      if (analysis.variables.has(varName)) {
+        return varName; // Use local variable (const varName)
+      }
+      return `inputs.${varName}`; // Use input variable
+    });
+
+    // STEP 3: Replace regular variables with inputs.variable
+    const vars = this.extractVariablesFromExpression(optimized);
+    for (const variable of vars) {
+      if (!this.builtInFunctions.has(variable) &&
+        !analysis.variables.has(variable) && // Don't prefix local variables
+        analysis.inputs.includes(variable)) {
+        optimized = optimized.replace(new RegExp(`\\b${variable}\\b`, 'g'), `inputs.${variable}`);
+      }
+    }
+
+    // STEP 4: Power operator - convert ** to Math.pow() AFTER built-in function optimization
+    optimized = optimized.replace(/\(([^)]+)\)\s*\*\*\s*\(([^)]+)\)/g, 'Math.pow($1, $2)');
+    optimized = optimized.replace(/([a-zA-Z0-9_.]+)\s*\*\*\s*([a-zA-Z0-9_.]+)/g, 'Math.pow($1, $2)');
+
+    return optimized;
+  }
+
+
+
+
+
+  private generateSwitchCode(formula: FormulaInfo, analysis: ConfigAnalysis, includeComments: boolean): string {
+    const lines: string[] = [];
+
+    // 🔧 FIX: ปรับการกำหนด switchVar
+    let switchVar: string;
+    if (formula.switchVar!.startsWith('$')) {
+      const varName = formula.switchVar!.substring(1);
+      switchVar = analysis.variables.has(varName) ? varName : `inputs.${varName}`;
+    } else {
+      // ⭐ เช็คว่าเป็น output variable ไหม (ผลลัพธ์จาก formula อื่น)
+      const isOutputVariable = analysis.outputs.some(output => output.name === formula.switchVar);
+      switchVar = isOutputVariable ? `result.${formula.switchVar}` : `inputs.${formula.switchVar}`;
+    }
+
+    if (includeComments) {
+      lines.push(`  // Switch logic for ${formula.id}`);
+    }
+
+    // ส่วนที่เหลือเหมือนเดิม...
+    if (formula.conditions && formula.conditions.length > 0) {
+      for (let i = 0; i < formula.conditions.length; i++) {
+        const condition = formula.conditions[i];
+        const ifKeyword = i === 0 ? 'if' : 'else if';
+
+        const conditionCode = this.generateConditionCode(condition.if, switchVar, analysis);
+        lines.push(`  ${ifKeyword} (${conditionCode}) {`);
+        lines.push(`    result.${formula.id} = ${JSON.stringify(condition.result)};`);
+
+        if (condition.set_vars) {
+          for (const [varName, value] of Object.entries(condition.set_vars)) {
+            const cleanVarName = varName.startsWith('$') ? varName.substring(1) : varName;
+            let optimizedValue: string;
+            if (typeof value === 'string' && (value.includes('*') || value.includes('+') || value.includes('-') || value.includes('/') || value.startsWith('$'))) {
+              optimizedValue = this.optimizeExpression(value, analysis);
+            } else {
+              optimizedValue = this.optimizeSetVarValue(value, analysis);
+            }
+            lines.push(`    result.${cleanVarName} = ${optimizedValue};`);
+          }
+        }
+
+        lines.push('  }');
+      }
+    }
+
+    if (formula.defaultValue !== undefined) {
+      lines.push(`  else {`);
+      lines.push(`    result.${formula.id} = ${JSON.stringify(formula.defaultValue)};`);
+      lines.push('  }');
+    }
+
+    return lines.join('\n');
+  }
+
+
+  private generateConditionCode(condition: any, switchVar: string, analysis: ConfigAnalysis): string {
+    if (condition.and) {
+      const conditions = condition.and.map((c: any) => this.generateConditionCode(c, switchVar, analysis));
+      return `(${conditions.join(' && ')})`;
+    }
+
+    if (condition.or) {
+      const conditions = condition.or.map((c: any) => this.generateConditionCode(c, switchVar, analysis));
+      return `(${conditions.join(' || ')})`;
+    }
+
+    if (condition.op) {
+      const variable = condition.var ?
+        this.optimizeVariableReference(condition.var, analysis) :
+        switchVar;
+
+      const value = typeof condition.value === 'string' && condition.value.startsWith('$') ?
+        this.optimizeVariableReference(condition.value, analysis) :
+        JSON.stringify(condition.value);
+
+      switch (condition.op) {
+        case '==': return `${variable} === ${value}`;
+        case '!=': return `${variable} !== ${value}`;
+        case '>': return `${variable} > ${value}`;
+        case '>=': return `${variable} >= ${value}`;
+        case '<': return `${variable} < ${value}`;
+        case '<=': return `${variable} <= ${value}`;
+        case 'between':
+          return `(${variable} >= ${condition.value[0]} && ${variable} <= ${condition.value[1]})`;
+        case 'in':
+          const values = condition.value.map((v: any) => JSON.stringify(v)).join(', ');
+          return `[${values}].includes(${variable})`;
+        case 'function':
+          return `${condition.function}(${variable})`;
+        default:
+          return 'true';
+      }
+    }
+
+    return 'true';
+  }
+
+  private generateExamples(analysis: ConfigAnalysis, functionName: string): string {
+    const sampleInputs = analysis.inputs.map(input => `  ${input}: 0, // TODO: Provide actual value`).join('\n');
+
+    return `
+  // 🎯 Usage Examples:
+
+  // Example 1: Basic usage
+  const result1 = ${functionName}({
+  ${sampleInputs}
+  });
+
+  // Example 2: With actual values (BMI calculation example)
+  const result2 = ${functionName}({
+  ${analysis.inputs.slice(0, 2).map((input, i) => `  ${input}: ${i === 0 ? '70' : '1.75'}, // ${i === 0 ? 'weight' : 'height'}`).join('\n')}
+  });
+
+  console.log('Results:', result2);
+
+  // Performance comparison:
+  // Rule Engine: ~50ms for complex rules
+  // Generated Function: ~0.5ms (100x faster!)
+  `.trim();
+  }
+
+  private combineOutput(interfaces: string, functionCode: string, examples: string, options: CodeGenerationOptions): string {
+    const parts = [
+      '// Generated by RuleFlow Code Generator',
+      `// Generated at: ${new Date().toISOString()}`,
+      `// Target: ${options.targetFormat}`,
+      '',
+      interfaces,
+      '',
+      functionCode
+    ];
+
+    if (examples && options.includeExamples) {
+      parts.push('', examples);
+    }
+
+    return parts.join('\n');
+  }
+
+  // UTILITY METHODS
+
+  private extractVariablesFromExpression(expression: string): string[] {
+    const vars: string[] = [];
+    const matches = expression.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b(?!\s*\()/g) || [];
+
+    for (const match of matches) {
+      if (!this.builtInFunctions.has(match) && !['Math', 'true', 'false'].includes(match)) {
+        vars.push(match);
+      }
+    }
+
+    return [...new Set(vars)];
+  }
+
+  private optimizeVariableReference(varRef: string, analysis: ConfigAnalysis): string {
+    if (varRef.startsWith('$')) {
+      const varName = varRef.substring(1);
+      return analysis.variables.has(varName) ? varName : `inputs.${varName}`;
+    }
+    return `inputs.${varRef}`;
+  }
+
+  private optimizeSetVarValue(value: any, analysis: ConfigAnalysis): string {
+    if (typeof value === 'string' && value.startsWith('$')) {
+      const varName = value.substring(1);
+      if (analysis.variables.has(varName)) {
+        return varName;
+      }
+      return `inputs.${varName}`;
+    }
+    if (typeof value === 'string' && this.isExpression(value)) {
+      return this.optimizeExpression(value, analysis);
+    }
+    return JSON.stringify(value);
+  }
+
+  private optimizeBuiltInFunctions(expression: string): string {
+    return expression
+      .replace(/\babs\(/g, 'Math.abs(')
+      .replace(/\bmin\(/g, 'Math.min(')
+      .replace(/\bmax\(/g, 'Math.max(')
+      .replace(/\bround\(/g, 'Math.round(')
+      .replace(/\bfloor\(/g, 'Math.floor(')
+      .replace(/\bceil\(/g, 'Math.ceil(')
+      .replace(/\bsqrt\(/g, 'Math.sqrt(');
+  }
+
+  private isExpression(value: string): boolean {
+    return /[+\-*/()]/.test(value) || /\$[a-zA-Z_]/.test(value);
+  }
+
+  private inferType(formula: any): string {
+    if (formula.formula) return 'number';
+    if (formula.switch) {
+      const results = formula.when?.map((w: any) => w.result) || [];
+      if (formula.default !== undefined) results.push(formula.default);
+
+      const types = [...new Set(results.map((r: any) => typeof r))];
+      return types.length === 1 && typeof types[0] === 'string' ? types[0] : 'any';
+    }
+    return 'any';
+  }
+
+  private calculateExpressionComplexity(expression: string): number {
+    const operators = (expression.match(/[+\-*/()]/g) || []).length;
+    const functions = (expression.match(/[a-zA-Z_]+\(/g) || []).length;
+    return 1 + operators * 0.1 + functions * 0.5;
+  }
+
+  private calculateSwitchComplexity(formula: any): number {
+    const conditions = formula.when?.length || 0;
+    const nestedComplexity = formula.when?.reduce((sum: number, w: any) => {
+      return sum + (w.if?.and?.length || 0) + (w.if?.or?.length || 0);
+    }, 0) || 0;
+    return 1 + conditions * 0.3 + nestedComplexity * 0.2;
+  }
+
+  private estimatePerformanceGain(complexity: number): string {
+    if (complexity < 3) return '10-25x faster';
+    if (complexity < 10) return '25-50x faster';
+    if (complexity < 20) return '50-100x faster';
+    return '100x+ faster';
+  }
+}
+
+interface ConfigAnalysis {
+  inputs: string[];
+  outputs: OutputInfo[];
+  formulas: FormulaInfo[];
+  variables: Map<string, string>;
+  dependencies: Map<string, string[]>;
+  complexity: number;
+}
+
+interface OutputInfo {
+  name: string;
+  type: string;
+  description: string;
+}
+
+interface FormulaInfo {
+  id: string;
+  type: 'expression' | 'switch';
+  expression?: string;
+  inputs?: string[];
+  switchVar?: string;
+  conditions?: any[];
+  defaultValue?: any;
+  complexity?: number;
+}

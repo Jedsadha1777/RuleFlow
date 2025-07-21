@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RuleFlow TypeScript</title>
+  </head>
+  <body>
+    <div id="app">
+      <h1>🚀 RuleFlow TypeScript Development</h1>
+      <div class="container">
+        <h2>Quick Test</h2>
+        <button id="test-btn">Run Basic Test</button>
+        <div id="result"></div>
+        
+        <h2>Development Tools</h2>
+        <ul>
+          <li><a href="/debug.html">Debug Console</a></li>
+          <li><a href="/__vitest__/">Test UI</a> (when running tests)</li>
+        </ul>
+        
+        <h2>Console Output</h2>
+        <p>Check browser console (F12) for debug output</p>
+      </div>
+    </div>
+    
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      
+      button {
+        background: #007acc;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      
+      button:hover {
+        background: #005a9e;
+      }
+      
+      #result {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border-left: 4px solid #007acc;
+        font-family: monospace;
+      }
+      
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      
+      li {
+        margin: 10px 0;
+      }
+      
+      a {
+        color: #007acc;
+        text-decoration: none;
+        padding: 8px 16px;
+        border: 1px solid #007acc;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      
+      a:hover {
+        background: #007acc;
+        color: white;
+      }
+    </style>
+    
+    <script type="module" src="/src/index.ts"></script>
+    
+    <script type="module">
+      // Quick test functionality
+      document.getElementById('test-btn').addEventListener('click', async () => {
+        const resultDiv = document.getElementById('result')
+        resultDiv.innerHTML = 'Running test...'
+        
+        try {
+          // Import your RuleFlow
+          const { RuleFlow } = await import('/src/index.ts')
+          
+          const engine = new RuleFlow()
+          
+          const config = {
+            formulas: [{
+              id: 'basic_test',
+              formula: 'a + b',
+              inputs: ['a', 'b']
+            }]
+          }
+          
+          const inputs = { a: 10, b: 5 }
+          
+          console.log('🧪 Running basic test...')
+          console.log('Config:', config)
+          console.log('Inputs:', inputs)
+          
+          const result = await engine.evaluate(config, inputs)
+          
+          console.log('✅ Result:', result)
+          
+          resultDiv.innerHTML = `
+            <strong>✅ Test Successful!</strong><br>
+            Input: a=10, b=5<br>
+            Result: ${JSON.stringify(result, null, 2)}
+          `
+          
+        } catch (error) {
+          console.error('❌ Test failed:', error)
+          resultDiv.innerHTML = `
+            <strong>❌ Test Failed!</strong><br>
+            Error: ${error.message}
+          `
+        }
+      })
+      
+      // Auto-run test on page load
+      setTimeout(() => {
+        document.getElementById('test-btn').click()
+      }, 1000)
+    </script>
+  </body>
+</html>

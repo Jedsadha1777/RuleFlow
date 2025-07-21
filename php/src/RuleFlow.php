@@ -13,7 +13,7 @@ require_once 'SchemaGenerator.php';
 require_once 'ValidationAPI.php';
 
 // ============================================
-// 🔌 Interface สำหรับ Auto-discovery
+// Interface สำหรับ Auto-discovery
 // ============================================
 
 interface RuleFlowFunctionProvider
@@ -33,8 +33,8 @@ interface RuleFlowFunctionProvider
 
 /**
  * Main RuleFlow API - Enhanced entry point with SECURE functionality + Auto-discovery
- * 🔒 Security Note: Removed dangerous eval() usage and replaced with safe alternatives
- * 🔌 Auto-discovery: Functions are automatically loaded from Functions/ folder
+ * Security Note: Removed dangerous eval() usage and replaced with safe alternatives
+ * Auto-discovery: Functions are automatically loaded from Functions/ folder
  */
 class RuleFlow
 {
@@ -77,7 +77,7 @@ class RuleFlow
     }
 
     // ============================================
-    // 🔌 AUTO-DISCOVERY METHODS
+    // AUTO-DISCOVERY METHODS
     // ============================================
     
     /**
@@ -201,7 +201,7 @@ class RuleFlow
     }
 
     // ============================================
-    // 🔧 EXISTING METHODS (ไม่เปลี่ยน)
+    // EXISTING METHODS (ไม่เปลี่ยน)
     // ============================================
 
     /**
@@ -220,7 +220,7 @@ class RuleFlow
     }
 
     /**
-     * 🔒 SECURE: Generate PHP function code as string (for manual implementation)
+     * SECURE: Generate PHP function code as string (for manual implementation)
      * This replaces the dangerous createOptimizedEvaluator method
      */
     public function generateFunctionAsString(array $config): string
@@ -230,7 +230,7 @@ class RuleFlow
     }
 
     /**
-     * 🔒 SECURE: Create cached evaluator (safe alternative to eval-based optimization)
+     * SECURE: Create cached evaluator (safe alternative to eval-based optimization)
      * This provides performance benefits without security risks
      */
     public function createCachedEvaluator(array $config): callable
@@ -251,7 +251,7 @@ class RuleFlow
     }
 
     /**
-     * 🔒 SECURE: Prepare configuration for high-performance usage
+     * SECURE: Prepare configuration for high-performance usage
      * Pre-validates and optimizes config for repeated use
      */
     public function prepareConfig(array $config): string
@@ -267,7 +267,7 @@ class RuleFlow
     }
 
     /**
-     * 🔒 SECURE: Evaluate using pre-prepared configuration
+     * SECURE: Evaluate using pre-prepared configuration
      * Much faster than regular evaluate() for repeated use
      */
     public function evaluatePrepared(string $configHash, array $inputs): array
@@ -695,7 +695,7 @@ class RuleFlow
     }
 
     /**
-     * 🔒 SECURE: Clear config cache to free memory
+     * SECURE: Clear config cache to free memory
      */
     public function clearConfigCache(): void
     {
@@ -703,7 +703,7 @@ class RuleFlow
     }
 
     /**
-     * 🔒 SECURE: Get cache statistics
+     * SECURE: Get cache statistics
      */
     public function getCacheStats(): array
     {
