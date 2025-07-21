@@ -309,7 +309,7 @@ const riskConfig = {
 };
 ```
 
-## 🧪 Testing
+##  Testing
 
 Run the comprehensive test suite:
 
@@ -383,7 +383,7 @@ interface CodeGenerationOptions {
 }
 ```
 
-## 📄 License
+##  License
 
 MIT License - see [LICENSE](../LICENSE) file for details.
 
