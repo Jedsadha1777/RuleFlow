@@ -25,12 +25,12 @@ git clone https://github.com/Jedsadha1777/RuleFlow.git
 - **Switch/Case Logic**: Dynamic branching with variable setting capabilities
 - **Multi-dimensional Scoring**: Complex scoring trees with weighted calculations
 - **Accumulative Scoring**: Progressive rule evaluation with context preservation
-- **Code Generation**: Converts JSON rules to optimized functions (10-100x performance boost in TypeScript)
+- **Code Generation**: Converts JSON rules to optimized functions (5-10x performance boost in TypeScript)
 
 ### TypeScript-Specific Features 
 - **Type Safety**: Full TypeScript support with automatic type inference
 - **Advanced Code Generation**: Generate optimized TypeScript functions from rule configurations
-- **Modern Performance**: 10-100x faster execution with generated code
+- **Modern Performance**: 5-10x faster execution with generated code
 - **Zero Dependencies**: Lightweight implementation for modern applications
 
 ### PHP-Specific Features
