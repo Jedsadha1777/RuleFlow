@@ -1,4 +1,3 @@
-```markdown
 # RuleFlow
 
 A declarative business logic engine available for both **PHP** and **TypeScript/JavaScript** that transforms complex business rules into maintainable JSON configurations with support for nested logical conditions, multi-dimensional scoring, and custom functions.
