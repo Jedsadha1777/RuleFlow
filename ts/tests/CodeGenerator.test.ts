@@ -1,4 +1,4 @@
-// 🧪 Code Generator Tests - Complete Test Suite
+// 🧪 Fixed Code Generator Tests
 // File: tests/CodeGenerator.test.ts
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -6,257 +6,258 @@ import { CodeGenerator, CodeGenerationOptions } from '../src/core/CodeGenerator'
 import { RuleFlow } from '../src/RuleFlow';
 
 describe('Code Generator', () => {
- let generator: CodeGenerator;
- let ruleFlow: RuleFlow;
+  let generator: CodeGenerator;
+  let ruleFlow: RuleFlow;
 
- beforeEach(() => {
-   generator = new CodeGenerator();
-   ruleFlow = new RuleFlow();
- });
+  beforeEach(() => {
+    generator = new CodeGenerator();
+    ruleFlow = new RuleFlow();
+  });
 
- // ========================================
- // Test 1: Basic Expression Generation
- // ========================================
- describe('Basic Expression Generation', () => {
-   it('should generate simple mathematical expressions', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'area',
-           formula: 'length * width',
-           inputs: ['length', 'width']
-         }
-       ]
-     };
+  // ========================================
+  // Test 1: Basic Expression Generation
+  // ========================================
+  describe('Basic Expression Generation', () => {
+    it('should generate simple mathematical expressions', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'area',
+            formula: 'length * width',
+            inputs: ['length', 'width']
+          }
+        ]
+      };
 
-     const result = generator.generate(config, { functionName: 'calculateArea' });
+      const result = generator.generate(config, { functionName: 'calculateArea' });
 
-     expect(result.code).toContain('function calculateArea');
-     expect(result.code).toContain('inputs.length * inputs.width');
-     expect(result.code).toContain('result.area =');
-     expect(result.metadata.inputCount).toBe(2);
-     expect(result.metadata.outputCount).toBe(1);
+      expect(result.code).toContain('function calculateArea');
+      expect(result.code).toContain('inputs.length * inputs.width');
+      expect(result.code).toContain('result.area =');
+      expect(result.metadata.inputCount).toBe(2);
+      expect(result.metadata.outputCount).toBe(1);
 
-     console.log('✅ Basic Expression Test Passed');
-   });
+      console.log('✅ Basic Expression Test Passed');
+    });
 
-   it('should handle power operator correctly', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'bmi',
-           formula: 'weight / (height ** 2)',
-           inputs: ['weight', 'height']
-         }
-       ]
-     };
+    it('should handle power operator correctly', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'bmi',
+            formula: 'weight / (height ** 2)',
+            inputs: ['weight', 'height']
+          }
+        ]
+      };
 
-     const result = generator.generate(config, { functionName: 'calculateBMI' });
+      const result = generator.generate(config, { functionName: 'calculateBMI' });
 
-     expect(result.code).toContain('Math.pow(inputs.height, 2)');
-     expect(result.code).toContain('inputs.weight / (Math.pow(inputs.height, 2))');
-     
-     console.log('✅ Power Operator Test Passed');
-   });
+      // 🔧 FIX: Check for correct Math.pow syntax
+      expect(result.code).toContain('Math.pow(inputs.height, 2)');
+      expect(result.code).toContain('inputs.weight / (Math.pow(inputs.height, 2))');
+      
+      console.log('✅ Power Operator Test Passed');
+    });
 
-   it('should optimize built-in math functions', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'result',
-           formula: 'sqrt(abs(value)) + round(min(a, b))',
-           inputs: ['value', 'a', 'b']
-         }
-       ]
-     };
+    it('should optimize built-in math functions', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'result',
+            formula: 'sqrt(abs(value)) + round(min(a, b))',
+            inputs: ['value', 'a', 'b']
+          }
+        ]
+      };
 
-     const result = generator.generate(config);
+      const result = generator.generate(config);
 
-     expect(result.code).toContain('Math.sqrt(Math.abs(inputs.value))');
-     expect(result.code).toContain('Math.round(Math.min(inputs.a, inputs.b))');
-     
-     console.log('✅ Built-in Functions Test Passed');
-   });
- });
+      expect(result.code).toContain('Math.sqrt(Math.abs(inputs.value))');
+      expect(result.code).toContain('Math.round(Math.min(inputs.a, inputs.b))');
+      
+      console.log('✅ Built-in Functions Test Passed');
+    });
+  });
 
- // ========================================
- // Test 2: Switch Logic Generation
- // ========================================
- describe('Switch Logic Generation', () => {
-   it('should generate simple switch conditions', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'grade',
-           switch: 'score',
-           when: [
-             { if: { op: '>=', value: 90 }, result: 'A' },
-             { if: { op: '>=', value: 80 }, result: 'B' },
-             { if: { op: '>=', value: 70 }, result: 'C' }
-           ],
-           default: 'F'
-         }
-       ]
-     };
+  // ========================================
+  // Test 2: Switch Logic Generation
+  // ========================================
+  describe('Switch Logic Generation', () => {
+    it('should generate simple switch conditions', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'grade',
+            switch: 'score',
+            when: [
+              { if: { op: '>=', value: 90 }, result: 'A' },
+              { if: { op: '>=', value: 80 }, result: 'B' },
+              { if: { op: '>=', value: 70 }, result: 'C' }
+            ],
+            default: 'F'
+          }
+        ]
+      };
 
-     const result = generator.generate(config, { functionName: 'calculateGrade' });
+      const result = generator.generate(config, { functionName: 'calculateGrade' });
 
-     expect(result.code).toContain('if (inputs.score >= 90)');
-     expect(result.code).toContain('else if (inputs.score >= 80)');
-     expect(result.code).toContain('result.grade = "A"');
-     expect(result.code).toContain('result.grade = "F"');
-     
-     console.log('✅ Simple Switch Test Passed');
-   });
+      expect(result.code).toContain('if (inputs.score >= 90)');
+      expect(result.code).toContain('else if (inputs.score >= 80)');
+      expect(result.code).toContain('result.grade = "A"');
+      expect(result.code).toContain('result.grade = "F"');
+      
+      console.log('✅ Simple Switch Test Passed');
+    });
 
-   it('should handle complex nested conditions', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'approval',
-           switch: 'application_type',
-           when: [
-             {
-               if: {
-                 and: [
-                   { op: '>=', var: 'credit_score', value: 700 },
-                   { op: '>=', var: 'income', value: 50000 }
-                 ]
-               },
-               result: 'approved',
-               set_vars: {
-                 '$interest_rate': 4.5,
-                 '$max_amount': 500000
-               }
-             }
-           ],
-           default: 'rejected'
-         }
-       ]
-     };
+    it('should handle complex nested conditions', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'approval',
+            switch: 'application_type',
+            when: [
+              {
+                if: {
+                  and: [
+                    { op: '>=', var: 'credit_score', value: 700 },
+                    { op: '>=', var: 'income', value: 50000 }
+                  ]
+                },
+                result: 'approved',
+                set_vars: {
+                  '$interest_rate': 4.5,
+                  '$max_amount': 500000
+                }
+              }
+            ],
+            default: 'rejected'
+          }
+        ]
+      };
 
-     const result = generator.generate(config, { functionName: 'loanApproval' });
+      const result = generator.generate(config, { functionName: 'loanApproval' });
 
-     expect(result.code).toContain('(inputs.credit_score >= 700 && inputs.income >= 50000)');
-     expect(result.code).toContain('result.interest_rate = 4.5');
-     expect(result.code).toContain('result.max_amount = 500000');
-     
-     console.log('✅ Complex Conditions Test Passed');
-   });
+      expect(result.code).toContain('(inputs.credit_score >= 700 && inputs.income >= 50000)');
+      expect(result.code).toContain('result.interest_rate = 4.5');
+      expect(result.code).toContain('result.max_amount = 500000');
+      
+      console.log('✅ Complex Conditions Test Passed');
+    });
 
-   it('should handle OR conditions', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'eligibility',
-           switch: 'status',
-           when: [
-             {
-               if: {
-                 or: [
-                   { op: '==', var: 'membership', value: 'premium' },
-                   { op: '>=', var: 'years', value: 5 }
-                 ]
-               },
-               result: 'eligible'
-             }
-           ],
-           default: 'not_eligible'
-         }
-       ]
-     };
+    it('should handle OR conditions', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'eligibility',
+            switch: 'status',
+            when: [
+              {
+                if: {
+                  or: [
+                    { op: '==', var: 'membership', value: 'premium' },
+                    { op: '>=', var: 'years', value: 5 }
+                  ]
+                },
+                result: 'eligible'
+              }
+            ],
+            default: 'not_eligible'
+          }
+        ]
+      };
 
-     const result = generator.generate(config);
+      const result = generator.generate(config);
 
-     expect(result.code).toContain('(inputs.membership === "premium" || inputs.years >= 5)');
-     
-     console.log('✅ OR Conditions Test Passed');
-   });
- });
+      expect(result.code).toContain('(inputs.membership === "premium" || inputs.years >= 5)');
+      
+      console.log('✅ OR Conditions Test Passed');
+    });
+  });
 
- // ========================================
- // Test 3: Variable References ($notation)
- // ========================================
- describe('Variable References ($notation)', () => {
-   it('should handle $ variable storage and references', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'subtotal',
-           formula: 'price * quantity',
-           inputs: ['price', 'quantity'],
-           as: '$subtotal'
-         },
-         {
-           id: 'total',
-           formula: '$subtotal + ($subtotal * tax_rate)',
-           inputs: ['$subtotal', 'tax_rate']
-         }
-       ]
-     };
+  // ========================================
+  // Test 3: Variable References ($notation)
+  // ========================================
+  describe('Variable References ($notation)', () => {
+    it('should handle $ variable storage and references', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'subtotal',
+            formula: 'price * quantity',
+            inputs: ['price', 'quantity'],
+            as: '$subtotal'  // 🔧 FIX: This should create local variable
+          },
+          {
+            id: 'total',
+            formula: '$subtotal + ($subtotal * tax_rate)',
+            inputs: ['$subtotal', 'tax_rate']
+          }
+        ]
+      };
 
-     const result = generator.generate(config, { functionName: 'calculateTotal' });
+      const result = generator.generate(config, { functionName: 'calculateTotal' });
 
-     expect(result.code).toContain('result.subtotal = inputs.price * inputs.quantity');
-     expect(result.code).toContain('const subtotal = result.subtotal');
-     expect(result.code).toContain('subtotal + (subtotal * inputs.tax_rate)');
-     
-     console.log('✅ Variable References Test Passed');
-   });
+      expect(result.code).toContain('result.subtotal = inputs.price * inputs.quantity');
+      expect(result.code).toContain('const subtotal = result.subtotal');
+      expect(result.code).toContain('subtotal + (subtotal * inputs.tax_rate)');
+      
+      console.log('✅ Variable References Test Passed');
+    });
 
-   it('should handle $ variables in set_vars', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'base_calculation',
-           formula: 'amount * 0.1',
-           inputs: ['amount'],
-           as: '$base'
-         },
-         {
-           id: 'decision',
-           switch: 'type',
-           when: [
-             {
-               if: { op: '==', value: 'premium' },
-               result: 'approved',
-               set_vars: {
-                 '$final_amount': '$base * 1.5',
-                 '$bonus': '$base * 0.2'
-               }
-             }
-           ],
-           default: 'standard'
-         }
-       ]
-     };
+    it('should handle $ variables in set_vars', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'base_calculation',
+            formula: 'amount * 0.1',
+            inputs: ['amount'],
+            as: '$base'  // 🔧 FIX: This should create const base
+          },
+          {
+            id: 'decision',
+            switch: 'type',
+            when: [
+              {
+                if: { op: '==', value: 'premium' },
+                result: 'approved',
+                set_vars: {
+                  '$final_amount': '$base * 1.5',
+                  '$bonus': '$base * 0.2'
+                }
+              }
+            ],
+            default: 'standard'
+          }
+        ]
+      };
 
-     const result = generator.generate(config);
+      const result = generator.generate(config);
 
-     expect(result.code).toContain('const base = result.base_calculation');
-     expect(result.code).toContain('result.final_amount = base * 1.5');
-     expect(result.code).toContain('result.bonus = base * 0.2');
-     
-     console.log('✅ Set_vars with $ variables Test Passed');
-   });
- });
+      expect(result.code).toContain('const base = result.base_calculation');
+      expect(result.code).toContain('result.final_amount = base * 1.5');
+      expect(result.code).toContain('result.bonus = base * 0.2');
+      
+      console.log('✅ Set_vars with $ variables Test Passed');
+    });
+  });
 
- // ========================================
- // Test 4: Complex Real-world Scenarios
- // ========================================
- describe('Real-world Scenarios', () => {
-   it('should generate BMI calculator with categories', () => {
-     const config = {
-       formulas: [
-         {
-           id: 'bmi',
-           formula: 'weight / (height ** 2)',
-           inputs: ['weight', 'height']
-         },
-         {
-           id: 'category',
-           switch: 'bmi',
-           when: [
+  // ========================================
+  // Test 4: Real-world Scenarios
+  // ========================================
+  describe('Real-world Scenarios', () => {
+    it('should generate BMI calculator with categories', () => {
+      const config = {
+        formulas: [
+          {
+            id: 'bmi',
+            formula: 'weight / (height ** 2)',
+            inputs: ['weight', 'height']
+          },
+          {
+            id: 'category',
+            switch: 'bmi',
+            when: [
              { if: { op: '>=', value: 30 }, result: 'obese' },
              { if: { op: '>=', value: 25 }, result: 'overweight' },
              { if: { op: '>=', value: 18.5 }, result: 'normal' }
@@ -310,7 +311,7 @@ describe('Code Generator', () => {
            id: 'debt_to_income',
            formula: 'monthly_debt / monthly_income',
            inputs: ['monthly_debt', 'monthly_income'],
-           as: '$dti'
+           as: '$dti'  // 🔧 FIX: This should create const dti
          },
          {
            id: 'approval',
@@ -371,6 +372,7 @@ describe('Code Generator', () => {
          }
        ]
      };
+     
 
      // Generate code
      const startGen = performance.now();
@@ -384,15 +386,21 @@ describe('Code Generator', () => {
      const ruleResult = await ruleFlow.evaluate(config, inputs);
      const ruleTime = performance.now() - startRule;
 
-     // Execute generated function (eval for testing purposes)
-     const generatedFunction = new Function('inputs', `
-       ${result.code.split('export function complexCalculation')[1].split('}')[0]}
-         return result;
-       }
+     // 🔧 FIX: Execute generated function more safely
+     const functionBody = result.code
+       .split('export function complexCalculation(inputs: complexCalculationInputs): complexCalculationOutput {')[1]
+       .split('return result;')[0];
+
+     const executableFunction = new Function('inputs', `
+       const result = { ...inputs };
+       ${functionBody}
+       return result;
      `);
 
+     
+
      const startGenerated = performance.now();
-     const generatedResult = generatedFunction(inputs);
+     const generatedResult = executableFunction(inputs);
      const generatedTime = performance.now() - startGenerated;
 
      // Verify results match
@@ -533,20 +541,50 @@ describe('Code Generator', () => {
  // ========================================
  describe('Integration with RuleFlow', () => {
    it('should add generateCode method to RuleFlow', () => {
-     // This test assumes we add the method to RuleFlow class
      const config = {
        formulas: [
          { id: 'area', formula: 'length * width', inputs: ['length', 'width'] }
        ]
      };
 
-     // Test if RuleFlow has the generator method (after integration)
+     // 🔧 FIX: Test assumes integration is complete
      expect(typeof ruleFlow.generateCode).toBe('function');
      
      const result = ruleFlow.generateCode(config, { functionName: 'calculateArea' });
      expect(result).toContain('function calculateArea');
      
      console.log('✅ RuleFlow Integration Test Passed');
+   });
+
+   it('should provide full code generation package', () => {
+     const config = {
+       formulas: [
+         { id: 'test', formula: 'a + b', inputs: ['a', 'b'] }
+       ]
+     };
+
+     const fullResult = ruleFlow.generateFullCode(config);
+     
+     expect(fullResult.code).toBeDefined();
+     expect(fullResult.interfaces).toBeDefined();
+     expect(fullResult.metadata).toBeDefined();
+     expect(fullResult.metadata.inputCount).toBe(2);
+     expect(fullResult.metadata.outputCount).toBe(1);
+   });
+
+   it('should provide generation metadata', () => {
+     const config = {
+       formulas: [
+         { id: 'complex', formula: 'sqrt(a ** 2 + b ** 2)', inputs: ['a', 'b'] }
+       ]
+     };
+
+     const metadata = ruleFlow.getGenerationMetadata(config);
+     
+     expect(metadata.inputCount).toBeGreaterThan(0);
+     expect(metadata.outputCount).toBeGreaterThan(0);
+     expect(metadata.complexity).toBeGreaterThan(0);
+     expect(metadata.estimatedPerformanceGain).toContain('faster');
    });
  });
 
@@ -576,10 +614,10 @@ describe('Code Generator', () => {
 
      const result = generator.generate(config, { functionName: 'bmiCalc' });
 
-     // Create executable function from generated code
+     // 🔧 FIX: Create executable function more safely
      const functionBody = result.code
        .split('export function bmiCalc(inputs: bmiCalcInputs): bmiCalcOutput {')[1]
-       .split('}\n')[0];
+       .split('return result;')[0];
 
      const executableFunction = new Function('inputs', `
        const result = { ...inputs };
@@ -595,25 +633,148 @@ describe('Code Generator', () => {
      
      console.log('✅ Generated Function Execution Test Passed');
    });
+
+   it('should handle complex expressions correctly', () => {
+     const config = {
+       formulas: [
+         {
+           id: 'compound_interest',
+           formula: 'principal * ((1 + rate) ** years)',
+           inputs: ['principal', 'rate', 'years']
+         }
+       ]
+     };
+
+     const result = generator.generate(config, { functionName: 'calculateInterest' });
+
+     // Extract and execute function
+     const functionBody = result.code
+       .split('export function calculateInterest(inputs: calculateInterestInputs): calculateInterestOutput {')[1]
+       .split('return result;')[0];
+
+     const executableFunction = new Function('inputs', `
+       const result = { ...inputs };
+       ${functionBody}
+       return result;
+     `);
+
+     const testResult = executableFunction({ principal: 1000, rate: 0.05, years: 10 });
+     
+     // Verify compound interest calculation: 1000 * (1.05)^10 ≈ 1628.89
+     expect(testResult.compound_interest).toBeCloseTo(1628.89, 2);
+     
+     console.log('✅ Complex Expression Test Passed');
+   });
+ });
+
+ // ========================================
+ // Test 10: Advanced Features
+ // ========================================
+ describe('Advanced Features', () => {
+   it('should handle between operator', () => {
+     const config = {
+       formulas: [
+         {
+           id: 'age_group',
+           switch: 'age',
+           when: [
+             { if: { op: 'between', value: [18, 30] }, result: 'young_adult' },
+             { if: { op: 'between', value: [31, 60] }, result: 'middle_aged' }
+           ],
+           default: 'senior'
+         }
+       ]
+     };
+
+     const result = generator.generate(config);
+     expect(result.code).toContain('(inputs.age >= 18 && inputs.age <= 30)');
+     expect(result.code).toContain('(inputs.age >= 31 && inputs.age <= 60)');
+   });
+
+   it('should handle in operator', () => {
+     const config = {
+       formulas: [
+         {
+           id: 'membership_tier',
+           switch: 'status',
+           when: [
+             { if: { op: 'in', var: 'level', value: ['gold', 'platinum', 'diamond'] }, result: 'premium' }
+           ],
+           default: 'standard'
+         }
+       ]
+     };
+
+     const result = generator.generate(config);
+     expect(result.code).toContain('["gold", "platinum", "diamond"].includes(inputs.level)');
+   });
+
+   it('should optimize constant expressions', () => {
+     const config = {
+       formulas: [
+         {
+           id: 'circle_area',
+           formula: '3.14159 * (radius ** 2)',
+           inputs: ['radius']
+         }
+       ]
+     };
+
+     const result = generator.generate(config);
+     expect(result.code).toContain('3.14159 * (Math.pow(inputs.radius, 2))');
+   });
  });
 });
 
 // ========================================
-// RuleFlow Integration (Add to RuleFlow.ts)
+// Additional Test Utilities
 // ========================================
 
-// Add this method to RuleFlow class:
-/*
-export class RuleFlow {
- private codeGenerator = new CodeGenerator();
+// Helper function to test generated code execution
+function testGeneratedFunction(code: string, functionName: string, inputs: any): any {
+ const functionBody = code
+   .split(`export function ${functionName}(`)[1]
+   .split('return result;')[0];
 
- generateCode(config: any, options?: CodeGenerationOptions): string {
-   const result = this.codeGenerator.generate(config, options);
-   return result.code;
- }
+ const executableFunction = new Function('inputs', `
+   const result = { ...inputs };
+   ${functionBody}
+   return result;
+ `);
 
- generateFullCode(config: any, options?: CodeGenerationOptions): GeneratedCode {
-   return this.codeGenerator.generate(config, options);
- }
+ return executableFunction(inputs);
 }
-*/
+
+// Performance testing helper
+async function comparePerformance(config: any, inputs: any, iterations: number = 1000) {
+ const generator = new CodeGenerator();
+ const ruleFlow = new RuleFlow();
+
+ // Generate code
+ const generated = generator.generate(config);
+ const executableFunction = new Function('inputs', `
+   const result = { ...inputs };
+   ${generated.code.split('export function')[1].split('return result;')[0]}
+   return result;
+ `);
+
+ // Test rule engine performance
+ const ruleStart = performance.now();
+ for (let i = 0; i < iterations; i++) {
+   await ruleFlow.evaluate(config, inputs);
+ }
+ const ruleTime = performance.now() - ruleStart;
+
+ // Test generated code performance
+ const genStart = performance.now();
+ for (let i = 0; i < iterations; i++) {
+   executableFunction(inputs);
+ }
+ const genTime = performance.now() - genStart;
+
+ return {
+   ruleEngineTime: ruleTime,
+   generatedCodeTime: genTime,
+   performanceGain: ruleTime / genTime
+ };
+}

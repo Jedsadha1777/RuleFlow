@@ -6,6 +6,8 @@ import { ConfigValidator } from './validators/ConfigValidator';
 import { FunctionRegistry } from './functions/FunctionRegistry';
 import { RuleFlowException } from './exceptions/RuleFlowException';
 import * as Templates from './templates/index';
+import { CodeGenerator, CodeGenerationOptions, GeneratedCode } from './core/CodeGenerator';
+
 
 
 import { 
@@ -19,6 +21,7 @@ export class RuleFlow {
   private validator: ConfigValidator;
   private functionRegistry: FunctionRegistry;
   private templateManager: FunctionTemplateManager; 
+  private codeGenerator = new CodeGenerator();
 
   constructor() {
     this.functionRegistry = new FunctionRegistry();
@@ -27,6 +30,19 @@ export class RuleFlow {
     this.templateManager = new FunctionTemplateManager(); 
   }
 
+  generateCode(config: any, options?: CodeGenerationOptions): string {
+    const result = this.codeGenerator.generate(config, options);
+    return result.code;
+  }
+
+    generateFullCode(config: any, options?: CodeGenerationOptions): GeneratedCode {
+    return this.codeGenerator.generate(config, options);
+  }
+
+    getGenerationMetadata(config: any): GeneratedCode['metadata'] {
+    const result = this.codeGenerator.generate(config, { includeExamples: false });
+    return result.metadata;
+  }
   // ====================================
   // CORE METHODS (unchanged)
   // ====================================
@@ -312,4 +328,6 @@ export class RuleFlow {
       expected: example.expectedOutputs
     };
   }
+
+  
 }
