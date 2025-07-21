@@ -1,4 +1,3 @@
-```markdown
 # RuleFlow TypeScript
 
 A powerful, flexible rule engine for TypeScript/JavaScript applications with advanced code generation capabilities.
