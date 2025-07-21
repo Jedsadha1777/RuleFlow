@@ -30,7 +30,7 @@ npm install ruleflow-ts
 - **Accumulative Scoring**: Progressive rule evaluation with context preservation
 - **Code Generation**: Converts JSON rules to optimized functions (10-100x performance boost in TypeScript)
 
-### TypeScript-Specific Features ✨
+### TypeScript-Specific Features 
 - **Type Safety**: Full TypeScript support with automatic type inference
 - **Advanced Code Generation**: Generate optimized TypeScript functions from rule configurations
 - **Modern Performance**: 10-100x faster execution with generated code
@@ -86,7 +86,7 @@ $result = $ruleFlow->evaluate($config, $inputs);
 echo "Total: {$result['total']}"; // Output: Total: 220
 ```
 
-## TypeScript Code Generation ⚡
+## TypeScript Code Generation 
 
 The TypeScript version includes powerful code generation capabilities:
 
@@ -268,7 +268,7 @@ class BookingFunctions implements RuleFlowFunctionProvider
 - [Production Implementation](https://github.com/Jedsadha1777/RuleFlow/wiki/part5-production-implementation)
 - [Reference & Troubleshooting](https://github.com/Jedsadha1777/RuleFlow/wiki/part6-reference-troubleshooting)
 
-### TypeScript Documentation 📘
+### TypeScript Documentation 
 > **Note**: TypeScript-specific documentation is coming soon! For now, please refer to the PHP documentation above as the core concepts and JSON configuration formats are identical between both versions. The main differences are in installation, imports, and the enhanced code generation capabilities available in TypeScript.
 
 **TypeScript-specific features:**
@@ -436,7 +436,7 @@ php tests/RunAllTests.php --test=template   # Template tests
 - **Documentation**: [GitHub Wiki](https://github.com/Jedsadha1777/RuleFlow/wiki) (PHP-focused, applies to TypeScript)
 - **Issues**: [GitHub Issues](https://github.com/Jedsadha1777/RuleFlow/issues)
 - **PHP Documentation**: [php/README.md](./php/README.md)
-- **TypeScript Documentation**: [typescript/README.md](./typescript/README.md)
+- **TypeScript Documentation**: [typescript/README.md](./ts/README.md)
 - **Examples**: 
   - PHP: Demo files in `/php/demos/` directory
   - TypeScript: Examples coming soon!
