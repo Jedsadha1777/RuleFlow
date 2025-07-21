@@ -1,4 +1,3 @@
-```markdown
 # RuleFlow TypeScript
 
 A powerful, flexible rule engine for TypeScript/JavaScript applications with advanced code generation capabilities.
@@ -134,7 +133,7 @@ const loanConfig = {
 };
 ```
 
-## ⚡ Code Generation
+## Code Generation
 
 Generate optimized TypeScript functions from your rule configurations:
 
@@ -310,7 +309,7 @@ const riskConfig = {
 };
 ```
 
-## 🧪 Testing
+##  Testing
 
 Run the comprehensive test suite:
 
@@ -384,7 +383,7 @@ interface CodeGenerationOptions {
 }
 ```
 
-## 📄 License
+##  License
 
 MIT License - see [LICENSE](../LICENSE) file for details.
 
