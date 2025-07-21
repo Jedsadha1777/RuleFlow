@@ -25,7 +25,10 @@ A powerful, flexible rule engine for TypeScript/JavaScript applications with adv
 ## Installation
 
 ```bash
-npm install ruleflow-ts
+git clone https://github.com/Jedsadha1777/RuleFlow.git
+cd RuleFlow/ts
+npm install
+npm test
 ```
 
 ## Quick Start

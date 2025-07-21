@@ -330,10 +330,7 @@ RuleFlow/
 
 ### TypeScript
 ```bash
-# Install via NPM
-npm install ruleflow-ts
-
-# Or install from source
+# Clone repository
 git clone https://github.com/Jedsadha1777/RuleFlow.git
 cd RuleFlow/ts
 npm install
