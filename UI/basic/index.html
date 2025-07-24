@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RuleFlow Builder - POC</title>
+    <title>RuleFlow Builder - POC Basic</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -36,30 +36,102 @@
                         <!-- Component Selector Dropdown -->
                         <div class="dropdown">
                             <button class="btn btn-primary dropdown-toggle" type="button" 
-                                    id="componentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-plus-circle"></i> Add Component
+                                    id="componentDropdown" data-bs-toggle="dropdown">
+                                Add Component
                             </button>
-                            <ul class="dropdown-menu" aria-labelledby="componentDropdown">
-                                <li>
-                                    <a class="dropdown-item" href="#" data-component-type="formula">
-                                        <span class="badge bg-success me-2">F</span> Formula
-                                        <small class="text-muted d-block ms-4">Mathematical expression</small>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="#" data-component-type="switch">
-                                        <span class="badge bg-warning me-2">S</span> Switch
-                                        <small class="text-muted d-block ms-4">Conditional logic</small>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" data-component="formula">
+                                    <i class="bi bi-calculator"></i> Formula
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" data-component="switch">
+                                    <i class="bi bi-shuffle"></i> Switch Logic
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" data-component="conditions">
+                                    <i class="bi bi-question-circle"></i> Conditions
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" data-component="scoring">
+                                        <i class="bi bi-bar-chart"></i> Scoring
                                     </a>
                                 </li>
                             </ul>
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="componentsList">
-                            <div class="text-center py-5 text-muted" id="emptyState">
-                                <div style="font-size: 3rem;">📝</div>
-                                <p>No components yet.<br>Click "Add Component" to get started.</p>
+                        <div id="componentContainer">
+                            <div id="emptyState" class="text-center text-muted py-5">
+                                <i class="bi bi-plus-circle fs-1 mb-3"></i>
+                                <h5>No components yet</h5>
+                                <p>Click "Add Component" to get started.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Configuration Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0"><i class="bi bi-play-circle"></i> Test Configuration</h6>
+                                <div class="btn-group btn-group-sm">
+                                    <button id="validateBtn" class="btn btn-outline-primary">
+                                        <i class="bi bi-check-circle"></i> Validate
+                                    </button>
+                                    <button id="executeBtn" class="btn btn-outline-success">
+                                        <i class="bi bi-play"></i> Execute
+                                    </button>
+                                    <button id="generateCodeBtn" class="btn btn-outline-info">
+                                        <i class="bi bi-code-slash"></i> Generate Code
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Input Variables -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <h6>Input Variables</h6>
+                                        <div id="inputVariables" class="variables-panel">
+                                            <p class="text-muted mb-0">Add components to see input variables</p>
+                                        </div>
+                                        <button id="addCustomBtn" class="btn btn-sm btn-outline-secondary mt-2">
+                                            <i class="bi bi-plus"></i> Add Custom Variable
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Results</h6>
+                                        <div id="resultsPanel" class="result-panel p-3">
+                                            <p class="text-muted mb-0">Execute configuration to see results</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Generated Code -->
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Generated Code</h6>
+                                        <button id="copyCodeBtn" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-clipboard"></i> Copy Code
+                                        </button>
+                                    </div>
+                                    <textarea id="generatedCode" class="form-control code-editor" rows="8" readonly 
+                                              placeholder="Generated code will appear here..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debug Console -->
+                <div class="row mt-4" id="debugSection" style="display: none;">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bug"></i> Debug Console</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="debugConsole" class="debug-console p-3">
+                                    <!-- Debug output -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -71,7 +143,7 @@
                 <div class="card sticky-top" style="top: 1rem;">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Generated JSON</h6>
-                        <button onclick="copyJSON()" class="btn btn-outline-primary btn-sm">
+                        <button id="copyJsonBtn" class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-clipboard"></i> Copy
                         </button>
                     </div>
@@ -81,7 +153,7 @@
 }</pre>
                     </div>
                     <div class="card-footer">
-                        <button onclick="testConfig()" class="btn btn-secondary w-100">
+                        <button id="testConfigBtn" class="btn btn-secondary w-100">
                             <i class="bi bi-play-circle"></i> Test with PHP
                         </button>
                         <div id="testResult" class="mt-2"></div>
@@ -91,11 +163,28 @@
         </div>
     </div>
     
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- App JS -->
-    <script src="script.js"></script>
+    
+    <!-- RuleFlow Core Engine -->
+    <script src="js/core/FunctionRegistry.js"></script>
+    <script src="js/core/ExpressionEvaluator.js"></script>
+    <script src="js/core/FormulaProcessor.js"></script>
+    <script src="js/RuleFlow.js"></script>
+    
+    <!-- UI Logic -->
+    <script src="js/ui/examples.js"></script>
+    <script src="js/ui/interface.js"></script>
+
+    <!-- Component Classes - เพิ่มบรรทัดเหล่านี้ -->
     <script src="components/formula.js"></script>
     <script src="components/switch.js"></script>
+    <script src="components/conditions.js"></script>
+    <script src="components/scoring.js"></script>
+
+    <script src="script.js"></script>
+ 
 </body>
 </html>

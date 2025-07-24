@@ -1,208 +1,143 @@
-// Formula Component
+/**
+ * Formula Component Class
+ * Handles mathematical formula components
+ */
+
 class FormulaComponent {
-    constructor(id) {
-        this.config = {
-            id: id,
-            formula: '',
-            inputs: [],
-            as: ''
-        };
+    constructor() {
+        this.id = 'formula_' + Date.now();
+        this.formula = '';
+        this.as = '';
+        this.inputs = [];
     }
-    
+
+    /**
+     * Get component icon
+     */
     getIcon() {
-        return 'F';
+        return '<i class="bi bi-calculator"></i>';
     }
-    
+
+    /**
+     * Get component title
+     */
     getTitle() {
-        return this.config.id || 'Formula';
+        return this.id || 'Formula Component';
     }
-    
-    getFormHTML(index) {
+
+    /**
+     * Get component ID
+     */
+    getId() {
+        return this.id;
+    }
+
+    /**
+     * Set component ID
+     */
+    setId(newId) {
+        this.id = newId;
+    }
+
+    /**
+     * Update field value
+     */
+    updateField(field, value) {
+        switch(field) {
+            case 'id':
+                this.id = value;
+                break;
+            case 'formula':
+                this.formula = value;
+                break;
+            case 'as':
+                this.as = value;
+                break;
+            case 'inputs':
+                this.inputs = value ? value.split(',').map(s => s.trim()) : [];
+                break;
+        }
+    }
+
+    /**
+     * Render component form
+     */
+    render(index) {
         return `
-            <div class="row">
-                <div class="col-12 mb-3">
-                    <label class="form-label">Component ID</label>
+            <div class="component-form">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">ID</label>
+                        <input type="text" 
+                               class="form-control" 
+                               value="${this.id}" 
+                               onchange="updateComponentField(${index}, 'id', this.value)">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Store As Variable (optional)</label>
+                        <input type="text" 
+                               class="form-control" 
+                               placeholder="\$variable_name"
+                               value="${this.as}" 
+                               onchange="updateComponentField(${index}, 'as', this.value)">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Formula</label>
                     <input type="text" 
                            class="form-control" 
-                           name="id"
-                           value="${this.config.id}" 
-                           placeholder="formula_name">
+                           placeholder="e.g., \$age * 2 + \$income / 1000"
+                           value="${this.formula}" 
+                           onchange="updateComponentField(${index}, 'formula', this.value)">
+                    <small class="text-muted">Use \$variableName to reference variables. Available functions: sqrt, pow, abs, min, max, round, bmi, etc.</small>
                 </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-12 mb-3">
-                    <label class="form-label">Formula Expression</label>
-                    <textarea class="form-control formula-expression" 
-                              name="formula"
-                              rows="3"
-                              placeholder="e.g., weight / ((height/100) ** 2)">${this.config.formula}</textarea>
-                    <div class="form-text">Mathematical expression using input variables</div>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Input Variables</label>
+                <div class="mb-3">
+                    <label class="form-label">Required Inputs (optional)</label>
                     <input type="text" 
                            class="form-control" 
-                           name="inputs"
-                           value="${Array.isArray(this.config.inputs) ? this.config.inputs.join(', ') : ''}" 
-                           placeholder="weight, height">
-                    <div class="form-text">Comma-separated variable names</div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Output Variable (Optional)</label>
-                    <input type="text" 
-                           class="form-control" 
-                           name="as"
-                           value="${this.config.as}" 
-                           placeholder="$bmi_value">
-                    <div class="form-text">Use $ prefix for intermediate variables</div>
+                           placeholder="age, income, weight"
+                           value="${this.inputs.join(', ')}" 
+                           onchange="updateComponentField(${index}, 'inputs', this.value)">
+                    <small class="text-muted">Comma-separated list of required input variables</small>
                 </div>
             </div>
-            
-            ${this.getValidationHTML()}
         `;
     }
-    
-    getValidationHTML() {
-        const errors = this.validate();
-        if (errors.length === 0) {
-            return '<div class="alert alert-success">✅ Formula configuration is valid</div>';
-        }
-        
-        return `
-            <div class="alert alert-warning">
-                <strong>⚠️ Validation Issues:</strong>
-                <ul class="mb-0 mt-1">
-                    ${errors.map(error => `<li>${error}</li>`).join('')}
-                </ul>
-            </div>
-        `;
-    }
-    
-    updateFromForm(element) {
-        const inputs = element.querySelectorAll('input, textarea');
-        
-        inputs.forEach(input => {
-            const name = input.name;
-            let value = input.value;
-            
-            if (name === 'inputs') {
-                // Convert comma-separated string to array
-                value = value.split(',').map(s => s.trim()).filter(s => s);
-            }
-            
-            if (name && this.config.hasOwnProperty(name)) {
-                this.config[name] = value;
-            }
-        });
-        
-        // Update validation display
-        const validationDiv = element.querySelector('.alert');
-        if (validationDiv) {
-            const parent = validationDiv.parentNode;
-            validationDiv.remove();
-            parent.insertAdjacentHTML('beforeend', this.getValidationHTML());
-        }
-    }
-    
-    validate() {
-        const errors = [];
-        
-        if (!this.config.id) {
-            errors.push('Component ID is required');
-        }
-        
-        if (!this.config.formula) {
-            errors.push('Formula expression is required');
-        }
-        
-        if (!this.config.inputs || this.config.inputs.length === 0) {
-            errors.push('At least one input variable is required');
-        }
-        
-        // Check if formula contains input variables
-        if (this.config.formula && this.config.inputs && this.config.inputs.length > 0) {
-            const missingInputs = this.config.inputs.filter(input => 
-                !this.config.formula.includes(input)
-            );
-            
-            if (missingInputs.length > 0) {
-                errors.push(`Formula doesn't use these inputs: ${missingInputs.join(', ')}`);
-            }
-        }
-        
-        // Check output variable format
-        if (this.config.as && !this.config.as.startsWith('$')) {
-            errors.push('Output variable should start with $ (e.g., $variable_name)');
-        }
-        
-        return errors;
-    }
-    
+
+    /**
+     * Convert to JSON configuration
+     */
     toJSON() {
-        // Clean up config for export
-        const cleanConfig = { ...this.config };
-        
-        // Remove empty fields
-        Object.keys(cleanConfig).forEach(key => {
-            if (cleanConfig[key] === '' || 
-                (Array.isArray(cleanConfig[key]) && cleanConfig[key].length === 0)) {
-                delete cleanConfig[key];
-            }
-        });
-        
-        return cleanConfig;
-    }
-    
-    // Sample configurations
-    static getSamples() {
-        return [
-            {
-                name: 'BMI Calculation',
-                config: {
-                    id: 'bmi_calculation',
-                    formula: 'weight / ((height/100) ** 2)',
-                    inputs: ['weight', 'height'],
-                    as: '$bmi_value'
-                }
-            },
-            {
-                name: 'Total Price',
-                config: {
-                    id: 'total_price',
-                    formula: 'price * quantity * (1 + tax_rate)',
-                    inputs: ['price', 'quantity', 'tax_rate']
-                }
-            },
-            {
-                name: 'Age from Birth Year',
-                config: {
-                    id: 'calculate_age',
-                    formula: '2024 - birth_year',
-                    inputs: ['birth_year'],
-                    as: '$age'
-                }
-            }
-        ];
-    }
-    
-    // Load sample configuration
-    loadSample(sampleName) {
-        const samples = FormulaComponent.getSamples();
-        const sample = samples.find(s => s.name === sampleName);
-        
-        if (sample) {
-            this.config = { ...sample.config };
-            return true;
+        const json = {
+            id: this.id,
+            formula: this.formula
+        };
+
+        if (this.as) {
+            json.as = this.as;
         }
-        
-        return false;
+
+        if (this.inputs && this.inputs.length > 0) {
+            json.inputs = this.inputs;
+        }
+
+        return json;
+    }
+
+    /**
+     * Load from JSON configuration
+     */
+    fromJSON(json) {
+        this.id = json.id || this.id;
+        this.formula = json.formula || '';
+        this.as = json.as || '';
+        this.inputs = json.inputs || [];
     }
 }
 
-// Register component
-window.RuleFlowComponents = window.RuleFlowComponents || {};
-window.RuleFlowComponents.formula = FormulaComponent;
+// Export for global use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = FormulaComponent;
+} else {
+    window.FormulaComponent = FormulaComponent;
+}
