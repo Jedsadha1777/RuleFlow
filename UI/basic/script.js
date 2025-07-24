@@ -354,6 +354,52 @@ $(document).ready(function () {
             removeCustomFieldFromRange(index, branchIndex, rangeIndex, fieldName);
         });
 
+        // เพิ่มใน bindEvents function
+        $(document).on('change', '.condition-type-select', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const value = $this.val();
+            
+            if (components[index] && components[index].instance.updateScoringBranch) {
+                components[index].instance.updateScoringBranch(branchIndex, 'condition_type', value);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        $(document).on('change', '.nested-branch-condition-field', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const field = $this.attr('data-condition-field');
+            const value = $this.val();
+            updateNestedBranchCondition(index, branchIndex, conditionIndex, field, value);
+        });
+
+        $(document).on('click', '.add-condition-to-branch-group-btn', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const groupType = $this.attr('data-group-type');
+            addConditionToBranchGroup(index, branchIndex, groupType);
+        });
+
+        $(document).on('click', '.remove-condition-from-branch-group-btn', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const groupType = $this.attr('data-group-type');
+            removeConditionFromBranchGroup(index, branchIndex, conditionIndex, groupType);
+        });
+
+
         // Button events
         $('#validateBtn').on('click', validateConfiguration);
         $('#executeBtn').on('click', executeRules);
@@ -1364,5 +1410,15 @@ $(document).ready(function () {
             updateJSON();
         }
     };
+
+    window.updateNestedBranchCondition = function(componentIndex, branchIndex, conditionIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateNestedBranchCondition) {
+            components[componentIndex].instance.updateNestedBranchCondition(branchIndex, conditionIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    
 
 });

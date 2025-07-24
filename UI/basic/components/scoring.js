@@ -1,5 +1,6 @@
 /**
- * Enhanced Scoring Component with complete operators support
+ * Enhanced Scoring Component Class
+ * Complete version with all fields and AND/OR logic support
  */
 
 class ScoringComponent {
@@ -14,22 +15,37 @@ class ScoringComponent {
         this.as = '';
     }
 
+    /**
+     * Get component icon
+     */
     getIcon() {
         return '<i class="bi bi-bar-chart"></i>';
     }
 
+    /**
+     * Get component title
+     */
     getTitle() {
         return this.id || 'Scoring Component';
     }
 
+    /**
+     * Get component ID
+     */
     getId() {
         return this.id;
     }
 
+    /**
+     * Set component ID
+     */
     setId(newId) {
         this.id = newId;
     }
 
+    /**
+     * Update field value
+     */
     updateField(field, value) {
         switch(field) {
             case 'id':
@@ -44,6 +60,9 @@ class ScoringComponent {
         }
     }
 
+    /**
+     * Add new scoring branch
+     */
     addScoringBranch() {
         this.scoring.ifs.tree.push({
             if: { op: '>=', value: 0 },
@@ -57,10 +76,16 @@ class ScoringComponent {
         });
     }
 
+    /**
+     * Remove scoring branch
+     */
     removeScoringBranch(branchIndex) {
         this.scoring.ifs.tree.splice(branchIndex, 1);
     }
 
+    /**
+     * Update scoring branch condition
+     */
     updateScoringBranch(branchIndex, field, value) {
         if (!this.scoring.ifs.tree[branchIndex]) return;
 
@@ -70,9 +95,96 @@ class ScoringComponent {
             branch.if.op = value;
         } else if (field === 'value') {
             branch.if.value = this.parseValue(value);
+        } else if (field === 'condition_type') {
+            // Support for AND/OR logic like other components
+            if (value === 'simple') {
+                branch.if = { op: '>=', value: 0 };
+            } else if (value === 'and') {
+                branch.if = {
+                    and: [
+                        { op: '>', var: '', value: '' },
+                        { op: '==', var: '', value: '' }
+                    ]
+                };
+            } else if (value === 'or') {
+                branch.if = {
+                    or: [
+                        { op: '>', var: '', value: '' },
+                        { op: '==', var: '', value: '' }
+                    ]
+                };
+            }
         }
     }
 
+    /**
+     * Update nested condition in branch (for AND/OR support)
+     */
+    updateNestedBranchCondition(branchIndex, conditionIndex, field, value) {
+        if (!this.scoring.ifs.tree[branchIndex]) return;
+
+        const branchIf = this.scoring.ifs.tree[branchIndex].if;
+        let condition = null;
+
+        if (branchIf.and && branchIf.and[conditionIndex]) {
+            condition = branchIf.and[conditionIndex];
+        } else if (branchIf.or && branchIf.or[conditionIndex]) {
+            condition = branchIf.or[conditionIndex];
+        } else if (!branchIf.and && !branchIf.or) {
+            condition = branchIf; // Simple condition
+        }
+
+        if (condition) {
+            if (field === 'op') {
+                condition.op = value;
+            } else if (field === 'var') {
+                condition.var = value;
+            } else if (field === 'value') {
+                condition.value = this.parseValue(value);
+            }
+        }
+    }
+
+    /**
+     * Add condition to nested group in branch
+     */
+    addConditionToBranchGroup(branchIndex, groupType) {
+        if (!this.scoring.ifs.tree[branchIndex]) return;
+
+        const branchIf = this.scoring.ifs.tree[branchIndex].if;
+        const newCondition = { op: '>', var: '', value: '' };
+
+        if (groupType === 'and' && branchIf.and) {
+            branchIf.and.push(newCondition);
+        } else if (groupType === 'or' && branchIf.or) {
+            branchIf.or.push(newCondition);
+        }
+    }
+
+    /**
+     * Remove condition from nested group in branch
+     */
+    removeConditionFromBranchGroup(branchIndex, conditionIndex, groupType) {
+        if (!this.scoring.ifs.tree[branchIndex]) return;
+
+        const branchIf = this.scoring.ifs.tree[branchIndex].if;
+
+        if (groupType === 'and' && branchIf.and) {
+            branchIf.and.splice(conditionIndex, 1);
+            if (branchIf.and.length === 0) {
+                branchIf.and.push({ op: '>', var: '', value: '' });
+            }
+        } else if (groupType === 'or' && branchIf.or) {
+            branchIf.or.splice(conditionIndex, 1);
+            if (branchIf.or.length === 0) {
+                branchIf.or.push({ op: '>', var: '', value: '' });
+            }
+        }
+    }
+
+    /**
+     * Add range to scoring branch
+     */
     addRangeToBranch(branchIndex) {
         if (!this.scoring.ifs.tree[branchIndex]) return;
 
@@ -83,6 +195,9 @@ class ScoringComponent {
         });
     }
 
+    /**
+     * Remove range from scoring branch
+     */
     removeRangeFromBranch(branchIndex, rangeIndex) {
         if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges) return;
 
@@ -97,6 +212,9 @@ class ScoringComponent {
         }
     }
 
+    /**
+     * Update range field
+     */
     updateRangeField(branchIndex, rangeIndex, field, value) {
         if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
 
@@ -111,6 +229,9 @@ class ScoringComponent {
         }
     }
 
+    /**
+     * Update set_vars for a range
+     */
     updateSetVars(branchIndex, rangeIndex, varsString) {
         if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
 
@@ -133,6 +254,9 @@ class ScoringComponent {
         }
     }
 
+    /**
+     * Add custom field to range
+     */
     addCustomFieldToRange(branchIndex, rangeIndex, fieldName, value) {
         if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
 
@@ -140,6 +264,9 @@ class ScoringComponent {
         range[fieldName] = this.parseValue(value);
     }
 
+    /**
+     * Remove custom field from range
+     */
     removeCustomFieldFromRange(branchIndex, rangeIndex, fieldName) {
         if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
 
@@ -149,6 +276,9 @@ class ScoringComponent {
         }
     }
 
+    /**
+     * Format set_vars for display
+     */
     formatSetVars(setVars) {
         if (!setVars || Object.keys(setVars).length === 0) return '';
         
@@ -157,6 +287,9 @@ class ScoringComponent {
             .join(', ');
     }
 
+    /**
+     * Get all custom fields from ranges
+     */
     getAllCustomFields() {
         const fields = new Set(['score']);
         
@@ -173,6 +306,9 @@ class ScoringComponent {
         return Array.from(fields);
     }
 
+    /**
+     * Parse value to appropriate type
+     */
     parseValue(value) {
         if (value === 'true') return true;
         if (value === 'false') return false;
@@ -190,6 +326,9 @@ class ScoringComponent {
         return value;
     }
 
+    /**
+     * Render component form
+     */
     render(index) {
         let html = `
             <div class="component-form">
@@ -255,10 +394,15 @@ class ScoringComponent {
         return html;
     }
 
+    /**
+     * Render scoring branch (dimension)
+     */
     renderScoringBranch(componentIndex, branchIndex, branch) {
         const condition = branch.if || {};
         const var1 = this.scoring.ifs.vars[0] || 'var1';
         const var2 = this.scoring.ifs.vars[1] || 'var2';
+        const isNested = condition.and || condition.or;
+        const conditionType = condition.and ? 'and' : condition.or ? 'or' : 'simple';
         
         let html = `
             <div class="scoring-dimension border rounded p-3 mb-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
@@ -275,24 +419,26 @@ class ScoringComponent {
                 </div>
                 
                 <div class="primary-condition mb-3 p-3 border rounded" style="background: #ffffff;">
-                    <label class="form-label small mb-2">When <strong>${var1}</strong>:</label>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <select class="form-select form-select-sm scoring-branch-field" 
-                                    data-branch-index="${branchIndex}"
-                                    data-branch-field="op">
-                                ${getOperatorOptions(condition.op)}
-                            </select>
-                        </div>
-                        <div class="col-md-8">
-                            <input type="text" 
-                                   class="form-control form-control-sm scoring-branch-field" 
-                                   placeholder="${getValuePlaceholder(condition.op)}"
-                                   value="${this.formatValue(condition.value)}"
-                                   data-branch-index="${branchIndex}"
-                                   data-branch-field="value">
-                        </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label small mb-0">Primary Condition Type:</label>
+                        <select class="form-select form-select-sm me-2 condition-type-select" 
+                                style="width: auto;"
+                                data-branch-index="${branchIndex}"
+                                data-branch-field="condition_type">
+                            <option value="simple" ${conditionType === 'simple' ? 'selected' : ''}>Simple</option>
+                            <option value="and" ${conditionType === 'and' ? 'selected' : ''}>AND Logic</option>
+                            <option value="or" ${conditionType === 'or' ? 'selected' : ''}>OR Logic</option>
+                        </select>
                     </div>
+        `;
+
+        if (isNested) {
+            html += this.renderNestedBranchCondition(componentIndex, branchIndex, condition, conditionType);
+        } else {
+            html += this.renderSimpleBranchCondition(componentIndex, branchIndex, condition, var1);
+        }
+
+        html += `
                 </div>
                 
                 <div class="scoring-ranges">
@@ -318,6 +464,108 @@ class ScoringComponent {
         return html;
     }
 
+    /**
+     * Render simple branch condition
+     */
+    renderSimpleBranchCondition(componentIndex, branchIndex, condition, varName) {
+        return `
+            <label class="form-label small mb-2">When <strong>${varName}</strong>:</label>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm scoring-branch-field" 
+                            data-branch-index="${branchIndex}"
+                            data-branch-field="op">
+                        ${getOperatorOptions(condition.op)}
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <input type="text" 
+                           class="form-control form-control-sm scoring-branch-field" 
+                           placeholder="${getValuePlaceholder(condition.op)}"
+                           value="${this.formatValue(condition.value)}"
+                           data-branch-index="${branchIndex}"
+                           data-branch-field="value">
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render nested branch condition (AND/OR)
+     */
+    renderNestedBranchCondition(componentIndex, branchIndex, condition, conditionType) {
+        const conditions = condition[conditionType] || [];
+        const logicLabel = conditionType.toUpperCase();
+        
+        let html = `
+            <div class="nested-branch-condition">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-${conditionType === 'and' ? 'primary' : 'info'} fs-6">${logicLabel} Logic</span>
+                    <button type="button" 
+                            class="btn btn-sm btn-outline-success add-condition-to-branch-group-btn"
+                            data-branch-index="${branchIndex}"
+                            data-group-type="${conditionType}">
+                        <i class="bi bi-plus"></i> Add ${logicLabel}
+                    </button>
+                </div>
+        `;
+
+        conditions.forEach((subCondition, conditionIndex) => {
+            html += `
+                <div class="nested-branch-condition-item mb-2 p-2 bg-light rounded">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Condition ${conditionIndex + 1}</small>
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger remove-condition-from-branch-group-btn"
+                                data-branch-index="${branchIndex}"
+                                data-condition-index="${conditionIndex}"
+                                data-group-type="${conditionType}">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm nested-branch-condition-field" 
+                                    data-branch-index="${branchIndex}"
+                                    data-condition-index="${conditionIndex}"
+                                    data-condition-field="op">
+                                ${getOperatorOptions(subCondition.op)}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" 
+                                   class="form-control form-control-sm nested-branch-condition-field" 
+                                   placeholder="Variable"
+                                   value="${subCondition.var || subCondition.field || ''}"
+                                   data-branch-index="${branchIndex}"
+                                   data-condition-index="${conditionIndex}"
+                                   data-condition-field="var">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" 
+                                   class="form-control form-control-sm nested-branch-condition-field" 
+                                   placeholder="${getValuePlaceholder(subCondition.op)}"
+                                   value="${this.formatValue(subCondition.value)}"
+                                   data-branch-index="${branchIndex}"
+                                   data-condition-index="${conditionIndex}"
+                                   data-condition-field="value">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (conditionIndex < conditions.length - 1) {
+                html += `<div class="text-center my-1"><span class="badge bg-secondary">${logicLabel}</span></div>`;
+            }
+        });
+
+        html += `</div>`;
+        return html;
+    }
+
+    /**
+     * Render scoring range
+     */
     renderScoringRange(componentIndex, branchIndex, rangeIndex, range) {
         const condition = range.if || {};
         const customFields = this.getAllCustomFields();
@@ -388,7 +636,7 @@ class ScoringComponent {
                 </div>
         `;
 
-        // Custom fields
+        // Custom fields (excluding score and set_vars)
         const excludeFields = ['score', 'set_vars', 'if'];
         const customFieldsOnly = customFields.filter(field => !excludeFields.includes(field));
         
@@ -428,6 +676,9 @@ class ScoringComponent {
         return html;
     }
 
+    /**
+     * Format value for display
+     */
     formatValue(value) {
         if (Array.isArray(value)) {
             return JSON.stringify(value);
@@ -435,6 +686,9 @@ class ScoringComponent {
         return value || '';
     }
 
+    /**
+     * Convert to JSON configuration
+     */
     toJSON() {
         const json = {
             id: this.id,
@@ -448,6 +702,9 @@ class ScoringComponent {
         return json;
     }
 
+    /**
+     * Load from JSON configuration
+     */
     fromJSON(json) {
         this.id = json.id || this.id;
         this.scoring = json.scoring || { ifs: { vars: [], tree: [] } };
