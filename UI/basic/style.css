@@ -300,6 +300,49 @@
     margin-right: 8px;
 }
 
+/* Scoring Component Styles */
+.scoring-dimension {
+    border-left: 4px solid #0d6efd !important;
+}
+
+.scoring-range {
+    border-left: 3px solid #28a745 !important;
+}
+
+.primary-condition {
+    border-left: 4px solid #0d6efd !important;
+}
+
+.operator-examples {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.operator-examples code {
+    background: #f8f9fa;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+}
+
+/* Operator optgroups styling */
+select optgroup {
+    font-weight: bold;
+    color: #495057;
+}
+
+select optgroup option {
+    font-weight: normal;
+    padding-left: 1rem;
+}
+
+/* Component icon for scoring */
+.component-icon.scoring {
+    background: #fff3cd;
+    color: #856404;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container-fluid {

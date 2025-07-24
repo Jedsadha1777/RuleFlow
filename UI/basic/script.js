@@ -282,6 +282,102 @@ $(document).ready(function() {
             updateCondition(index, conditionIndex, field, value);
         });
 
+        //Dynamic place update for operators
+        $(document).on('change', 'select[data-condition-field="op"], select[data-range-field="op"], select[data-condition-field="condition_op"], .scoring-branch-field[data-branch-field="op"]', function() {
+            const $this = $(this);
+            const selectedOp = $this.val();
+
+            const $valueInput = $this.closest('.row, .condition-row, .simple-condition-inline, .primary-condition')
+                                    .find('input[data-condition-field="value"], input[data-range-field="value"], input[data-condition-field="condition_value"], input[data-branch-field="value"]');
+            
+            if ($valueInput.length) {
+                $valueInput.attr('placeholder', getValuePlaceholder(selectedOp));
+            }
+        });
+
+        // Scoring component events
+        $(document).on('click', '.add-scoring-branch-btn', function() {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            addScoringBranch(index);
+        });
+
+        $(document).on('click', '.remove-scoring-branch-btn', function() {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($(this).attr('data-branch-index'));
+            removeScoringBranch(index, branchIndex);
+        });
+
+        $(document).on('change', '.scoring-branch-field', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const field = $this.attr('data-branch-field');
+            const value = $this.val();
+            updateScoringBranch(index, branchIndex, field, value);
+        });
+
+        $(document).on('click', '.add-range-to-branch-btn', function() {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($(this).attr('data-branch-index'));
+            addRangeToBranch(index, branchIndex);
+        });
+
+        $(document).on('click', '.remove-range-from-branch-btn', function() {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($(this).attr('data-branch-index'));
+            const rangeIndex = parseInt($(this).attr('data-range-index'));
+            removeRangeFromBranch(index, branchIndex, rangeIndex);
+        });
+
+        $(document).on('change', '.scoring-range-field', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const field = $this.attr('data-range-field');
+            const value = $this.val();
+            updateRangeInBranch(index, branchIndex, rangeIndex, field, value);
+        });
+
+        $(document).on('change', '.set-vars-field', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const value = $this.val();
+            updateSetVars(index, branchIndex, rangeIndex, value);
+        });
+
+        $(document).on('click', '.add-custom-field-btn', function() {
+            const $this = $(this);
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            
+            const fieldName = prompt('Enter field name (e.g., level, tier, strategy):');
+            if (fieldName && fieldName.trim()) {
+                const $card = $this.closest('.card[data-component-index]');
+                const index = parseInt($card.attr('data-component-index'));
+                addCustomFieldToRange(index, branchIndex, rangeIndex, fieldName.trim());
+            }
+        });
+
+        $(document).on('click', '.remove-custom-field-btn', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const fieldName = $this.attr('data-field-name');
+            removeCustomFieldFromRange(index, branchIndex, rangeIndex, fieldName);
+        });
+
         // Button events
         $('#validateBtn').on('click', validateConfiguration);
         $('#executeBtn').on('click', executeRules);
@@ -1221,6 +1317,78 @@ $(document).ready(function() {
             updateJSON();
             updateInputVariables();
         }
+    };
+
+    window.addScoringBranch = function(componentIndex) {
+    if (components[componentIndex] && components[componentIndex].instance.addScoringBranch) {
+        components[componentIndex].instance.addScoringBranch();
+        updateView();
+        updateJSON();
+    }
+    };
+
+    window.removeScoringBranch = function(componentIndex, branchIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.removeScoringBranch) {
+            components[componentIndex].instance.removeScoringBranch(branchIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateScoringBranch = function(componentIndex, branchIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateScoringBranch) {
+            components[componentIndex].instance.updateScoringBranch(branchIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.addRangeToBranch = function(componentIndex, branchIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addRangeToBranch) {
+            components[componentIndex].instance.addRangeToBranch(branchIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeRangeFromBranch = function(componentIndex, branchIndex, rangeIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.removeRangeFromBranch) {
+            components[componentIndex].instance.removeRangeFromBranch(branchIndex, rangeIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateRangeInBranch = function(componentIndex, branchIndex, rangeIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateRangeField) {
+            components[componentIndex].instance.updateRangeField(branchIndex, rangeIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.updateSetVars = function(componentIndex, branchIndex, rangeIndex, varsString) {
+        if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
+            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.addCustomFieldToRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+        if (components[componentIndex] && components[componentIndex].instance.addCustomFieldToRange) {
+            components[componentIndex].instance.addCustomFieldToRange(branchIndex, rangeIndex, fieldName, '');
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeCustomFieldFromRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+    if (components[componentIndex] && components[componentIndex].instance.removeCustomFieldFromRange) {
+        components[componentIndex].instance.removeCustomFieldFromRange(branchIndex, rangeIndex, fieldName);
+        updateView();
+        updateJSON();
+    }
     };
 
 });

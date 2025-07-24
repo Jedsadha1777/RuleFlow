@@ -447,16 +447,9 @@ class SwitchComponent {
                     <div class="col-md-3">
                         <select class="form-select form-select-sm nested-condition-field" 
                                 data-case-index="${caseIndex}"
-                                data-path='${pathStr}'
+                                data-condition-index="0"
                                 data-condition-field="op">
-                            <option value="==" ${condition.op === '==' ? 'selected' : ''}>Equals</option>
-                            <option value="!=" ${condition.op === '!=' ? 'selected' : ''}>Not Equals</option>
-                            <option value=">" ${condition.op === '>' ? 'selected' : ''}>Greater Than</option>
-                            <option value=">=" ${condition.op === '>=' ? 'selected' : ''}>Greater or Equal</option>
-                            <option value="<" ${condition.op === '<' ? 'selected' : ''}>Less Than</option>
-                            <option value="<=" ${condition.op === '<=' ? 'selected' : ''}>Less or Equal</option>
-                            <option value="in" ${condition.op === 'in' ? 'selected' : ''}>In Array</option>
-                            <option value="between" ${condition.op === 'between' ? 'selected' : ''}>Between</option>
+                            ${getOperatorOptions(condition.op)}
                         </select>
                     </div>
                     <div class="col-md-4">

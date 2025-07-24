@@ -182,15 +182,11 @@ class ConditionsComponent {
                 <div class="condition-row">
                     <div class="row">
                         <div class="col-md-3">
-                            <select class="form-select form-select-sm" 
-                                    onchange="updateCondition(${componentIndex}, ${conditionIndex}, 'condition_op', this.value)">
-                                <option value=">" ${ifCondition.op === '>' ? 'selected' : ''}>Greater Than</option>
-                                <option value=">=" ${ifCondition.op === '>=' ? 'selected' : ''}>Greater or Equal</option>
-                                <option value="<" ${ifCondition.op === '<' ? 'selected' : ''}>Less Than</option>
-                                <option value="<=" ${ifCondition.op === '<=' ? 'selected' : ''}>Less or Equal</option>
-                                <option value="==" ${ifCondition.op === '==' ? 'selected' : ''}>Equals</option>
-                                <option value="!=" ${ifCondition.op === '!=' ? 'selected' : ''}>Not Equals</option>
-                            </select>
+                           <select class="form-select form-select-sm condition-field" 
+                                data-condition-index="${conditionIndex}"
+                                data-condition-field="condition_op">
+                            ${getOperatorOptions(ifCondition.op)}
+                        </select>
                         </div>
                         <div class="col-md-4">
                             <input type="text" 
