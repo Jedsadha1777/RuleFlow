@@ -3,7 +3,7 @@
  * Updated from vanilla JS to use jQuery
  */
 
-$(document).ready(function() {
+$(document).ready(function () {
     // Initialize RuleFlow
     const ruleFlow = new RuleFlow();
     let components = [];
@@ -26,36 +26,36 @@ $(document).ready(function() {
      */
     function bindEvents() {
         // Component dropdown events - use event delegation
-        $(document).on('click', '.dropdown-item[data-component]', function(e) {
+        $(document).on('click', '.dropdown-item[data-component]', function (e) {
             e.preventDefault();
             const componentType = $(this).data('component');
             addComponent(componentType);
         });
 
         // Component control events - use event delegation
-        $(document).on('click', '.toggle-btn', function() {
+        $(document).on('click', '.toggle-btn', function () {
             const index = $(this).data('index');
             toggleComponent(index);
         });
-        
-        $(document).on('click', '.copy-btn', function() {
+
+        $(document).on('click', '.copy-btn', function () {
             const index = $(this).data('index');
             copyComponent(index);
         });
-        
-        $(document).on('click', '.delete-btn', function() {
+
+        $(document).on('click', '.delete-btn', function () {
             const index = $(this).data('index');
             deleteComponent(index);
         });
 
         // Component field change events
-        $(document).on('change', '.component-form input, .component-form select', function() {
+        $(document).on('change', '.component-form input, .component-form select', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const field = $this.attr('data-field') || getFieldFromElement($this);
             const value = $this.val();
-            
+
             if (index >= 0 && field) {
                 updateComponentField(index, field, value);
             }
@@ -63,20 +63,20 @@ $(document).ready(function() {
 
 
         // Scoring component management
-        $(document).on('click', '.add-scoring-branch-btn', function() {
+        $(document).on('click', '.add-scoring-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             addScoringBranch(index);
         });
 
-        $(document).on('click', '.remove-scoring-branch-btn', function() {
+        $(document).on('click', '.remove-scoring-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const branchIndex = parseInt($(this).attr('data-branch-index'));
             removeScoringBranch(index, branchIndex);
         });
 
-        $(document).on('change', '.scoring-branch-field', function() {
+        $(document).on('change', '.scoring-branch-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -86,14 +86,14 @@ $(document).ready(function() {
             updateScoringBranch(index, branchIndex, field, value);
         });
 
-        $(document).on('click', '.add-range-to-branch-btn', function() {
+        $(document).on('click', '.add-range-to-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const branchIndex = parseInt($(this).attr('data-branch-index'));
             addRangeToBranch(index, branchIndex);
         });
 
-        $(document).on('click', '.remove-range-from-branch-btn', function() {
+        $(document).on('click', '.remove-range-from-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const branchIndex = parseInt($(this).attr('data-branch-index'));
@@ -101,7 +101,7 @@ $(document).ready(function() {
             removeRangeFromBranch(index, branchIndex, rangeIndex);
         });
 
-        $(document).on('change', '.scoring-range-field', function() {
+        $(document).on('change', '.scoring-range-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -112,11 +112,11 @@ $(document).ready(function() {
             updateRangeInBranch(index, branchIndex, rangeIndex, field, value);
         });
 
-        $(document).on('click', '.add-custom-field-btn', function() {
+        $(document).on('click', '.add-custom-field-btn', function () {
             const $this = $(this);
             const branchIndex = parseInt($this.attr('data-branch-index'));
             const rangeIndex = parseInt($this.attr('data-range-index'));
-            
+
             const fieldName = prompt('Enter field name (e.g., level, tier, strategy):');
             if (fieldName && fieldName.trim()) {
                 const $card = $this.closest('.card[data-component-index]');
@@ -125,7 +125,7 @@ $(document).ready(function() {
             }
         });
 
-        $(document).on('click', '.remove-custom-field-btn', function() {
+        $(document).on('click', '.remove-custom-field-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -135,7 +135,7 @@ $(document).ready(function() {
             removeCustomFieldFromRange(index, branchIndex, rangeIndex, fieldName);
         });
 
-        $(document).on('change', '.set-vars-field', function() {
+        $(document).on('change', '.set-vars-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -147,26 +147,26 @@ $(document).ready(function() {
 
 
         // Switch case management
-        $(document).on('click', '.add-case-btn', function() {
+        $(document).on('click', '.add-case-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             addSwitchCase(index);
         });
 
-        $(document).on('click', '.add-nested-case-btn', function() {
+        $(document).on('click', '.add-nested-case-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             addNestedSwitchCase(index);
         });
 
-        $(document).on('click', '.remove-case-btn', function() {
+        $(document).on('click', '.remove-case-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const caseIndex = parseInt($(this).attr('data-case-index'));
             removeSwitchCase(index, caseIndex);
         });
 
-        $(document).on('change', '.case-field', function() {
+        $(document).on('change', '.case-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -177,29 +177,29 @@ $(document).ready(function() {
         });
 
         // Nested condition management
-        $(document).on('change', '.condition-type-select', function() {
+        $(document).on('change', '.condition-type-select', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const caseIndex = parseInt($this.attr('data-case-index'));
             const path = JSON.parse($this.attr('data-path') || '[]');
             const value = $this.val();
-            
+
             if (components[index] && components[index].instance.updateNestedConditionByPath) {
                 components[index].instance.updateNestedConditionByPath(caseIndex, path, 'type', value);
                 updateView();
                 updateJSON();
             }
         });
-        
-        $(document).on('click', '.add-condition-to-nested-group-btn', function() {
+
+        $(document).on('click', '.add-condition-to-nested-group-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const caseIndex = parseInt($this.attr('data-case-index'));
             const path = JSON.parse($this.attr('data-path') || '[]');
             const groupType = $this.attr('data-group-type');
-            
+
             if (components[index] && components[index].instance.addConditionToGroupByPath) {
                 components[index].instance.addConditionToGroupByPath(caseIndex, path, groupType);
                 updateView();
@@ -207,7 +207,7 @@ $(document).ready(function() {
             }
         });
 
-        $(document).on('click', '.remove-nested-condition-btn', function() {
+        $(document).on('click', '.remove-nested-condition-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -215,15 +215,15 @@ $(document).ready(function() {
             const path = JSON.parse($this.attr('data-path') || '[]');
             const conditionIndex = parseInt($this.attr('data-condition-index'));
             const groupType = $this.attr('data-group-type');
-            
+
             if (components[index] && components[index].instance.removeConditionFromGroupByPath) {
                 components[index].instance.removeConditionFromGroupByPath(caseIndex, path, conditionIndex, groupType);
                 updateView();
                 updateJSON();
             }
         });
-        
-        $(document).on('change', '.nested-condition-field', function() {
+
+        $(document).on('change', '.nested-condition-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -231,7 +231,7 @@ $(document).ready(function() {
             const path = JSON.parse($this.attr('data-path') || '[]');
             const field = $this.attr('data-condition-field');
             const value = $this.val();
-            
+
             if (components[index] && components[index].instance.updateNestedConditionByPath) {
                 components[index].instance.updateNestedConditionByPath(caseIndex, path, field, value);
                 updateJSON();
@@ -239,7 +239,7 @@ $(document).ready(function() {
             }
         });
 
-        $(document).on('click', '.add-condition-to-group-btn', function() {
+        $(document).on('click', '.add-condition-to-group-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -248,7 +248,7 @@ $(document).ready(function() {
             addConditionToGroup(index, caseIndex, groupType);
         });
 
-        $(document).on('click', '.remove-condition-from-group-btn', function() {
+        $(document).on('click', '.remove-condition-from-group-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -259,20 +259,20 @@ $(document).ready(function() {
         });
 
         // Conditions management
-        $(document).on('click', '.add-condition-btn', function() {
+        $(document).on('click', '.add-condition-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             addCondition(index);
         });
 
-        $(document).on('click', '.remove-condition-btn', function() {
+        $(document).on('click', '.remove-condition-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const conditionIndex = parseInt($(this).attr('data-condition-index'));
             removeCondition(index, conditionIndex);
         });
 
-        $(document).on('change', '.condition-field', function() {
+        $(document).on('change', '.condition-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -283,33 +283,27 @@ $(document).ready(function() {
         });
 
         //Dynamic place update for operators
-        $(document).on('change', 'select[data-condition-field="op"], select[data-range-field="op"], select[data-condition-field="condition_op"], .scoring-branch-field[data-branch-field="op"]', function() {
+        $(document).on('change', 'select[data-condition-field="op"], select[data-range-field="op"], select[data-condition-field="condition_op"], .scoring-branch-field[data-branch-field="op"]', function () {
             const $this = $(this);
             const selectedOp = $this.val();
 
             const $valueInput = $this.closest('.row, .condition-row, .simple-condition-inline, .primary-condition')
-                                    .find('input[data-condition-field="value"], input[data-range-field="value"], input[data-condition-field="condition_value"], input[data-branch-field="value"]');
-            
+                .find('input[data-condition-field="value"], input[data-range-field="value"], input[data-condition-field="condition_value"], input[data-branch-field="value"]');
+
             if ($valueInput.length) {
                 $valueInput.attr('placeholder', getValuePlaceholder(selectedOp));
             }
         });
 
-        // Scoring component events
-        $(document).on('click', '.add-scoring-branch-btn', function() {
-            const $card = $(this).closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            addScoringBranch(index);
-        });
 
-        $(document).on('click', '.remove-scoring-branch-btn', function() {
+        $(document).on('click', '.remove-scoring-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const branchIndex = parseInt($(this).attr('data-branch-index'));
             removeScoringBranch(index, branchIndex);
         });
 
-        $(document).on('change', '.scoring-branch-field', function() {
+        $(document).on('change', '.scoring-branch-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -319,14 +313,9 @@ $(document).ready(function() {
             updateScoringBranch(index, branchIndex, field, value);
         });
 
-        $(document).on('click', '.add-range-to-branch-btn', function() {
-            const $card = $(this).closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            const branchIndex = parseInt($(this).attr('data-branch-index'));
-            addRangeToBranch(index, branchIndex);
-        });
 
-        $(document).on('click', '.remove-range-from-branch-btn', function() {
+
+        $(document).on('click', '.remove-range-from-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const branchIndex = parseInt($(this).attr('data-branch-index'));
@@ -334,7 +323,7 @@ $(document).ready(function() {
             removeRangeFromBranch(index, branchIndex, rangeIndex);
         });
 
-        $(document).on('change', '.scoring-range-field', function() {
+        $(document).on('change', '.scoring-range-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -345,7 +334,7 @@ $(document).ready(function() {
             updateRangeInBranch(index, branchIndex, rangeIndex, field, value);
         });
 
-        $(document).on('change', '.set-vars-field', function() {
+        $(document).on('change', '.set-vars-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -355,20 +344,7 @@ $(document).ready(function() {
             updateSetVars(index, branchIndex, rangeIndex, value);
         });
 
-        $(document).on('click', '.add-custom-field-btn', function() {
-            const $this = $(this);
-            const branchIndex = parseInt($this.attr('data-branch-index'));
-            const rangeIndex = parseInt($this.attr('data-range-index'));
-            
-            const fieldName = prompt('Enter field name (e.g., level, tier, strategy):');
-            if (fieldName && fieldName.trim()) {
-                const $card = $this.closest('.card[data-component-index]');
-                const index = parseInt($card.attr('data-component-index'));
-                addCustomFieldToRange(index, branchIndex, rangeIndex, fieldName.trim());
-            }
-        });
-
-        $(document).on('click', '.remove-custom-field-btn', function() {
+        $(document).on('click', '.remove-custom-field-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -399,7 +375,7 @@ $(document).ready(function() {
     function getFieldFromElement($element) {
         const placeholder = $element.attr('placeholder');
         const id = $element.attr('id');
-        
+
         // Try to derive field name from context
         if (placeholder) {
             if (placeholder.includes('formula') || placeholder.includes('Formula')) return 'formula';
@@ -408,7 +384,7 @@ $(document).ready(function() {
             if (placeholder.includes('Default')) return 'default';
             if (placeholder.includes('Input')) return 'inputs';
         }
-        
+
         // Try from parent label
         const $label = $element.closest('.mb-3, .col-md-6').find('label');
         if ($label.length) {
@@ -420,7 +396,7 @@ $(document).ready(function() {
             if (labelText.includes('input')) return 'inputs';
             if (labelText.includes('id')) return 'id';
         }
-        
+
         return null;
     }
 
@@ -429,8 +405,8 @@ $(document).ready(function() {
      */
     function addComponent(type) {
         let instance;
-        
-        switch(type) {
+
+        switch (type) {
             case 'formula':
                 instance = new FormulaComponent();
                 break;
@@ -440,11 +416,9 @@ $(document).ready(function() {
             case 'conditions':
                 instance = new ConditionsComponent();
                 break;
-
             case 'scoring':  // เพิ่มบรรทัดนี้
                 instance = new ScoringComponent();
                 break;
-
             default:
                 showToast('Unknown component type', 'error');
                 return;
@@ -459,7 +433,7 @@ $(document).ready(function() {
         components.push(component);
         updateView();
         updateJSON();
-        
+
         debug(`Added ${type} component`, 'info');
         showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} component added`, 'success');
     }
@@ -467,7 +441,7 @@ $(document).ready(function() {
     /**
      * Toggle component visibility
      */
-    window.toggleComponent = function(index) {
+    window.toggleComponent = function (index) {
         if (components[index]) {
             components[index].open = !components[index].open;
             updateView();
@@ -477,27 +451,27 @@ $(document).ready(function() {
     /**
      * Copy component
      */
-    window.copyComponent = function(index) {
+    window.copyComponent = function (index) {
         if (components[index]) {
             const originalComponent = components[index];
             const newInstance = Object.create(Object.getPrototypeOf(originalComponent.instance));
             Object.assign(newInstance, originalComponent.instance);
-            
+
             // Update ID to make it unique
             const originalId = newInstance.getId();
             const newId = originalId + '_copy';
             newInstance.setId(newId);
-            
+
             const newComponent = {
                 type: originalComponent.type,
                 instance: newInstance,
                 open: true
             };
-            
+
             components.push(newComponent);
             updateView();
             updateJSON();
-            
+
             debug(`Copied component ${originalId} as ${newId}`, 'info');
             showToast('Component copied', 'success');
         }
@@ -506,14 +480,14 @@ $(document).ready(function() {
     /**
      * Delete component
      */
-    window.deleteComponent = function(index) {
+    window.deleteComponent = function (index) {
         if (components[index]) {
             const componentId = components[index].instance.getId();
             components.splice(index, 1);
             updateView();
             updateJSON();
             updateInputVariables();
-            
+
             debug(`Deleted component ${componentId}`, 'info');
             showToast('Component deleted', 'success');
         }
@@ -522,12 +496,12 @@ $(document).ready(function() {
     /**
      * Update component field
      */
-    window.updateComponentField = function(index, field, value) {
+    window.updateComponentField = function (index, field, value) {
         if (components[index] && components[index].instance.updateField) {
             components[index].instance.updateField(field, value);
             updateJSON();
             updateInputVariables();
-            
+
             debug(`Updated ${field} for component ${index}`, 'info');
         }
     };
@@ -538,17 +512,17 @@ $(document).ready(function() {
     function updateView() {
         const $container = $('#componentContainer');
         const $emptyState = $('#emptyState');
-        
+
         // Clear existing components (except empty state)
         $container.children().not('#emptyState').remove();
-        
+
         if (components.length === 0) {
             $emptyState.show();
             return;
         }
-        
+
         $emptyState.hide();
-        
+
         components.forEach((component, index) => {
             const $element = createComponentElement(component, index);
             $container.append($element);
@@ -562,8 +536,8 @@ $(document).ready(function() {
         const iconClass = component.type;
         const title = component.instance.getTitle();
         const chevronIcon = component.open ? 'chevron-down' : 'chevron-right';
-       
-       const $div = $(`
+
+        const $div = $(`
            <div class="card mb-3" data-component-index="${index}">
                <div class="card-header">
                    <div class="d-flex align-items-center justify-content-between">
@@ -595,150 +569,150 @@ $(document).ready(function() {
                </div>
            </div>
        `);
-       
-       return $div;
-   }
 
-   /**
-    * Update JSON output
-    */
-   function updateJSON() {
-       const config = {
-           formulas: components.map(comp => comp.instance.toJSON())
-       };
-       
-       const jsonString = JSON.stringify(config, null, 2);
-       $('#jsonOutput').text(jsonString);
-       
-       debug('JSON updated', 'info');
-   }
+        return $div;
+    }
 
-   /**
-    * Update input variables
-    */
-   function updateInputVariables() {
-       const inputs = extractInputVariables();
-       renderInputVariables(inputs);
-   }
+    /**
+     * Update JSON output
+     */
+    function updateJSON() {
+        const config = {
+            formulas: components.map(comp => comp.instance.toJSON())
+        };
 
-   /**
-    * Extract input variables from components
-    */
-   function extractInputVariables() {
-       const inputs = new Set();
-       const calculatedValues = new Set();
-       
-       // Collect calculated values first
-       components.forEach(comp => {
-           const json = comp.instance.toJSON();
-           calculatedValues.add(json.id);
-           if (json.as) {
-               const varName = json.as.startsWith('$') ? json.as.substring(1) : json.as;
-               calculatedValues.add(varName);
-           }
-       });
-       
-       // Extract variables from formulas
-       components.forEach(comp => {
-           const json = comp.instance.toJSON();
-           
-           if (json.formula) {
-               const variables = json.formula.match(/\$(\w+)/g);
-               if (variables) {
-                   variables.forEach(variable => {
-                       const varName = variable.substring(1);
-                       if (!calculatedValues.has(varName)) {
-                           inputs.add(varName);
-                       }
-                   });
-               }
-           }
-           
-           // Extract from switch conditions
-           if (json.switch) {
-               const switchVar = json.switch.startsWith('$') ? json.switch.substring(1) : json.switch;
-               if (!calculatedValues.has(switchVar)) {
-                   inputs.add(switchVar);
-               }
-           }
-           
-           // Extract from conditions
-           if (json.conditions) {
-               extractVariablesFromConditions(json.conditions, inputs, calculatedValues);
-           }
-           
-           if (json.when) {
-               extractVariablesFromConditions(json.when, inputs, calculatedValues);
-           }
-       });
-       
-       return Array.from(inputs);
-   }
+        const jsonString = JSON.stringify(config, null, 2);
+        $('#jsonOutput').text(jsonString);
 
-   /**
-    * Extract variables from nested conditions
-    */
-   function extractVariablesFromConditions(conditions, inputs, calculatedValues) {
-       if (!Array.isArray(conditions)) return;
-       
-       conditions.forEach(condition => {
-           if (condition.if) {
-               extractVariablesFromCondition(condition.if, inputs, calculatedValues);
-           }
-           if (condition.field) {
-               const fieldName = condition.field.startsWith('$') ? condition.field.substring(1) : condition.field;
-               if (!calculatedValues.has(fieldName)) {
-                   inputs.add(fieldName);
-               }
-           }
-           if (condition.var) {
-               const varName = condition.var.startsWith('$') ? condition.var.substring(1) : condition.var;
-               if (!calculatedValues.has(varName)) {
-                   inputs.add(varName);
-               }
-           }
-       });
-   }
+        debug('JSON updated', 'info');
+    }
 
-   /**
-    * Extract variables from single condition
-    */
-   function extractVariablesFromCondition(condition, inputs, calculatedValues) {
-       if (condition.and) {
-           condition.and.forEach(sub => extractVariablesFromCondition(sub, inputs, calculatedValues));
-       }
-       if (condition.or) {
-           condition.or.forEach(sub => extractVariablesFromCondition(sub, inputs, calculatedValues));
-       }
-       if (condition.field) {
-           const fieldName = condition.field.startsWith('$') ? condition.field.substring(1) : condition.field;
-           if (!calculatedValues.has(fieldName)) {
-               inputs.add(fieldName);
-           }
-       }
-       if (condition.var) {
-           const varName = condition.var.startsWith('$') ? condition.var.substring(1) : condition.var;
-           if (!calculatedValues.has(varName)) {
-               inputs.add(varName);
-           }
-       }
-   }
+    /**
+     * Update input variables
+     */
+    function updateInputVariables() {
+        const inputs = extractInputVariables();
+        renderInputVariables(inputs);
+    }
 
-   /**
-    * Render input variables using jQuery
-    */
-   function renderInputVariables(inputs) {
-       const $container = $('#inputVariables');
-       
-       if (inputs.length === 0) {
-           $container.html('<p class="text-muted mb-0">Add components to see input variables</p>');
-           return;
-       }
-       
-       $container.empty();
-       
-       inputs.forEach(input => {
-           const $inputDiv = $(`
+    /**
+     * Extract input variables from components
+     */
+    function extractInputVariables() {
+        const inputs = new Set();
+        const calculatedValues = new Set();
+
+        // Collect calculated values first
+        components.forEach(comp => {
+            const json = comp.instance.toJSON();
+            calculatedValues.add(json.id);
+            if (json.as) {
+                const varName = json.as.startsWith('$') ? json.as.substring(1) : json.as;
+                calculatedValues.add(varName);
+            }
+        });
+
+        // Extract variables from formulas
+        components.forEach(comp => {
+            const json = comp.instance.toJSON();
+
+            if (json.formula) {
+                const variables = json.formula.match(/\$(\w+)/g);
+                if (variables) {
+                    variables.forEach(variable => {
+                        const varName = variable.substring(1);
+                        if (!calculatedValues.has(varName)) {
+                            inputs.add(varName);
+                        }
+                    });
+                }
+            }
+
+            // Extract from switch conditions
+            if (json.switch) {
+                const switchVar = json.switch.startsWith('$') ? json.switch.substring(1) : json.switch;
+                if (!calculatedValues.has(switchVar)) {
+                    inputs.add(switchVar);
+                }
+            }
+
+            // Extract from conditions
+            if (json.conditions) {
+                extractVariablesFromConditions(json.conditions, inputs, calculatedValues);
+            }
+
+            if (json.when) {
+                extractVariablesFromConditions(json.when, inputs, calculatedValues);
+            }
+        });
+
+        return Array.from(inputs);
+    }
+
+    /**
+     * Extract variables from nested conditions
+     */
+    function extractVariablesFromConditions(conditions, inputs, calculatedValues) {
+        if (!Array.isArray(conditions)) return;
+
+        conditions.forEach(condition => {
+            if (condition.if) {
+                extractVariablesFromCondition(condition.if, inputs, calculatedValues);
+            }
+            if (condition.field) {
+                const fieldName = condition.field.startsWith('$') ? condition.field.substring(1) : condition.field;
+                if (!calculatedValues.has(fieldName)) {
+                    inputs.add(fieldName);
+                }
+            }
+            if (condition.var) {
+                const varName = condition.var.startsWith('$') ? condition.var.substring(1) : condition.var;
+                if (!calculatedValues.has(varName)) {
+                    inputs.add(varName);
+                }
+            }
+        });
+    }
+
+    /**
+     * Extract variables from single condition
+     */
+    function extractVariablesFromCondition(condition, inputs, calculatedValues) {
+        if (condition.and) {
+            condition.and.forEach(sub => extractVariablesFromCondition(sub, inputs, calculatedValues));
+        }
+        if (condition.or) {
+            condition.or.forEach(sub => extractVariablesFromCondition(sub, inputs, calculatedValues));
+        }
+        if (condition.field) {
+            const fieldName = condition.field.startsWith('$') ? condition.field.substring(1) : condition.field;
+            if (!calculatedValues.has(fieldName)) {
+                inputs.add(fieldName);
+            }
+        }
+        if (condition.var) {
+            const varName = condition.var.startsWith('$') ? condition.var.substring(1) : condition.var;
+            if (!calculatedValues.has(varName)) {
+                inputs.add(varName);
+            }
+        }
+    }
+
+    /**
+     * Render input variables using jQuery
+     */
+    function renderInputVariables(inputs) {
+        const $container = $('#inputVariables');
+
+        if (inputs.length === 0) {
+            $container.html('<p class="text-muted mb-0">Add components to see input variables</p>');
+            return;
+        }
+
+        $container.empty();
+
+        inputs.forEach(input => {
+            const $inputDiv = $(`
                <div class="input-variable mb-2" data-input="${input}">
                    <label class="form-label small">${input}</label>
                    <input type="number" 
@@ -748,185 +722,185 @@ $(document).ready(function() {
                           step="any">
                </div>
            `);
-           
-           $container.append($inputDiv);
-       });
-       
-       debug(`Rendered ${inputs.length} input variables`, 'info');
-   }
 
-   /**
-    * Get current inputs from form
-    */
-   function getCurrentInputs() {
-       const inputs = {};
-       
-       $('.input-variable input').each(function() {
-           const $input = $(this);
-           const value = $input.val();
-           const name = $input.attr('id').replace('input_', '');
-           
-           if (value !== '') {
-               inputs[name] = parseFloat(value) || value;
-           }
-       });
-       
-       return inputs;
-   }
+            $container.append($inputDiv);
+        });
 
-   /**
-    * Get current configuration
-    */
-   function getCurrentConfig() {
-       try {
-           const config = {
-               formulas: components.map(comp => comp.instance.toJSON())
-           };
-           return config;
-       } catch (error) {
-           debug(`Error getting config: ${error.message}`, 'error');
-           return null;
-       }
-   }
+        debug(`Rendered ${inputs.length} input variables`, 'info');
+    }
 
-   /**
-    * Validate configuration
-    */
-   function validateConfiguration() {
-       const config = getCurrentConfig();
-       if (!config) {
-           showError('Please add components to validate');
-           return;
-       }
+    /**
+     * Get current inputs from form
+     */
+    function getCurrentInputs() {
+        const inputs = {};
 
-       const validation = ruleFlow.validateConfig(config);
-       
-       if (validation.valid) {
-           showSuccess('Configuration is valid!');
-           if (validation.warnings.length > 0) {
-               showWarning(`Warnings: ${validation.warnings.join(', ')}`);
-           }
-       } else {
-           showError(`Validation failed: ${validation.errors.join(', ')}`);
-       }
-       
-       debug(`Validation result: ${validation.valid}`, validation.valid ? 'success' : 'error');
-   }
+        $('.input-variable input').each(function () {
+            const $input = $(this);
+            const value = $input.val();
+            const name = $input.attr('id').replace('input_', '');
 
-   /**
-    * Execute rules
-    */
-   async function executeRules() {
-       const config = getCurrentConfig();
-       const inputs = getCurrentInputs();
-       
-       if (!config) {
-           showError('Please add components to execute');
-           return;
-       }
+            if (value !== '') {
+                inputs[name] = parseFloat(value) || value;
+            }
+        });
 
-       if (Object.keys(inputs).length === 0) {
-           showWarning('No input values provided');
-       }
+        return inputs;
+    }
 
-       try {
-           const result = await ruleFlow.evaluate(config, inputs);
-           
-           if (result.success) {
-               showResults(result.results, result.executionTime);
-               debug(`Execution successful in ${result.executionTime}ms`, 'success');
-           } else {
-               showError(`Execution failed: ${result.error}`);
-               debug(`Execution failed: ${result.error}`, 'error');
-           }
-       } catch (error) {
-           showError(`Execution error: ${error.message}`);
-           debug(`Execution error: ${error.message}`, 'error');
-       }
-   }
+    /**
+     * Get current configuration
+     */
+    function getCurrentConfig() {
+        try {
+            const config = {
+                formulas: components.map(comp => comp.instance.toJSON())
+            };
+            return config;
+        } catch (error) {
+            debug(`Error getting config: ${error.message}`, 'error');
+            return null;
+        }
+    }
 
-   /**
-    * Auto-execute rules (debounced)
-    */
-   async function autoExecute() {
-       const config = getCurrentConfig();
-       const inputs = getCurrentInputs();
-       
-       if (!config || Object.keys(inputs).length === 0) {
-           return;
-       }
+    /**
+     * Validate configuration
+     */
+    function validateConfiguration() {
+        const config = getCurrentConfig();
+        if (!config) {
+            showError('Please add components to validate');
+            return;
+        }
 
-       try {
-           const result = await ruleFlow.evaluate(config, inputs);
-           if (result.success) {
-               showResults(result.results, result.executionTime, true);
-           }
-       } catch (error) {
-           debug(`Auto-execution failed: ${error.message}`, 'warning');
-       }
-   }
+        const validation = ruleFlow.validateConfig(config);
 
-   /**
-    * Generate JavaScript code
-    */
-   function generateCode() {
-       const config = getCurrentConfig();
-       if (!config) {
-           showError('Please add components to generate code');
-           return;
-       }
+        if (validation.valid) {
+            showSuccess('Configuration is valid!');
+            if (validation.warnings.length > 0) {
+                showWarning(`Warnings: ${validation.warnings.join(', ')}`);
+            }
+        } else {
+            showError(`Validation failed: ${validation.errors.join(', ')}`);
+        }
 
-       try {
-           const generatedCode = ruleFlow.generateCode(config);
-           $('#generatedCode').val(generatedCode);
-           showSuccess('Code generated successfully!');
-           debug('Code generation successful', 'success');
-       } catch (error) {
-           showError(`Code generation failed: ${error.message}`);
-           debug(`Code generation failed: ${error.message}`, 'error');
-       }
-   }
+        debug(`Validation result: ${validation.valid}`, validation.valid ? 'success' : 'error');
+    }
 
-   /**
-    * Copy generated code to clipboard
-    */
-   function copyCode() {
-       const code = $('#generatedCode').val();
-       if (!code) {
-           showWarning('No code to copy. Generate code first.');
-           return;
-       }
+    /**
+     * Execute rules
+     */
+    async function executeRules() {
+        const config = getCurrentConfig();
+        const inputs = getCurrentInputs();
 
-       copyToClipboard(code, 'Code copied to clipboard!');
-   }
+        if (!config) {
+            showError('Please add components to execute');
+            return;
+        }
 
-   /**
-    * Copy JSON to clipboard
-    */
-   function copyJSON() {
-       const jsonText = $('#jsonOutput').text();
-       copyToClipboard(jsonText, 'JSON copied to clipboard!');
-   }
+        if (Object.keys(inputs).length === 0) {
+            showWarning('No input values provided');
+        }
 
-   /**
-    * Add custom variable
-    */
-   function addCustomVariable() {
-       const name = prompt('Variable name:');
-       if (!name || name.trim() === '') return;
+        try {
+            const result = await ruleFlow.evaluate(config, inputs);
 
-       const cleanName = name.trim().replace(/[^a-zA-Z0-9_]/g, '');
-       if (cleanName !== name.trim()) {
-           showWarning(`Variable name cleaned to: ${cleanName}`);
-       }
+            if (result.success) {
+                showResults(result.results, result.executionTime);
+                debug(`Execution successful in ${result.executionTime}ms`, 'success');
+            } else {
+                showError(`Execution failed: ${result.error}`);
+                debug(`Execution failed: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            showError(`Execution error: ${error.message}`);
+            debug(`Execution error: ${error.message}`, 'error');
+        }
+    }
 
-       // Check if already exists
-       if ($(`#input_${cleanName}`).length > 0) {
-           showWarning('Variable already exists');
-           return;
-       }
+    /**
+     * Auto-execute rules (debounced)
+     */
+    async function autoExecute() {
+        const config = getCurrentConfig();
+        const inputs = getCurrentInputs();
 
-       const $inputDiv = $(`
+        if (!config || Object.keys(inputs).length === 0) {
+            return;
+        }
+
+        try {
+            const result = await ruleFlow.evaluate(config, inputs);
+            if (result.success) {
+                showResults(result.results, result.executionTime, true);
+            }
+        } catch (error) {
+            debug(`Auto-execution failed: ${error.message}`, 'warning');
+        }
+    }
+
+    /**
+     * Generate JavaScript code
+     */
+    function generateCode() {
+        const config = getCurrentConfig();
+        if (!config) {
+            showError('Please add components to generate code');
+            return;
+        }
+
+        try {
+            const generatedCode = ruleFlow.generateCode(config);
+            $('#generatedCode').val(generatedCode);
+            showSuccess('Code generated successfully!');
+            debug('Code generation successful', 'success');
+        } catch (error) {
+            showError(`Code generation failed: ${error.message}`);
+            debug(`Code generation failed: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Copy generated code to clipboard
+     */
+    function copyCode() {
+        const code = $('#generatedCode').val();
+        if (!code) {
+            showWarning('No code to copy. Generate code first.');
+            return;
+        }
+
+        copyToClipboard(code, 'Code copied to clipboard!');
+    }
+
+    /**
+     * Copy JSON to clipboard
+     */
+    function copyJSON() {
+        const jsonText = $('#jsonOutput').text();
+        copyToClipboard(jsonText, 'JSON copied to clipboard!');
+    }
+
+    /**
+     * Add custom variable
+     */
+    function addCustomVariable() {
+        const name = prompt('Variable name:');
+        if (!name || name.trim() === '') return;
+
+        const cleanName = name.trim().replace(/[^a-zA-Z0-9_]/g, '');
+        if (cleanName !== name.trim()) {
+            showWarning(`Variable name cleaned to: ${cleanName}`);
+        }
+
+        // Check if already exists
+        if ($(`#input_${cleanName}`).length > 0) {
+            showWarning('Variable already exists');
+            return;
+        }
+
+        const $inputDiv = $(`
            <div class="input-variable mb-2" data-input="${cleanName}">
                <label class="form-label small">${cleanName} (custom)</label>
                <div class="input-group input-group-sm">
@@ -944,310 +918,310 @@ $(document).ready(function() {
            </div>
        `);
 
-       $('#inputVariables').append($inputDiv);
+        $('#inputVariables').append($inputDiv);
 
-       // Bind remove event
-       $inputDiv.find('.btn-remove-var').on('click', function() {
-           const varName = $(this).data('var');
-           $(`.input-variable[data-input="${varName}"]`).remove();
-           debug(`Removed custom variable: ${varName}`, 'info');
-       });
+        // Bind remove event
+        $inputDiv.find('.btn-remove-var').on('click', function () {
+            const varName = $(this).data('var');
+            $(`.input-variable[data-input="${varName}"]`).remove();
+            debug(`Removed custom variable: ${varName}`, 'info');
+        });
 
-       debug(`Added custom variable: ${cleanName}`, 'info');
-       showSuccess(`Custom variable "${cleanName}" added`);
-   }
+        debug(`Added custom variable: ${cleanName}`, 'info');
+        showSuccess(`Custom variable "${cleanName}" added`);
+    }
 
-   /**
-    * Test configuration with PHP backend
-    */
-   function testConfig() {
-       const config = getCurrentConfig();
-       if (!config) {
-           showError('Please add components to test');
-           return;
-       }
+    /**
+     * Test configuration with PHP backend
+     */
+    function testConfig() {
+        const config = getCurrentConfig();
+        if (!config) {
+            showError('Please add components to test');
+            return;
+        }
 
-       // This would normally make an AJAX call to PHP backend
-       // For now, just show the configuration
-       const $testResult = $('#testResult');
-       $testResult.html(`
+        // This would normally make an AJAX call to PHP backend
+        // For now, just show the configuration
+        const $testResult = $('#testResult');
+        $testResult.html(`
            <div class="alert alert-info alert-sm mt-2">
                <strong>Test Configuration:</strong><br>
                <small>Ready to test with ${config.formulas.length} formula(s)</small>
            </div>
        `);
-       
-       debug('Test configuration displayed', 'info');
-   }
 
-   /**
-    * Show results in panel
-    */
-   function showResults(results, executionTime, isAuto = false) {
-       const $panel = $('#resultsPanel');
-       $panel.removeClass('error-panel warning-panel').addClass('result-panel');
-       
-       const title = isAuto ? 'Auto Results' : 'Execution Results';
-       let html = `<h6>${title}</h6>`;
-       
-       if (Object.keys(results).length === 0) {
-           html += '<p class="text-muted mb-0">No results</p>';
-       } else {
-           html += '<div class="results-grid">';
-           Object.entries(results).forEach(([key, value]) => {
-               html += `
+        debug('Test configuration displayed', 'info');
+    }
+
+    /**
+     * Show results in panel
+     */
+    function showResults(results, executionTime, isAuto = false) {
+        const $panel = $('#resultsPanel');
+        $panel.removeClass('error-panel warning-panel').addClass('result-panel');
+
+        const title = isAuto ? 'Auto Results' : 'Execution Results';
+        let html = `<h6>${title}</h6>`;
+
+        if (Object.keys(results).length === 0) {
+            html += '<p class="text-muted mb-0">No results</p>';
+        } else {
+            html += '<div class="results-grid">';
+            Object.entries(results).forEach(([key, value]) => {
+                html += `
                    <div class="result-item d-flex justify-content-between">
                        <span class="fw-semibold">${key}:</span>
                        <span class="text-primary">${formatValue(value)}</span>
                    </div>
                `;
-           });
-           html += '</div>';
-       }
-       
-       if (executionTime !== undefined) {
-           html += `<small class="text-muted d-block mt-2">Execution time: ${executionTime}ms</small>`;
-       }
-       
-       $panel.html(html);
-   }
+            });
+            html += '</div>';
+        }
 
-   /**
-    * Format value for display
-    */
-   function formatValue(value) {
-       if (typeof value === 'number') {
-           return Number.isInteger(value) ? value.toString() : value.toFixed(3);
-       }
-       return value;
-   }
+        if (executionTime !== undefined) {
+            html += `<small class="text-muted d-block mt-2">Execution time: ${executionTime}ms</small>`;
+        }
 
-   /**
-    * Copy text to clipboard
-    */
-   function copyToClipboard(text, successMessage) {
-       if (navigator.clipboard && navigator.clipboard.writeText) {
-           navigator.clipboard.writeText(text).then(() => {
-               showSuccess(successMessage);
-           }).catch(err => {
-               console.error('Failed to copy:', err);
-               fallbackCopyTextToClipboard(text, successMessage);
-           });
-       } else {
-           fallbackCopyTextToClipboard(text, successMessage);
-       }
-   }
+        $panel.html(html);
+    }
 
-   /**
-    * Fallback copy method
-    */
-   function fallbackCopyTextToClipboard(text, successMessage) {
-       const $textArea = $('<textarea>').val(text).css({
-           position: 'fixed',
-           top: '0',
-           left: '0'
-       });
-       
-       $('body').append($textArea);
-       $textArea[0].focus();
-       $textArea[0].select();
-       
-       try {
-           const successful = document.execCommand('copy');
-           if (successful) {
-               showSuccess(successMessage);
-           } else {
-               showError('Failed to copy');
-           }
-       } catch (err) {
-           showError('Copy not supported');
-       }
-       
-       $textArea.remove();
-   }
+    /**
+     * Format value for display
+     */
+    function formatValue(value) {
+        if (typeof value === 'number') {
+            return Number.isInteger(value) ? value.toString() : value.toFixed(3);
+        }
+        return value;
+    }
 
-   /**
-    * Show toast message
-    */
-   function showToast(message, type = 'info') {
-       // Create toast element if it doesn't exist
-       if ($('#toastContainer').length === 0) {
-           $('body').append('<div id="toastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>');
-       }
-       
-       const toastId = 'toast_' + Date.now();
-       const bgClass = type === 'success' ? 'bg-success' : 
-                      type === 'error' ? 'bg-danger' : 
-                      type === 'warning' ? 'bg-warning' : 'bg-info';
-       
-       const $toast = $(`
+    /**
+     * Copy text to clipboard
+     */
+    function copyToClipboard(text, successMessage) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showSuccess(successMessage);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                fallbackCopyTextToClipboard(text, successMessage);
+            });
+        } else {
+            fallbackCopyTextToClipboard(text, successMessage);
+        }
+    }
+
+    /**
+     * Fallback copy method
+     */
+    function fallbackCopyTextToClipboard(text, successMessage) {
+        const $textArea = $('<textarea>').val(text).css({
+            position: 'fixed',
+            top: '0',
+            left: '0'
+        });
+
+        $('body').append($textArea);
+        $textArea[0].focus();
+        $textArea[0].select();
+
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showSuccess(successMessage);
+            } else {
+                showError('Failed to copy');
+            }
+        } catch (err) {
+            showError('Copy not supported');
+        }
+
+        $textArea.remove();
+    }
+
+    /**
+     * Show toast message
+     */
+    function showToast(message, type = 'info') {
+        // Create toast element if it doesn't exist
+        if ($('#toastContainer').length === 0) {
+            $('body').append('<div id="toastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>');
+        }
+
+        const toastId = 'toast_' + Date.now();
+        const bgClass = type === 'success' ? 'bg-success' :
+            type === 'error' ? 'bg-danger' :
+                type === 'warning' ? 'bg-warning' : 'bg-info';
+
+        const $toast = $(`
            <div id="${toastId}" class="toast ${bgClass} text-white" role="alert">
                <div class="toast-body">
                    ${message}
                </div>
            </div>
        `);
-       
-       $('#toastContainer').append($toast);
-       
-       // Initialize and show toast
-       const toast = new bootstrap.Toast($toast[0], { delay: 3000 });
-       toast.show();
-       
-       // Remove after hide
-       $toast.on('hidden.bs.toast', function() {
-           $(this).remove();
-       });
-   }
 
-   /**
-    * Show success message
-    */
-   function showSuccess(message) {
-       showToast(message, 'success');
-   }
+        $('#toastContainer').append($toast);
 
-   /**
-    * Show error message
-    */
-   function showError(message) {
-       showToast(message, 'error');
-   }
+        // Initialize and show toast
+        const toast = new bootstrap.Toast($toast[0], { delay: 3000 });
+        toast.show();
 
-   /**
-    * Show warning message
-    */
-   function showWarning(message) {
-       showToast(message, 'warning');
-   }
+        // Remove after hide
+        $toast.on('hidden.bs.toast', function () {
+            $(this).remove();
+        });
+    }
 
-   /**
-    * Debug logging
-    */
-   function debug(message, type = 'info') {
-       if (!debugEnabled) return;
-       
-       const timestamp = new Date().toLocaleTimeString();
-       const prefix = type === 'error' ? '❌' : 
-                     type === 'warning' ? '⚠️' : 
-                     type === 'success' ? '✅' : 'ℹ️';
-       
-       console.log(`[${timestamp}] ${prefix} ${message}`);
-       
-       // Add to debug console if visible
-       const $debugConsole = $('#debugConsole');
-       if ($debugConsole.length && $('#debugSection').is(':visible')) {
-           const $logEntry = $(`<div class="debug-entry text-${type}">[${timestamp}] ${message}</div>`);
-           $debugConsole.append($logEntry);
-           $debugConsole.scrollTop($debugConsole[0].scrollHeight);
-       }
-   }
+    /**
+     * Show success message
+     */
+    function showSuccess(message) {
+        showToast(message, 'success');
+    }
 
-   /**
-    * Debounce function
-    */
-   function debounce(func, wait) {
-       let timeout;
-       return function executedFunction(...args) {
-           const later = () => {
-               clearTimeout(timeout);
-               func(...args);
-           };
-           clearTimeout(timeout);
-           timeout = setTimeout(later, wait);
-       };
-   }
+    /**
+     * Show error message
+     */
+    function showError(message) {
+        showToast(message, 'error');
+    }
 
-   // Expose global functions for component usage
-   window.updateComponentField = updateComponentField;
-   window.updateJSON = updateJSON;
-   window.updateInputVariables = updateInputVariables;
-   window.debug = debug;
-   
-   // Global functions for switch case management
-   window.addSwitchCase = function(componentIndex) {
-       if (components[componentIndex] && components[componentIndex].instance.addCase) {
-           components[componentIndex].instance.addCase();
-           updateView();
-           updateJSON();
-       }
-   };
+    /**
+     * Show warning message
+     */
+    function showWarning(message) {
+        showToast(message, 'warning');
+    }
 
-   window.addNestedSwitchCase = function(componentIndex) {
-       if (components[componentIndex] && components[componentIndex].instance.addNestedCase) {
-           components[componentIndex].instance.addNestedCase();
-           updateView();
-           updateJSON();
-       }
-   };
+    /**
+     * Debug logging
+     */
+    function debug(message, type = 'info') {
+        if (!debugEnabled) return;
 
-   window.removeSwitchCase = function(componentIndex, caseIndex) {
-       if (components[componentIndex] && components[componentIndex].instance.removeCase) {
-           components[componentIndex].instance.removeCase(caseIndex);
-           updateView();
-           updateJSON();
-       }
-   };
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix = type === 'error' ? '❌' :
+            type === 'warning' ? '⚠️' :
+                type === 'success' ? '✅' : 'ℹ️';
 
-   window.updateSwitchCase = function(componentIndex, caseIndex, field, value) {
-       if (components[componentIndex] && components[componentIndex].instance.updateCase) {
-           components[componentIndex].instance.updateCase(caseIndex, field, value);
-           updateJSON();
-           updateInputVariables();
-       }
-   };
+        console.log(`[${timestamp}] ${prefix} ${message}`);
 
-   window.updateNestedSwitchCondition = function(componentIndex, caseIndex, conditionIndex, field, value) {
-       if (components[componentIndex] && components[componentIndex].instance.updateNestedCondition) {
-           components[componentIndex].instance.updateNestedCondition(caseIndex, conditionIndex, field, value);
-           updateJSON();
-           updateInputVariables();
-       }
-   };
+        // Add to debug console if visible
+        const $debugConsole = $('#debugConsole');
+        if ($debugConsole.length && $('#debugSection').is(':visible')) {
+            const $logEntry = $(`<div class="debug-entry text-${type}">[${timestamp}] ${message}</div>`);
+            $debugConsole.append($logEntry);
+            $debugConsole.scrollTop($debugConsole[0].scrollHeight);
+        }
+    }
 
-   window.addConditionToGroup = function(componentIndex, caseIndex, groupType) {
-       if (components[componentIndex] && components[componentIndex].instance.addConditionToGroup) {
-           components[componentIndex].instance.addConditionToGroup(caseIndex, groupType);
-           updateView();
-           updateJSON();
-       }
-   };
+    /**
+     * Debounce function
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
 
-   window.removeConditionFromGroup = function(componentIndex, caseIndex, conditionIndex, groupType) {
-       if (components[componentIndex] && components[componentIndex].instance.removeConditionFromGroup) {
-           components[componentIndex].instance.removeConditionFromGroup(caseIndex, conditionIndex, groupType);
-           updateView();
-           updateJSON();
-       }
-   };
+    // Expose global functions for component usage
+    window.updateComponentField = updateComponentField;
+    window.updateJSON = updateJSON;
+    window.updateInputVariables = updateInputVariables;
+    window.debug = debug;
 
-   // Global functions for conditions management
-   window.addCondition = function(componentIndex) {
-       if (components[componentIndex] && components[componentIndex].instance.addCondition) {
-           components[componentIndex].instance.addCondition();
-           updateView();
-           updateJSON();
-       }
-   };
+    // Global functions for switch case management
+    window.addSwitchCase = function (componentIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addCase) {
+            components[componentIndex].instance.addCase();
+            updateView();
+            updateJSON();
+        }
+    };
 
-   window.removeCondition = function(componentIndex, conditionIndex) {
-       if (components[componentIndex] && components[componentIndex].instance.removeCondition) {
-           components[componentIndex].instance.removeCondition(conditionIndex);
-           updateView();
-           updateJSON();
-       }
-   };
+    window.addNestedSwitchCase = function (componentIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addNestedCase) {
+            components[componentIndex].instance.addNestedCase();
+            updateView();
+            updateJSON();
+        }
+    };
 
-   window.updateCondition = function(componentIndex, conditionIndex, field, value) {
-       if (components[componentIndex] && components[componentIndex].instance.updateCondition) {
-           components[componentIndex].instance.updateCondition(conditionIndex, field, value);
-           updateJSON();
-           updateInputVariables();
-       }
-   };
+    window.removeSwitchCase = function (componentIndex, caseIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.removeCase) {
+            components[componentIndex].instance.removeCase(caseIndex);
+            updateView();
+            updateJSON();
+        }
+    };
 
-   // Global functions for scoring management
-    window.addScoringBranch = function(componentIndex) {
+    window.updateSwitchCase = function (componentIndex, caseIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateCase) {
+            components[componentIndex].instance.updateCase(caseIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.updateNestedSwitchCondition = function (componentIndex, caseIndex, conditionIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateNestedCondition) {
+            components[componentIndex].instance.updateNestedCondition(caseIndex, conditionIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.addConditionToGroup = function (componentIndex, caseIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.addConditionToGroup) {
+            components[componentIndex].instance.addConditionToGroup(caseIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeConditionFromGroup = function (componentIndex, caseIndex, conditionIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.removeConditionFromGroup) {
+            components[componentIndex].instance.removeConditionFromGroup(caseIndex, conditionIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    // Global functions for conditions management
+    window.addCondition = function (componentIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addCondition) {
+            components[componentIndex].instance.addCondition();
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeCondition = function (componentIndex, conditionIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.removeCondition) {
+            components[componentIndex].instance.removeCondition(conditionIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateCondition = function (componentIndex, conditionIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateCondition) {
+            components[componentIndex].instance.updateCondition(conditionIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    // Global functions for scoring management
+    window.addScoringBranch = function (componentIndex) {
         if (components[componentIndex] && components[componentIndex].instance.addScoringBranch) {
             components[componentIndex].instance.addScoringBranch();
             updateView();
@@ -1255,7 +1229,7 @@ $(document).ready(function() {
         }
     };
 
-    window.removeScoringBranch = function(componentIndex, branchIndex) {
+    window.removeScoringBranch = function (componentIndex, branchIndex) {
         if (components[componentIndex] && components[componentIndex].instance.removeScoringBranch) {
             components[componentIndex].instance.removeScoringBranch(branchIndex);
             updateView();
@@ -1263,7 +1237,7 @@ $(document).ready(function() {
         }
     };
 
-    window.updateScoringBranch = function(componentIndex, branchIndex, field, value) {
+    window.updateScoringBranch = function (componentIndex, branchIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateScoringBranch) {
             components[componentIndex].instance.updateScoringBranch(branchIndex, field, value);
             updateJSON();
@@ -1271,7 +1245,7 @@ $(document).ready(function() {
         }
     };
 
-    window.addRangeToBranch = function(componentIndex, branchIndex) {
+    window.addRangeToBranch = function (componentIndex, branchIndex) {
         if (components[componentIndex] && components[componentIndex].instance.addRangeToBranch) {
             components[componentIndex].instance.addRangeToBranch(branchIndex);
             updateView();
@@ -1279,7 +1253,7 @@ $(document).ready(function() {
         }
     };
 
-    window.removeRangeFromBranch = function(componentIndex, branchIndex, rangeIndex) {
+    window.removeRangeFromBranch = function (componentIndex, branchIndex, rangeIndex) {
         if (components[componentIndex] && components[componentIndex].instance.removeRangeFromBranch) {
             components[componentIndex].instance.removeRangeFromBranch(branchIndex, rangeIndex);
             updateView();
@@ -1287,7 +1261,7 @@ $(document).ready(function() {
         }
     };
 
-    window.updateRangeInBranch = function(componentIndex, branchIndex, rangeIndex, field, value) {
+    window.updateRangeInBranch = function (componentIndex, branchIndex, rangeIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateRangeInBranch) {
             components[componentIndex].instance.updateRangeInBranch(branchIndex, rangeIndex, field, value);
             updateJSON();
@@ -1295,7 +1269,7 @@ $(document).ready(function() {
         }
     };
 
-    window.addCustomFieldToRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+    window.addCustomFieldToRange = function (componentIndex, branchIndex, rangeIndex, fieldName) {
         if (components[componentIndex] && components[componentIndex].instance.addCustomFieldToRange) {
             components[componentIndex].instance.addCustomFieldToRange(branchIndex, rangeIndex, fieldName, '');
             updateView();
@@ -1303,7 +1277,7 @@ $(document).ready(function() {
         }
     };
 
-    window.removeCustomFieldFromRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+    window.removeCustomFieldFromRange = function (componentIndex, branchIndex, rangeIndex, fieldName) {
         if (components[componentIndex] && components[componentIndex].instance.removeCustomFieldFromRange) {
             components[componentIndex].instance.removeCustomFieldFromRange(branchIndex, rangeIndex, fieldName);
             updateView();
@@ -1311,7 +1285,7 @@ $(document).ready(function() {
         }
     };
 
-    window.updateSetVars = function(componentIndex, branchIndex, rangeIndex, varsString) {
+    window.updateSetVars = function (componentIndex, branchIndex, rangeIndex, varsString) {
         if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
             components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
             updateJSON();
@@ -1319,15 +1293,15 @@ $(document).ready(function() {
         }
     };
 
-    window.addScoringBranch = function(componentIndex) {
-    if (components[componentIndex] && components[componentIndex].instance.addScoringBranch) {
-        components[componentIndex].instance.addScoringBranch();
-        updateView();
-        updateJSON();
-    }
+    window.addScoringBranch = function (componentIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addScoringBranch) {
+            components[componentIndex].instance.addScoringBranch();
+            updateView();
+            updateJSON();
+        }
     };
 
-    window.removeScoringBranch = function(componentIndex, branchIndex) {
+    window.removeScoringBranch = function (componentIndex, branchIndex) {
         if (components[componentIndex] && components[componentIndex].instance.removeScoringBranch) {
             components[componentIndex].instance.removeScoringBranch(branchIndex);
             updateView();
@@ -1335,7 +1309,7 @@ $(document).ready(function() {
         }
     };
 
-    window.updateScoringBranch = function(componentIndex, branchIndex, field, value) {
+    window.updateScoringBranch = function (componentIndex, branchIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateScoringBranch) {
             components[componentIndex].instance.updateScoringBranch(branchIndex, field, value);
             updateJSON();
@@ -1343,7 +1317,7 @@ $(document).ready(function() {
         }
     };
 
-    window.addRangeToBranch = function(componentIndex, branchIndex) {
+    window.addRangeToBranch = function (componentIndex, branchIndex) {
         if (components[componentIndex] && components[componentIndex].instance.addRangeToBranch) {
             components[componentIndex].instance.addRangeToBranch(branchIndex);
             updateView();
@@ -1351,7 +1325,7 @@ $(document).ready(function() {
         }
     };
 
-    window.removeRangeFromBranch = function(componentIndex, branchIndex, rangeIndex) {
+    window.removeRangeFromBranch = function (componentIndex, branchIndex, rangeIndex) {
         if (components[componentIndex] && components[componentIndex].instance.removeRangeFromBranch) {
             components[componentIndex].instance.removeRangeFromBranch(branchIndex, rangeIndex);
             updateView();
@@ -1359,7 +1333,7 @@ $(document).ready(function() {
         }
     };
 
-    window.updateRangeInBranch = function(componentIndex, branchIndex, rangeIndex, field, value) {
+    window.updateRangeInBranch = function (componentIndex, branchIndex, rangeIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateRangeField) {
             components[componentIndex].instance.updateRangeField(branchIndex, rangeIndex, field, value);
             updateJSON();
@@ -1367,7 +1341,7 @@ $(document).ready(function() {
         }
     };
 
-    window.updateSetVars = function(componentIndex, branchIndex, rangeIndex, varsString) {
+    window.updateSetVars = function (componentIndex, branchIndex, rangeIndex, varsString) {
         if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
             components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
             updateJSON();
@@ -1375,7 +1349,7 @@ $(document).ready(function() {
         }
     };
 
-    window.addCustomFieldToRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+    window.addCustomFieldToRange = function (componentIndex, branchIndex, rangeIndex, fieldName) {
         if (components[componentIndex] && components[componentIndex].instance.addCustomFieldToRange) {
             components[componentIndex].instance.addCustomFieldToRange(branchIndex, rangeIndex, fieldName, '');
             updateView();
@@ -1383,12 +1357,12 @@ $(document).ready(function() {
         }
     };
 
-    window.removeCustomFieldFromRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
-    if (components[componentIndex] && components[componentIndex].instance.removeCustomFieldFromRange) {
-        components[componentIndex].instance.removeCustomFieldFromRange(branchIndex, rangeIndex, fieldName);
-        updateView();
-        updateJSON();
-    }
+    window.removeCustomFieldFromRange = function (componentIndex, branchIndex, rangeIndex, fieldName) {
+        if (components[componentIndex] && components[componentIndex].instance.removeCustomFieldFromRange) {
+            components[componentIndex].instance.removeCustomFieldFromRange(branchIndex, rangeIndex, fieldName);
+            updateView();
+            updateJSON();
+        }
     };
 
 });
