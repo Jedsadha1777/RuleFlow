@@ -112,6 +112,39 @@ $(document).ready(function() {
             updateRangeInBranch(index, branchIndex, rangeIndex, field, value);
         });
 
+        $(document).on('click', '.add-custom-field-btn', function() {
+            const $this = $(this);
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            
+            const fieldName = prompt('Enter field name (e.g., level, tier, strategy):');
+            if (fieldName && fieldName.trim()) {
+                const $card = $this.closest('.card[data-component-index]');
+                const index = parseInt($card.attr('data-component-index'));
+                addCustomFieldToRange(index, branchIndex, rangeIndex, fieldName.trim());
+            }
+        });
+
+        $(document).on('click', '.remove-custom-field-btn', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const fieldName = $this.attr('data-field-name');
+            removeCustomFieldFromRange(index, branchIndex, rangeIndex, fieldName);
+        });
+
+        $(document).on('change', '.set-vars-field', function() {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const value = $this.val();
+            updateSetVars(index, branchIndex, rangeIndex, value);
+        });
+
 
         // Switch case management
         $(document).on('click', '.add-case-btn', function() {
@@ -1165,4 +1198,29 @@ $(document).ready(function() {
             updateInputVariables();
         }
     };
+
+    window.addCustomFieldToRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+        if (components[componentIndex] && components[componentIndex].instance.addCustomFieldToRange) {
+            components[componentIndex].instance.addCustomFieldToRange(branchIndex, rangeIndex, fieldName, '');
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeCustomFieldFromRange = function(componentIndex, branchIndex, rangeIndex, fieldName) {
+        if (components[componentIndex] && components[componentIndex].instance.removeCustomFieldFromRange) {
+            components[componentIndex].instance.removeCustomFieldFromRange(branchIndex, rangeIndex, fieldName);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateSetVars = function(componentIndex, branchIndex, rangeIndex, varsString) {
+        if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
+            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
 });
