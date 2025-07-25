@@ -259,28 +259,7 @@ $(document).ready(function () {
         });
 
         // Conditions management
-        $(document).on('click', '.add-condition-btn', function () {
-            const $card = $(this).closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            addCondition(index);
-        });
 
-        $(document).on('click', '.remove-condition-btn', function () {
-            const $card = $(this).closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            const conditionIndex = parseInt($(this).attr('data-condition-index'));
-            removeCondition(index, conditionIndex);
-        });
-
-        $(document).on('change', '.condition-field', function () {
-            const $this = $(this);
-            const $card = $this.closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            const conditionIndex = parseInt($this.attr('data-condition-index'));
-            const field = $this.attr('data-condition-field');
-            const value = $this.val();
-            updateCondition(index, conditionIndex, field, value);
-        });
 
         //Dynamic place update for operators
         $(document).on('change', 'select[data-condition-field="op"], select[data-range-field="op"], select[data-condition-field="condition_op"], .scoring-branch-field[data-branch-field="op"]', function () {
@@ -355,13 +334,13 @@ $(document).ready(function () {
         });
 
         // เพิ่มใน bindEvents function
-        $(document).on('change', '.condition-type-select', function() {
+        $(document).on('change', '.condition-type-select', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             const branchIndex = parseInt($this.attr('data-branch-index'));
             const value = $this.val();
-            
+
             if (components[index] && components[index].instance.updateScoringBranch) {
                 components[index].instance.updateScoringBranch(branchIndex, 'condition_type', value);
                 updateView();
@@ -369,7 +348,7 @@ $(document).ready(function () {
             }
         });
 
-        $(document).on('change', '.nested-branch-condition-field', function() {
+        $(document).on('change', '.nested-branch-condition-field', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -380,7 +359,7 @@ $(document).ready(function () {
             updateNestedBranchCondition(index, branchIndex, conditionIndex, field, value);
         });
 
-        $(document).on('click', '.add-condition-to-branch-group-btn', function() {
+        $(document).on('click', '.add-condition-to-branch-group-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -389,7 +368,7 @@ $(document).ready(function () {
             addConditionToBranchGroup(index, branchIndex, groupType);
         });
 
-        $(document).on('click', '.remove-condition-from-branch-group-btn', function() {
+        $(document).on('click', '.remove-condition-from-branch-group-btn', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -398,6 +377,66 @@ $(document).ready(function () {
             const groupType = $this.attr('data-group-type');
             removeConditionFromBranchGroup(index, branchIndex, conditionIndex, groupType);
         });
+
+        //Rules component management start
+        $(document).on('click', '.add-rule-btn', function () {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            addRule(index);
+        });
+
+        $(document).on('click', '.remove-rule-btn', function () {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($(this).attr('data-rule-index'));
+            removeRule(index, ruleIndex);
+        });
+
+        $(document).on('change', '.rule-var-field', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($this.attr('data-rule-index'));
+            const value = $this.val();
+            updateRuleVar(index, ruleIndex, value);
+        });
+
+        $(document).on('click', '.add-range-to-rule-btn', function () {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($(this).attr('data-rule-index'));
+            addRangeToRule(index, ruleIndex);
+        });
+
+        $(document).on('click', '.remove-range-from-rule-btn', function () {
+            const $card = $(this).closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($(this).attr('data-rule-index'));
+            const rangeIndex = parseInt($(this).attr('data-range-index'));
+            removeRangeFromRule(index, ruleIndex, rangeIndex);
+        });
+
+        $(document).on('change', '.rule-range-field', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($this.attr('data-rule-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const field = $this.attr('data-range-field');
+            const value = $this.val();
+            updateRuleRangeField(index, ruleIndex, rangeIndex, field, value);
+        });
+
+        $(document).on('change', '.rule-set-vars-field', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($this.attr('data-rule-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const value = $this.val();
+            updateRuleSetVars(index, ruleIndex, rangeIndex, value);
+        });
+        //Rules component management end 
 
 
         // Button events
@@ -459,11 +498,13 @@ $(document).ready(function () {
             case 'switch':
                 instance = new SwitchComponent();
                 break;
-            case 'conditions':
-                instance = new ConditionsComponent();
-                break;
-            case 'scoring':  // เพิ่มบรรทัดนี้
+
+            case 'scoring':  
                 instance = new ScoringComponent();
+                break;
+
+            case 'rules':
+                instance = new RulesComponent();
                 break;
             default:
                 showToast('Unknown component type', 'error');
@@ -1225,13 +1266,7 @@ $(document).ready(function () {
         }
     };
 
-    window.addConditionToGroup = function (componentIndex, caseIndex, groupType) {
-        if (components[componentIndex] && components[componentIndex].instance.addConditionToGroup) {
-            components[componentIndex].instance.addConditionToGroup(caseIndex, groupType);
-            updateView();
-            updateJSON();
-        }
-    };
+
 
     window.removeConditionFromGroup = function (componentIndex, caseIndex, conditionIndex, groupType) {
         if (components[componentIndex] && components[componentIndex].instance.removeConditionFromGroup) {
@@ -1242,21 +1277,7 @@ $(document).ready(function () {
     };
 
     // Global functions for conditions management
-    window.addCondition = function (componentIndex) {
-        if (components[componentIndex] && components[componentIndex].instance.addCondition) {
-            components[componentIndex].instance.addCondition();
-            updateView();
-            updateJSON();
-        }
-    };
 
-    window.removeCondition = function (componentIndex, conditionIndex) {
-        if (components[componentIndex] && components[componentIndex].instance.removeCondition) {
-            components[componentIndex].instance.removeCondition(conditionIndex);
-            updateView();
-            updateJSON();
-        }
-    };
 
     window.updateCondition = function (componentIndex, conditionIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateCondition) {
@@ -1291,29 +1312,6 @@ $(document).ready(function () {
         }
     };
 
-    window.addRangeToBranch = function (componentIndex, branchIndex) {
-        if (components[componentIndex] && components[componentIndex].instance.addRangeToBranch) {
-            components[componentIndex].instance.addRangeToBranch(branchIndex);
-            updateView();
-            updateJSON();
-        }
-    };
-
-    window.removeRangeFromBranch = function (componentIndex, branchIndex, rangeIndex) {
-        if (components[componentIndex] && components[componentIndex].instance.removeRangeFromBranch) {
-            components[componentIndex].instance.removeRangeFromBranch(branchIndex, rangeIndex);
-            updateView();
-            updateJSON();
-        }
-    };
-
-    window.updateRangeInBranch = function (componentIndex, branchIndex, rangeIndex, field, value) {
-        if (components[componentIndex] && components[componentIndex].instance.updateRangeInBranch) {
-            components[componentIndex].instance.updateRangeInBranch(branchIndex, rangeIndex, field, value);
-            updateJSON();
-            updateInputVariables();
-        }
-    };
 
     window.addCustomFieldToRange = function (componentIndex, branchIndex, rangeIndex, fieldName) {
         if (components[componentIndex] && components[componentIndex].instance.addCustomFieldToRange) {
@@ -1334,30 +1332,6 @@ $(document).ready(function () {
     window.updateSetVars = function (componentIndex, branchIndex, rangeIndex, varsString) {
         if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
             components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
-            updateJSON();
-            updateInputVariables();
-        }
-    };
-
-    window.addScoringBranch = function (componentIndex) {
-        if (components[componentIndex] && components[componentIndex].instance.addScoringBranch) {
-            components[componentIndex].instance.addScoringBranch();
-            updateView();
-            updateJSON();
-        }
-    };
-
-    window.removeScoringBranch = function (componentIndex, branchIndex) {
-        if (components[componentIndex] && components[componentIndex].instance.removeScoringBranch) {
-            components[componentIndex].instance.removeScoringBranch(branchIndex);
-            updateView();
-            updateJSON();
-        }
-    };
-
-    window.updateScoringBranch = function (componentIndex, branchIndex, field, value) {
-        if (components[componentIndex] && components[componentIndex].instance.updateScoringBranch) {
-            components[componentIndex].instance.updateScoringBranch(branchIndex, field, value);
             updateJSON();
             updateInputVariables();
         }
@@ -1411,7 +1385,7 @@ $(document).ready(function () {
         }
     };
 
-    window.updateNestedBranchCondition = function(componentIndex, branchIndex, conditionIndex, field, value) {
+    window.updateNestedBranchCondition = function (componentIndex, branchIndex, conditionIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateNestedBranchCondition) {
             components[componentIndex].instance.updateNestedBranchCondition(branchIndex, conditionIndex, field, value);
             updateJSON();
@@ -1419,6 +1393,146 @@ $(document).ready(function () {
         }
     };
 
-    
+    window.addConditionToBranchGroup = function(componentIndex, branchIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.addConditionToBranchGroup) {
+            components[componentIndex].instance.addConditionToBranchGroup(branchIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeConditionFromBranchGroup = function(componentIndex, branchIndex, conditionIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.removeConditionFromBranchGroup) {
+            components[componentIndex].instance.removeConditionFromBranchGroup(branchIndex, conditionIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateRangeConditionType = function(componentIndex, branchIndex, rangeIndex, conditionType) {
+        if (components[componentIndex] && components[componentIndex].instance.updateRangeConditionType) {
+            components[componentIndex].instance.updateRangeConditionType(branchIndex, rangeIndex, conditionType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateNestedRangeCondition = function(componentIndex, branchIndex, rangeIndex, conditionIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateNestedRangeCondition) {
+            components[componentIndex].instance.updateNestedRangeCondition(branchIndex, rangeIndex, conditionIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.addConditionToRangeGroup = function(componentIndex, branchIndex, rangeIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.addConditionToRangeGroup) {
+            components[componentIndex].instance.addConditionToRangeGroup(branchIndex, rangeIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeConditionFromRangeGroup = function(componentIndex, branchIndex, rangeIndex, conditionIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.removeConditionFromRangeGroup) {
+            components[componentIndex].instance.removeConditionFromRangeGroup(branchIndex, rangeIndex, conditionIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    //Rule management start 
+    window.addRule = function(componentIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addRule) {
+            components[componentIndex].instance.addRule();
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeRule = function(componentIndex, ruleIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.removeRule) {
+            components[componentIndex].instance.removeRule(ruleIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateRuleVar = function(componentIndex, ruleIndex, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateRuleVar) {
+            components[componentIndex].instance.updateRuleVar(ruleIndex, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    // Range management
+    window.addRangeToRule = function(componentIndex, ruleIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.addRangeToRule) {
+            components[componentIndex].instance.addRangeToRule(ruleIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeRangeFromRule = function(componentIndex, ruleIndex, rangeIndex) {
+        if (components[componentIndex] && components[componentIndex].instance.removeRangeFromRule) {
+            components[componentIndex].instance.removeRangeFromRule(ruleIndex, rangeIndex);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.updateRuleRangeField = function(componentIndex, ruleIndex, rangeIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateRangeField) {
+            components[componentIndex].instance.updateRangeField(ruleIndex, rangeIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    // Condition type management
+    window.updateRuleRangeConditionType = function(componentIndex, ruleIndex, rangeIndex, conditionType) {
+        if (components[componentIndex] && components[componentIndex].instance.updateRangeConditionType) {
+            components[componentIndex].instance.updateRangeConditionType(ruleIndex, rangeIndex, conditionType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    // Nested condition management
+    window.updateNestedRuleRangeCondition = function(componentIndex, ruleIndex, rangeIndex, conditionIndex, field, value) {
+        if (components[componentIndex] && components[componentIndex].instance.updateNestedRangeCondition) {
+            components[componentIndex].instance.updateNestedRangeCondition(ruleIndex, rangeIndex, conditionIndex, field, value);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.addConditionToRuleRangeGroup = function(componentIndex, ruleIndex, rangeIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.addConditionToRangeGroup) {
+            components[componentIndex].instance.addConditionToRangeGroup(ruleIndex, rangeIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    window.removeConditionFromRuleRangeGroup = function(componentIndex, ruleIndex, rangeIndex, conditionIndex, groupType) {
+        if (components[componentIndex] && components[componentIndex].instance.removeConditionFromRangeGroup) {
+            components[componentIndex].instance.removeConditionFromRangeGroup(ruleIndex, rangeIndex, conditionIndex, groupType);
+            updateView();
+            updateJSON();
+        }
+    };
+
+    // Set vars management
+    window.updateRuleSetVars = function(componentIndex, ruleIndex, rangeIndex, varsString) {
+        if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
+            components[componentIndex].instance.updateSetVars(ruleIndex, rangeIndex, varsString);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+     //Rule management end
 
 });

@@ -276,6 +276,102 @@ class ScoringComponent {
         }
     }
 
+    //20250725 Enhanced Scoring Range
+    /**
+     * Update range condition type (เพิ่ม method ใหม่)
+     */
+    updateRangeConditionType(branchIndex, rangeIndex, conditionType) {
+        if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
+
+        const range = this.scoring.ifs.tree[branchIndex].ranges[rangeIndex];
+        
+        if (conditionType === 'simple') {
+            range.if = { op: '>=', value: 0 };
+        } else if (conditionType === 'and') {
+            range.if = {
+                and: [
+                    { op: '>', var: '', value: '' },
+                    { op: '==', var: '', value: '' }
+                ]
+            };
+        } else if (conditionType === 'or') {
+            range.if = {
+                or: [
+                    { op: '>', var: '', value: '' },
+                    { op: '==', var: '', value: '' }
+                ]
+            };
+        }
+    }
+
+    /**
+     * Update nested condition in range (เพิ่ม method ใหม่)
+     */
+    updateNestedRangeCondition(branchIndex, rangeIndex, conditionIndex, field, value) {
+        if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
+
+        const rangeIf = this.scoring.ifs.tree[branchIndex].ranges[rangeIndex].if;
+        let condition = null;
+
+        if (rangeIf.and && rangeIf.and[conditionIndex]) {
+            condition = rangeIf.and[conditionIndex];
+        } else if (rangeIf.or && rangeIf.or[conditionIndex]) {
+            condition = rangeIf.or[conditionIndex];
+        } else if (!rangeIf.and && !rangeIf.or) {
+            condition = rangeIf; // Simple condition
+        }
+
+        if (condition) {
+            if (field === 'op') {
+                condition.op = value;
+            } else if (field === 'var') {
+                condition.var = value;
+            } else if (field === 'value') {
+                condition.value = this.parseValue(value);
+            }
+        }
+    }
+
+    /**
+     * Add condition to nested group in range (เพิ่ม method ใหม่)
+     */
+    addConditionToRangeGroup(branchIndex, rangeIndex, groupType) {
+        if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
+
+        const rangeIf = this.scoring.ifs.tree[branchIndex].ranges[rangeIndex].if;
+        const newCondition = { op: '>', var: '', value: '' };
+
+        if (groupType === 'and' && rangeIf.and) {
+            rangeIf.and.push(newCondition);
+        } else if (groupType === 'or' && rangeIf.or) {
+            rangeIf.or.push(newCondition);
+        }
+    }
+
+    /**
+     * Remove condition from nested group in range (เพิ่ม method ใหม่)
+     */
+    removeConditionFromRangeGroup(branchIndex, rangeIndex, conditionIndex, groupType) {
+        if (!this.scoring.ifs.tree[branchIndex] || !this.scoring.ifs.tree[branchIndex].ranges[rangeIndex]) return;
+
+        const rangeIf = this.scoring.ifs.tree[branchIndex].ranges[rangeIndex].if;
+
+        if (groupType === 'and' && rangeIf.and) {
+            rangeIf.and.splice(conditionIndex, 1);
+            if (rangeIf.and.length === 0) {
+                rangeIf.and.push({ op: '>', var: '', value: '' });
+            }
+        } else if (groupType === 'or' && rangeIf.or) {
+            rangeIf.or.splice(conditionIndex, 1);
+            if (rangeIf.or.length === 0) {
+                rangeIf.or.push({ op: '>', var: '', value: '' });
+            }
+        }
+    }
+    //20250725 Enhanced Scoring Range end
+
+
+
     /**
      * Format set_vars for display
      */
@@ -565,10 +661,13 @@ class ScoringComponent {
 
     /**
      * Render scoring range
+     * Enhanced renderScoringRange method - รองรับ AND/OR
      */
     renderScoringRange(componentIndex, branchIndex, rangeIndex, range) {
         const condition = range.if || {};
         const customFields = this.getAllCustomFields();
+        const isNested = condition.and || condition.or;
+        const conditionType = condition.and ? 'and' : condition.or ? 'or' : 'simple';
         
         let html = `
             <div class="scoring-range border rounded p-3 mb-2" style="background: #ffffff;">
@@ -590,53 +689,57 @@ class ScoringComponent {
                     </div>
                 </div>
                 
-                <div class="row g-2 mb-3">
-                    <div class="col-md-3">
-                        <label class="form-label small">Condition</label>
-                        <select class="form-select form-select-sm scoring-range-field" 
+                <!-- 🆕 Condition Type Selector -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label small mb-0">Condition Type:</label>
+                        <select class="form-select form-select-sm" 
+                                style="width: auto;"
                                 data-branch-index="${branchIndex}"
                                 data-range-index="${rangeIndex}"
-                                data-range-field="op">
-                            ${getOperatorOptions(condition.op)}
+                                onchange="updateRangeConditionType(${componentIndex}, ${branchIndex}, ${rangeIndex}, this.value)">
+                            <option value="simple" ${conditionType === 'simple' ? 'selected' : ''}>Simple</option>
+                            <option value="and" ${conditionType === 'and' ? 'selected' : ''}>AND Logic</option>
+                            <option value="or" ${conditionType === 'or' ? 'selected' : ''}>OR Logic</option>
                         </select>
                     </div>
-                    <div class="col-md-9">
-                        <label class="form-label small">Value</label>
-                        <input type="text" 
-                               class="form-control form-control-sm scoring-range-field" 
-                               placeholder="${getValuePlaceholder(condition.op)}"
-                               value="${this.formatValue(condition.value)}"
-                               data-branch-index="${branchIndex}"
-                               data-range-index="${rangeIndex}"
-                               data-range-field="value">
-                    </div>
+        `;
+
+        // Render condition based on type
+        if (isNested) {
+            html += this.renderNestedRangeCondition(componentIndex, branchIndex, rangeIndex, condition, conditionType);
+        } else {
+            html += this.renderSimpleRangeCondition(componentIndex, branchIndex, rangeIndex, condition);
+        }
+
+        html += `
                 </div>
 
                 <div class="row g-2 mb-3">
                     <div class="col-md-6">
                         <label class="form-label small">Score <span class="text-danger">*</span></label>
                         <input type="number" 
-                               class="form-control form-control-sm scoring-range-field" 
-                               placeholder="Numeric score"
-                               value="${range.score || ''}"
-                               data-branch-index="${branchIndex}"
-                               data-range-index="${rangeIndex}"
-                               data-range-field="score"
-                               step="any">
+                            class="form-control form-control-sm scoring-range-field" 
+                            placeholder="Numeric score"
+                            value="${range.score || ''}"
+                            data-branch-index="${branchIndex}"
+                            data-range-index="${rangeIndex}"
+                            data-range-field="score"
+                            step="any">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label small">Set Variables</label>
                         <input type="text" 
-                               class="form-control form-control-sm set-vars-field" 
-                               placeholder="$multiplier = 2.5, $rate = 0.15"
-                               value="${this.formatSetVars(range.set_vars)}"
-                               data-branch-index="${branchIndex}"
-                               data-range-index="${rangeIndex}">
+                            class="form-control form-control-sm set-vars-field" 
+                            placeholder="$multiplier = 2.5, $rate = 0.15"
+                            value="${this.formatSetVars(range.set_vars)}"
+                            data-branch-index="${branchIndex}"
+                            data-range-index="${rangeIndex}">
                     </div>
                 </div>
         `;
 
-        // Custom fields (excluding score and set_vars)
+        // Custom fields (existing code)
         const excludeFields = ['score', 'set_vars', 'if'];
         const customFieldsOnly = customFields.filter(field => !excludeFields.includes(field));
         
@@ -659,18 +762,113 @@ class ScoringComponent {
                             </button>
                         </div>
                         <input type="text" 
-                               class="form-control form-control-sm scoring-range-field" 
-                               placeholder="Enter ${fieldName}"
-                               value="${value}"
-                               data-branch-index="${branchIndex}"
-                               data-range-index="${rangeIndex}"
-                               data-range-field="${fieldName}">
+                            class="form-control form-control-sm scoring-range-field" 
+                            placeholder="Enter ${fieldName}"
+                            value="${value}"
+                            data-branch-index="${branchIndex}"
+                            data-range-index="${rangeIndex}"
+                            data-range-field="${fieldName}">
                     </div>
                 `;
             });
             
             html += `</div>`;
         }
+
+        html += `</div>`;
+        return html;
+    }
+
+    /**
+     * Render simple range condition (เพิ่ม method ใหม่)
+     */
+    renderSimpleRangeCondition(componentIndex, branchIndex, rangeIndex, condition) {
+        return `
+            <div class="simple-range-condition">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label small">Operator</label>
+                        <select class="form-select form-select-sm scoring-range-field" 
+                                data-branch-index="${branchIndex}"
+                                data-range-index="${rangeIndex}"
+                                data-range-field="op">
+                            ${getOperatorOptions(condition.op)}
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small">Value</label>
+                        <input type="text" 
+                            class="form-control form-control-sm scoring-range-field" 
+                            placeholder="${getValuePlaceholder(condition.op)}"
+                            value="${this.formatValue(condition.value)}"
+                            data-branch-index="${branchIndex}"
+                            data-range-index="${rangeIndex}"
+                            data-range-field="value">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render nested range condition (เพิ่ม method ใหม่)
+     */
+    renderNestedRangeCondition(componentIndex, branchIndex, rangeIndex, condition, conditionType) {
+        const conditions = condition[conditionType] || [];
+        const logicLabel = conditionType.toUpperCase();
+        
+        let html = `
+            <div class="nested-range-condition">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-${conditionType === 'and' ? 'primary' : 'info'} fs-6">${logicLabel} Logic</span>
+                    <button type="button" 
+                            class="btn btn-sm btn-outline-success"
+                            onclick="addConditionToRangeGroup(${componentIndex}, ${branchIndex}, ${rangeIndex}, '${conditionType}')">
+                        <i class="bi bi-plus"></i> Add ${logicLabel}
+                    </button>
+                </div>
+        `;
+
+        conditions.forEach((subCondition, conditionIndex) => {
+            html += `
+                <div class="nested-range-condition-item mb-2 p-2 bg-light rounded">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Condition ${conditionIndex + 1}</small>
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="removeConditionFromRangeGroup(${componentIndex}, ${branchIndex}, ${rangeIndex}, ${conditionIndex}, '${conditionType}')">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateNestedRangeCondition(${componentIndex}, ${branchIndex}, ${rangeIndex}, ${conditionIndex}, 'op', this.value)">
+                                ${getOperatorOptions(subCondition.op)}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" 
+                                class="form-control form-control-sm" 
+                                placeholder="Variable"
+                                value="${subCondition.var || subCondition.field || ''}"
+                                onchange="updateNestedRangeCondition(${componentIndex}, ${branchIndex}, ${rangeIndex}, ${conditionIndex}, 'var', this.value)">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" 
+                                class="form-control form-control-sm" 
+                                placeholder="${getValuePlaceholder(subCondition.op)}"
+                                value="${this.formatValue(subCondition.value)}"
+                                onchange="updateNestedRangeCondition(${componentIndex}, ${branchIndex}, ${rangeIndex}, ${conditionIndex}, 'value', this.value)">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (conditionIndex < conditions.length - 1) {
+                html += `<div class="text-center my-1"><span class="badge bg-secondary">${logicLabel}</span></div>`;
+            }
+        });
 
         html += `</div>`;
         return html;
