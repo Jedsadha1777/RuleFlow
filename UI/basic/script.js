@@ -9,10 +9,7 @@ $(document).ready(function () {
     let components = [];
     let debugEnabled = true;
 
-    // Initialize UI
-    initializeUI();
-    bindEvents();
-    updateView();
+
 
     /**
      * Initialize UI components
@@ -116,13 +113,11 @@ $(document).ready(function () {
             const $this = $(this);
             const branchIndex = parseInt($this.attr('data-branch-index'));
             const rangeIndex = parseInt($this.attr('data-range-index'));
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
 
-            const fieldName = prompt('Enter field name (e.g., level, tier, strategy):');
-            if (fieldName && fieldName.trim()) {
-                const $card = $this.closest('.card[data-component-index]');
-                const index = parseInt($card.attr('data-component-index'));
-                addCustomFieldToRange(index, branchIndex, rangeIndex, fieldName.trim());
-            }
+            // แสดง custom field modal แทน prompt
+            showCustomFieldModal(index, branchIndex, rangeIndex);
         });
 
         $(document).on('click', '.remove-custom-field-btn', function () {
@@ -438,7 +433,6 @@ $(document).ready(function () {
         });
         //Rules component management end 
 
-
         // Button events
         $('#validateBtn').on('click', validateConfiguration);
         $('#executeBtn').on('click', executeRules);
@@ -452,7 +446,213 @@ $(document).ready(function () {
         $(document).on('input', '.input-variable input', debounce(autoExecute, 300));
 
         debug('Events bound with jQuery', 'info');
+
+        
     }
+
+    function setupModalEvents() {
+        // Setup modal events only once
+        $('#addVariableModal').on('hidden.bs.modal', function() {
+            resetVariableModal();
+        });
+        
+        // Handle Enter key in modal inputs
+        $(document).on('keypress', '#variableNameInput, #variableValueInput', function(e) {
+            if (e.which === 13) { // Enter key
+                $('#confirmAddVariable').trigger('click');
+            }
+        });
+    }
+
+    /**
+     * Add custom variable
+     */
+    function addCustomVariable() {
+        showModal('variable');
+    }
+
+    /**
+     * Show custom field modal
+     */
+    function showCustomFieldModal(componentIndex, branchIndex, rangeIndex) {
+        showModal('field', componentIndex, branchIndex, rangeIndex);
+    }
+
+    /**
+     * Show modal with different modes
+     */
+    function showModal(mode, componentIndex = null, branchIndex = null, rangeIndex = null) {
+        // Clear previous values
+        $('#variableNameInput').val('');
+        $('#variableValueInput').val('');
+        $('#variableNameInput, #variableValueInput').removeClass('is-invalid is-valid');
+        
+        // Configure modal based on mode
+        if (mode === 'variable') {
+            $('#addVariableModalLabel').html('<i class="bi bi-plus-circle me-2"></i>Add Custom Variable');
+            $('#variableNameInput').attr('placeholder', 'Enter variable name (e.g., age, income, score)');
+            $('#variableValueInput').closest('.mb-3').show();
+        } else if (mode === 'field') {
+            $('#addVariableModalLabel').html('<i class="bi bi-plus-circle me-2"></i>Add Custom Field');
+            $('#variableNameInput').attr('placeholder', 'Enter field name (e.g., level, tier, strategy)');
+            $('#variableValueInput').closest('.mb-3').hide();
+        }
+        
+        // Clear any existing click handlers
+        $('#confirmAddVariable').off('click');
+        
+        // Set new click handler
+        $('#confirmAddVariable').on('click', function() {
+            const name = $('#variableNameInput').val().trim();
+            const initialValue = $('#variableValueInput').val().trim();
+            
+            if (!name) {
+                showError('Please enter a name');
+                return;
+            }
+            
+            // Validate name
+            const cleanName = name.replace(/[^a-zA-Z0-9_]/g, '');
+            if (cleanName !== name) {
+                showError('Name can only contain letters, numbers, and underscores');
+                return;
+            }
+            
+            // Process based on mode
+            if (mode === 'variable') {
+                // Check if variable already exists
+                if ($(`#input_${cleanName}`).length > 0) {
+                    showError('Variable already exists');
+                    return;
+                }
+                
+                createCustomVariableInput(cleanName, initialValue);
+                showSuccess(`Custom variable "${cleanName}" added`);
+                
+            } else if (mode === 'field') {
+                addCustomFieldToRange(componentIndex, branchIndex, rangeIndex, cleanName);
+                showSuccess(`Custom field "${cleanName}" added`);
+            }
+            
+            // Close modal
+            const modalInstance = bootstrap.Modal.getInstance($('#addVariableModal')[0]);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            
+            debug(`Added ${mode}: ${cleanName}`, 'info');
+        });
+        
+        // Show modal
+        const modal = new bootstrap.Modal($('#addVariableModal')[0]);
+        modal.show();
+        
+        // Focus on input when modal is shown
+        $('#addVariableModal').one('shown.bs.modal', function() {
+            $('#variableNameInput').focus();
+        });
+    }
+
+    /**
+     * Reset modal to clean state
+     */
+    function resetModal() {
+        // Clear inputs
+        $('#variableNameInput').val('');
+        $('#variableValueInput').val('');
+        $('#variableNameInput, #variableValueInput').removeClass('is-invalid is-valid');
+        
+        // Reset to default
+        $('#addVariableModalLabel').html('<i class="bi bi-plus-circle me-2"></i>Add Custom Variable');
+        $('#variableNameInput').attr('placeholder', 'Enter variable name (e.g., age, income, score)');
+        $('#variableValueInput').closest('.mb-3').show();
+        
+        // Remove click handlers
+        $('#confirmAddVariable').off('click');
+    }
+
+
+    
+
+    function setupRealTimeInputHandling() {
+        $(document).on('input', '.form-control', function() {
+            const $this = $(this);
+            const $component = $this.closest('[data-component-index]');
+            const index = parseInt($component.data('component-index'));
+            const field = getFieldFromElement($this);
+            const value = $this.val();
+            
+            if (field && !isNaN(index)) {
+                // Visual feedback - add changing class
+                $this.addClass('changing');
+                
+                // Debounced update
+                clearTimeout($this.data('timeout'));
+                $this.data('timeout', setTimeout(() => {
+                    updateComponentField(index, field, value);
+                    $this.removeClass('changing');
+                }, 300));
+                
+                // Immediate title update for ID field
+                if (field === 'id') {
+                    updateComponentTitle(index, value || `${components[index].type}_component`);
+                }
+            }
+        });
+
+
+    }
+
+    function createCustomVariableInput(cleanName, initialValue = '') {
+        const $inputDiv = $(`
+            <div class="input-variable mb-2" data-input="${cleanName}">
+                <label class="form-label small">
+                    ${cleanName} 
+                    <span class="badge bg-secondary ms-1">custom</span>
+                </label>
+                <div class="input-group input-group-sm">
+                    <input type="number" 
+                        class="form-control" 
+                        id="input_${cleanName}" 
+                        placeholder="Enter ${cleanName}"
+                        value="${initialValue}"
+                        step="any">
+                    <button class="btn btn-outline-danger btn-remove-var" 
+                            data-var="${cleanName}" 
+                            type="button"
+                            title="Remove variable">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `);
+
+        $('#inputVariables').append($inputDiv);
+
+        // Bind remove event
+        $inputDiv.find('.btn-remove-var').on('click', function () {
+            const varName = $(this).data('var');
+            if (confirm(`Remove variable "${varName}"?`)) {
+                $(`.input-variable[data-input="${varName}"]`).remove();
+                debug(`Removed custom variable: ${varName}`, 'info');
+                showSuccess(`Variable "${varName}" removed`);
+            }
+        });
+        
+        // Auto-focus on the new input
+        $inputDiv.find('input').focus();
+    }
+
+    /**
+     * Show custom field modal
+     */
+    function showCustomFieldModal(componentIndex, branchIndex, rangeIndex) {
+       showVariableModal('field', componentIndex, branchIndex, rangeIndex);
+    }
+
+  
+   
+
 
     /**
      * Get field name from element
@@ -488,6 +688,26 @@ $(document).ready(function () {
     /**
      * Add new component
      */
+    function getValuePlaceholder(operator) {
+        switch(operator) {
+            case 'between':
+                return 'e.g., [10, 20]';
+            case 'in':
+            case 'not_in':
+                return 'e.g., ["A", "B", "C"]';
+            case '==':
+            case '!=':
+                return 'comparison value';
+            case '>':
+            case '>=':
+            case '<':
+            case '<=':
+                return 'numeric value';
+            default:
+                return 'value';
+        }
+    }
+
     function addComponent(type) {
         let instance;
 
@@ -581,17 +801,41 @@ $(document).ready(function () {
     };
 
     /**
-     * Update component field
+     * Update component field with real-time UI update
      */
     window.updateComponentField = function (index, field, value) {
         if (components[index] && components[index].instance.updateField) {
+            const oldTitle = components[index].instance.getTitle();
+            
+            // Update the component data
             components[index].instance.updateField(field, value);
+            
+            // Check if title changed
+            const newTitle = components[index].instance.getTitle();
+            if (field === 'id' && oldTitle !== newTitle) {
+                updateComponentTitle(index, newTitle);
+            }
+            
             updateJSON();
             updateInputVariables();
 
             debug(`Updated ${field} for component ${index}`, 'info');
         }
     };
+
+    /**
+     * Update เฉพาะ title ของ component โดยไม่ต้อง re-render ทั้งหมด
+     */
+    function updateComponentTitle(index, newTitle) {
+        const $component = $(`[data-component-index="${index}"]`);
+        const $titleElement = $component.find('.component-title h6');
+        
+        if ($titleElement.length) {
+            $titleElement.text(newTitle);
+            debug(`Updated title for component ${index} to: ${newTitle}`, 'info');
+        }
+    }
+
 
     /**
      * Update view
@@ -622,43 +866,53 @@ $(document).ready(function () {
     function createComponentElement(component, index) {
         const iconClass = component.type;
         const title = component.instance.getTitle();
-        const chevronIcon = component.open ? 'chevron-down' : 'chevron-right';
+        const chevronIcon = component.open ? 'bi-chevron-down' : 'bi-chevron-right';
 
-        const $div = $(`
-           <div class="card mb-3" data-component-index="${index}">
-               <div class="card-header">
-                   <div class="d-flex align-items-center justify-content-between">
-                       <div class="d-flex align-items-center">
-                           <button class="btn btn-sm btn-outline-secondary me-2 toggle-btn" 
-                                   type="button" data-index="${index}">
-                               <i class="bi bi-${chevronIcon}"></i>
-                           </button>
-                           <div class="component-icon ${iconClass} me-2">${component.instance.getIcon()}</div>
-                           <div>
-                               <h6 class="mb-0">${title}</h6>
-                               <small class="text-muted">${component.type}</small>
-                           </div>
-                       </div>
-                       <div class="btn-group btn-group-sm">
-                           <button class="btn btn-outline-secondary copy-btn" 
-                                   data-index="${index}" title="Copy">
-                               <i class="bi bi-files"></i>
-                           </button>
-                           <button class="btn btn-outline-danger delete-btn" 
-                                   data-index="${index}" title="Delete">
-                               <i class="bi bi-trash"></i>
-                           </button>
-                       </div>
-                   </div>
-               </div>
-               <div class="card-body ${component.open ? '' : 'd-none'}">
-                   ${component.instance.render(index)}
-               </div>
-           </div>
-       `);
+        let html = `
+            <div class="card component-card mb-3" data-component-index="${index}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary me-2 toggle-btn" 
+                                data-index="${index}">
+                            <i class="bi ${chevronIcon}"></i>
+                        </button>
+                        <div class="component-icon me-2">
+                            ${component.instance.getIcon ? component.instance.getIcon() : '<i class="bi bi-gear"></i>'}
+                        </div>
+                        <div class="component-title">
+                            <h6 class="mb-0">${title}</h6>
+                            <small class="text-muted">${component.type}</small>
+                        </div>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary copy-btn" data-index="${index}">
+                            <i class="bi bi-copy"></i>
+                        </button>
+                        <button class="btn btn-outline-danger delete-btn" data-index="${index}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
 
-        return $div;
+        if (component.open && component.instance.render) {
+            try {
+                html += `<div class="card-body">${component.instance.render(index)}</div>`;
+            } catch (error) {
+                console.error('Error rendering component:', error);
+                html += `
+                    <div class="card-body">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error rendering component: ${error.message}
+                        </div>
+                    </div>`;
+            }
+        }
+
+        html += `</div>`;
+        return $(html);
     }
+
 
     /**
      * Update JSON output
@@ -973,50 +1227,12 @@ $(document).ready(function () {
      * Add custom variable
      */
     function addCustomVariable() {
-        const name = prompt('Variable name:');
-        if (!name || name.trim() === '') return;
+       showVariableModal('variable');
 
-        const cleanName = name.trim().replace(/[^a-zA-Z0-9_]/g, '');
-        if (cleanName !== name.trim()) {
-            showWarning(`Variable name cleaned to: ${cleanName}`);
-        }
-
-        // Check if already exists
-        if ($(`#input_${cleanName}`).length > 0) {
-            showWarning('Variable already exists');
-            return;
-        }
-
-        const $inputDiv = $(`
-           <div class="input-variable mb-2" data-input="${cleanName}">
-               <label class="form-label small">${cleanName} (custom)</label>
-               <div class="input-group input-group-sm">
-                   <input type="number" 
-                          class="form-control" 
-                          id="input_${cleanName}" 
-                          placeholder="Enter ${cleanName}"
-                          step="any">
-                   <button class="btn btn-outline-danger btn-remove-var" 
-                           data-var="${cleanName}" 
-                           type="button">
-                       <i class="bi bi-trash"></i>
-                   </button>
-               </div>
-           </div>
-       `);
-
-        $('#inputVariables').append($inputDiv);
-
-        // Bind remove event
-        $inputDiv.find('.btn-remove-var').on('click', function () {
-            const varName = $(this).data('var');
-            $(`.input-variable[data-input="${varName}"]`).remove();
-            debug(`Removed custom variable: ${varName}`, 'info');
-        });
-
-        debug(`Added custom variable: ${cleanName}`, 'info');
-        showSuccess(`Custom variable "${cleanName}" added`);
     }
+
+    
+
 
     /**
      * Test configuration with PHP backend
@@ -1535,4 +1751,34 @@ $(document).ready(function () {
     };
      //Rule management end
 
+    function addVisualFeedbackStyles() {
+        const style = `
+            <style id="visual-feedback-styles">
+            .form-control.changing {
+                border-color: #0d6efd;
+                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+                transition: all 0.15s ease-in-out;
+            }
+            
+            .component-title h6 {
+                transition: color 0.3s ease;
+            }
+            
+            .component-title h6.updating {
+                color: #0d6efd;
+            }
+            </style>
+        `;
+        
+        if (!$('#visual-feedback-styles').length) {
+            $('head').append(style);
+        }
+    }
+
+    initializeUI();
+    bindEvents();
+    setupModalEvents(); 
+    addVisualFeedbackStyles();
+    setupRealTimeInputHandling();
+    updateView();
 });
