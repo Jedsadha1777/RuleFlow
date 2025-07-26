@@ -448,11 +448,6 @@ select optgroup option {
     animation: spin 1s linear infinite;
 }
 
-.component-icon.rules {
-    background: #fff3cd;
-    color: #856404;
-}
-
 @keyframes spin {
     to {
         transform: rotate(360deg);

@@ -113,11 +113,13 @@ $(document).ready(function () {
             const $this = $(this);
             const branchIndex = parseInt($this.attr('data-branch-index'));
             const rangeIndex = parseInt($this.attr('data-range-index'));
-            const $card = $this.closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
 
-            // แสดง custom field modal แทน prompt
-            showCustomFieldModal(index, branchIndex, rangeIndex);
+            const fieldName = prompt('Enter field name (e.g., level, tier, strategy):');
+            if (fieldName && fieldName.trim()) {
+                const $card = $this.closest('.card[data-component-index]');
+                const index = parseInt($card.attr('data-component-index'));
+                addCustomFieldToRange(index, branchIndex, rangeIndex, fieldName.trim());
+            }
         });
 
         $(document).on('click', '.remove-custom-field-btn', function () {
@@ -270,23 +272,7 @@ $(document).ready(function () {
         });
 
 
-        $(document).on('click', '.remove-scoring-branch-btn', function () {
-            const $card = $(this).closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            const branchIndex = parseInt($(this).attr('data-branch-index'));
-            removeScoringBranch(index, branchIndex);
-        });
-
-        $(document).on('change', '.scoring-branch-field', function () {
-            const $this = $(this);
-            const $card = $this.closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            const branchIndex = parseInt($this.attr('data-branch-index'));
-            const field = $this.attr('data-branch-field');
-            const value = $this.val();
-            updateScoringBranch(index, branchIndex, field, value);
-        });
-
+       
 
 
         $(document).on('click', '.remove-range-from-branch-btn', function () {
@@ -345,22 +331,62 @@ $(document).ready(function () {
 
         $(document).on('change', '.nested-branch-condition-field', function () {
             const $this = $(this);
-            const $card = $this.closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
+            const index = parseInt($this.closest('.card').attr('data-component-index'));
             const branchIndex = parseInt($this.attr('data-branch-index'));
             const conditionIndex = parseInt($this.attr('data-condition-index'));
             const field = $this.attr('data-condition-field');
             const value = $this.val();
-            updateNestedBranchCondition(index, branchIndex, conditionIndex, field, value);
+            
+            if (components[index] && components[index].instance.updateNestedBranchCondition) {
+                components[index].instance.updateNestedBranchCondition(branchIndex, conditionIndex, field, value);
+                updateJSON();
+            }
         });
 
         $(document).on('click', '.add-condition-to-branch-group-btn', function () {
+            const index = parseInt($(this).closest('.card').attr('data-component-index'));
+            const branchIndex = parseInt($(this).attr('data-branch-index'));
+            const groupType = $(this).attr('data-group-type');
+            
+            if (components[index] && components[index].instance.addConditionToBranchGroup) {
+                components[index].instance.addConditionToBranchGroup(branchIndex, groupType);
+                updateView();
+                updateJSON();
+            }
+        });
+
+
+
+        $(document).on('change', '.deep-nested-condition-field', function () {
             const $this = $(this);
-            const $card = $this.closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
+            const index = parseInt($this.closest('.card').attr('data-component-index'));
             const branchIndex = parseInt($this.attr('data-branch-index'));
-            const groupType = $this.attr('data-group-type');
-            addConditionToBranchGroup(index, branchIndex, groupType);
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const deepIndex = parseInt($this.attr('data-deep-index'));
+            const field = $this.attr('data-condition-field');
+            const value = $this.val();
+            
+            if (components[index] && components[index].instance.updateDeepNestedRangeCondition) {
+                components[index].instance.updateDeepNestedRangeCondition(branchIndex, rangeIndex, conditionIndex, deepIndex, field, value);
+                updateJSON();
+            }
+        });
+
+        $(document).on('click', '.add-deep-nested-condition-btn', function () {
+            const $this = $(this);
+            const index = parseInt($this.closest('.card').attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const deepIndex = parseInt($this.attr('data-deep-index'));
+            const nestType = $this.attr('data-nest-type');
+            
+            if (components[index] && components[index].instance.addDeepNestedCondition) {
+                components[index].instance.addDeepNestedCondition(branchIndex, rangeIndex, conditionIndex, deepIndex, nestType);
+                updateView();
+                updateJSON();
+            }
         });
 
         $(document).on('click', '.remove-condition-from-branch-group-btn', function () {
@@ -372,6 +398,80 @@ $(document).ready(function () {
             const groupType = $this.attr('data-group-type');
             removeConditionFromBranchGroup(index, branchIndex, conditionIndex, groupType);
         });
+
+       
+
+        // Recursive Range Condition Type Selector
+        $(document).on('change', '.range-condition-type-select', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const value = $this.val();
+
+            if (components[index] && components[index].instance.updateRangeConditionTypeByPath) {
+                components[index].instance.updateRangeConditionTypeByPath(branchIndex, rangeIndex, path, value);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        // Add Condition to Range Group (Recursive)
+        $(document).on('click', '.add-range-condition-to-group-btn', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const groupType = $this.attr('data-group-type');
+
+            if (components[index] && components[index].instance.addConditionToRangeGroupByPath) {
+                components[index].instance.addConditionToRangeGroupByPath(branchIndex, rangeIndex, path, groupType);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        // Remove Range Nested Condition (Recursive)
+        $(document).on('click', '.remove-range-nested-condition-btn', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const groupType = $this.attr('data-group-type');
+
+            if (components[index] && components[index].instance.removeRangeConditionByPath) {
+                components[index].instance.removeRangeConditionByPath(branchIndex, rangeIndex, path, conditionIndex, groupType);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        // Range Nested Condition Field Changes (Recursive)
+        $(document).on('change', '.range-nested-condition-field', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const field = $this.attr('data-condition-field');
+            const value = $this.val();
+
+            if (components[index] && components[index].instance.updateRangeConditionByPath) {
+                components[index].instance.updateRangeConditionByPath(branchIndex, rangeIndex, path, field, value);
+                updateJSON();
+                updateInputVariables();
+            }
+        });
+
+
 
         //Rules component management start
         $(document).on('click', '.add-rule-btn', function () {
@@ -433,6 +533,72 @@ $(document).ready(function () {
         });
         //Rules component management end 
 
+        $(document).on('change', '.branch-condition-type-select', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const value = $this.val();
+
+            if (components[index] && components[index].instance.updateBranchConditionTypeByPath) {
+                components[index].instance.updateBranchConditionTypeByPath(branchIndex, path, value);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        // Add Branch Condition to Group
+        $(document).on('click', '.add-branch-condition-to-group-btn', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const groupType = $this.attr('data-group-type');
+
+            if (components[index] && components[index].instance.addConditionToBranchGroupByPath) {
+                components[index].instance.addConditionToBranchGroupByPath(branchIndex, path, groupType);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        // Remove Branch Nested Condition
+        $(document).on('click', '.remove-branch-nested-condition-btn', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const groupType = $this.attr('data-group-type');
+
+            if (components[index] && components[index].instance.removeBranchConditionByPath) {
+                components[index].instance.removeBranchConditionByPath(branchIndex, path, conditionIndex, groupType);
+                updateView();
+                updateJSON();
+            }
+        });
+
+        // Branch Nested Condition Field Changes
+        $(document).on('change', '.branch-nested-condition-field', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const branchIndex = parseInt($this.attr('data-branch-index'));
+            const path = JSON.parse($this.attr('data-path') || '[]');
+            const field = $this.attr('data-condition-field');
+            const value = $this.val();
+
+            if (components[index] && components[index].instance.updateBranchConditionByPath) {
+                components[index].instance.updateBranchConditionByPath(branchIndex, path, field, value);
+                updateJSON();
+                updateInputVariables();
+            }
+        });
+
+       
         // Button events
         $('#validateBtn').on('click', validateConfiguration);
         $('#executeBtn').on('click', executeRules);
@@ -447,132 +613,55 @@ $(document).ready(function () {
 
         debug('Events bound with jQuery', 'info');
 
-        
-    }
-
-    function setupModalEvents() {
-        // Setup modal events only once
-        $('#addVariableModal').on('hidden.bs.modal', function() {
-            resetVariableModal();
-        });
-        
-        // Handle Enter key in modal inputs
-        $(document).on('keypress', '#variableNameInput, #variableValueInput', function(e) {
-            if (e.which === 13) { // Enter key
-                $('#confirmAddVariable').trigger('click');
-            }
-        });
-    }
-
-    /**
-     * Add custom variable
-     */
-    function addCustomVariable() {
-        showModal('variable');
-    }
-
-    /**
-     * Show custom field modal
-     */
-    function showCustomFieldModal(componentIndex, branchIndex, rangeIndex) {
-        showModal('field', componentIndex, branchIndex, rangeIndex);
-    }
-
-    /**
-     * Show modal with different modes
-     */
-    function showModal(mode, componentIndex = null, branchIndex = null, rangeIndex = null) {
-        // Clear previous values
-        $('#variableNameInput').val('');
-        $('#variableValueInput').val('');
-        $('#variableNameInput, #variableValueInput').removeClass('is-invalid is-valid');
-        
-        // Configure modal based on mode
-        if (mode === 'variable') {
-            $('#addVariableModalLabel').html('<i class="bi bi-plus-circle me-2"></i>Add Custom Variable');
-            $('#variableNameInput').attr('placeholder', 'Enter variable name (e.g., age, income, score)');
-            $('#variableValueInput').closest('.mb-3').show();
-        } else if (mode === 'field') {
-            $('#addVariableModalLabel').html('<i class="bi bi-plus-circle me-2"></i>Add Custom Field');
-            $('#variableNameInput').attr('placeholder', 'Enter field name (e.g., level, tier, strategy)');
-            $('#variableValueInput').closest('.mb-3').hide();
-        }
-        
-        // Clear any existing click handlers
-        $('#confirmAddVariable').off('click');
-        
-        // Set new click handler
+        // Handle modal confirm button
         $('#confirmAddVariable').on('click', function() {
             const name = $('#variableNameInput').val().trim();
             const initialValue = $('#variableValueInput').val().trim();
             
             if (!name) {
-                showError('Please enter a name');
+                showError('Please enter a variable name');
                 return;
             }
             
-            // Validate name
+            // Validate variable name
             const cleanName = name.replace(/[^a-zA-Z0-9_]/g, '');
             if (cleanName !== name) {
-                showError('Name can only contain letters, numbers, and underscores');
+                showError('Variable name can only contain letters, numbers, and underscores');
                 return;
             }
             
-            // Process based on mode
-            if (mode === 'variable') {
-                // Check if variable already exists
-                if ($(`#input_${cleanName}`).length > 0) {
-                    showError('Variable already exists');
-                    return;
-                }
-                
-                createCustomVariableInput(cleanName, initialValue);
-                showSuccess(`Custom variable "${cleanName}" added`);
-                
-            } else if (mode === 'field') {
-                addCustomFieldToRange(componentIndex, branchIndex, rangeIndex, cleanName);
-                showSuccess(`Custom field "${cleanName}" added`);
+            // Check if already exists
+            if ($(`#input_${cleanName}`).length > 0) {
+                showError('Variable already exists');
+                return;
             }
+            
+            // Create the input
+            createCustomVariableInput(cleanName, initialValue);
             
             // Close modal
-            const modalInstance = bootstrap.Modal.getInstance($('#addVariableModal')[0]);
-            if (modalInstance) {
-                modalInstance.hide();
-            }
+            bootstrap.Modal.getInstance($('#addVariableModal')[0]).hide();
             
-            debug(`Added ${mode}: ${cleanName}`, 'info');
+            debug(`Added custom variable: ${cleanName}`, 'info');
+            showSuccess(`Custom variable "${cleanName}" added`);
         });
         
-        // Show modal
-        const modal = new bootstrap.Modal($('#addVariableModal')[0]);
-        modal.show();
-        
-        // Focus on input when modal is shown
-        $('#addVariableModal').one('shown.bs.modal', function() {
-            $('#variableNameInput').focus();
+        // Handle Enter key in modal
+        $('#variableNameInput, #variableValueInput').on('keypress', function(e) {
+            if (e.which === 13) { // Enter key
+                $('#confirmAddVariable').click();
+            }
         });
-    }
-
-    /**
-     * Reset modal to clean state
-     */
-    function resetModal() {
-        // Clear inputs
-        $('#variableNameInput').val('');
-        $('#variableValueInput').val('');
-        $('#variableNameInput, #variableValueInput').removeClass('is-invalid is-valid');
         
-        // Reset to default
-        $('#addVariableModalLabel').html('<i class="bi bi-plus-circle me-2"></i>Add Custom Variable');
-        $('#variableNameInput').attr('placeholder', 'Enter variable name (e.g., age, income, score)');
-        $('#variableValueInput').closest('.mb-3').show();
-        
-        // Remove click handlers
-        $('#confirmAddVariable').off('click');
+        // Handle modal close - clear validation states
+        $('#addVariableModal').on('hidden.bs.modal', function() {
+            $('#variableNameInput, #variableValueInput').removeClass('is-invalid is-valid');
+        });
+
+        $('#addCustomBtn').on('click', addCustomVariable);
+
+
     }
-
-
-    
 
     function setupRealTimeInputHandling() {
         $(document).on('input', '.form-control', function() {
@@ -642,16 +731,6 @@ $(document).ready(function () {
         // Auto-focus on the new input
         $inputDiv.find('input').focus();
     }
-
-    /**
-     * Show custom field modal
-     */
-    function showCustomFieldModal(componentIndex, branchIndex, rangeIndex) {
-       showVariableModal('field', componentIndex, branchIndex, rangeIndex);
-    }
-
-  
-   
 
 
     /**
@@ -1227,12 +1306,19 @@ $(document).ready(function () {
      * Add custom variable
      */
     function addCustomVariable() {
-       showVariableModal('variable');
-
+        // Clear previous values
+        $('#variableNameInput').val('');
+        $('#variableValueInput').val('');
+        
+        // Show modal
+        const modal = new bootstrap.Modal($('#addVariableModal')[0]);
+        modal.show();
+        
+        // Focus on input when modal is shown
+        $('#addVariableModal').on('shown.bs.modal', function () {
+            $('#variableNameInput').focus();
+        });
     }
-
-    
-
 
     /**
      * Test configuration with PHP backend
@@ -1777,7 +1863,6 @@ $(document).ready(function () {
 
     initializeUI();
     bindEvents();
-    setupModalEvents(); 
     addVisualFeedbackStyles();
     setupRealTimeInputHandling();
     updateView();
