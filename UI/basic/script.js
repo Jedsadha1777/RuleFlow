@@ -272,9 +272,6 @@ $(document).ready(function () {
         });
 
 
-       
-
-
         $(document).on('click', '.remove-range-from-branch-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
@@ -474,7 +471,7 @@ $(document).ready(function () {
 
 
         //Rules component management start
-        $(document).on('click', '.add-rule-btn', function () {
+         $(document).on('click', '.add-rule-btn', function () {
             const $card = $(this).closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
             addRule(index);
@@ -531,6 +528,239 @@ $(document).ready(function () {
             const value = $this.val();
             updateRuleSetVars(index, ruleIndex, rangeIndex, value);
         });
+
+
+        /**
+         * Handle rule range nested condition field changes
+         */
+         $(document).on('change', '.rule-range-nested-condition-field', function() {
+            const $this = $(this);
+            const componentIndex = $this.closest('.formula-component').data('index');
+            const ruleIndex = $this.data('rule-index');
+            const rangeIndex = $this.data('range-index');
+            const pathStr = $this.data('path');
+            const field = $this.data('condition-field');
+            const value = $this.val();
+            
+            updateRuleRangeConditionByPath(componentIndex, ruleIndex, rangeIndex, pathStr, field, value);
+        });
+
+        $(document).on('change', '.range-condition-type-select[data-rule-index]', function () {
+            const $this = $(this);
+            const componentIndex = $this.closest('.formula-component').data('index');
+            const ruleIndex = $this.data('rule-index');
+            const rangeIndex = $this.data('range-index');
+            const pathStr = $this.data('path');
+            const conditionType = $this.val();
+            
+            updateRuleRangeConditionTypeByPath(componentIndex, ruleIndex, rangeIndex, pathStr, conditionType);
+        });
+
+        // Component field change events for rules
+        $(document).on('change', '.component-id-field, .component-as-field', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            
+            if (index >= 0) {
+                const field = $this.hasClass('component-id-field') ? 'id' : 'as';
+                const value = $this.val();
+                updateComponentField(index, field, value);
+            }
+        });
+
+        $(document).on('click', '.add-rule-range-condition-to-group-btn', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($this.attr('data-rule-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            const pathStr = $this.attr('data-path');
+            const groupType = $this.attr('data-group-type');
+
+            try {
+                const path = pathStr ? JSON.parse(pathStr) : [];
+                if (components[index] && components[index].instance.addConditionToRangeGroupByPath) {
+                    components[index].instance.addConditionToRangeGroupByPath(ruleIndex, rangeIndex, path, groupType);
+                    updateView();
+                    updateJSON();
+                }
+            } catch (error) {
+                console.warn('Using fallback path:', error.message);
+                if (components[index] && components[index].instance.addConditionToRangeGroupByPath) {
+                    components[index].instance.addConditionToRangeGroupByPath(ruleIndex, rangeIndex, [], groupType);
+                    updateView();
+                    updateJSON();
+                }
+            }
+        });
+
+        $(document).on('click', '.remove-rule-range-nested-condition-btn', function () {
+            const $this = $(this);
+            const $card = $this.closest('.card[data-component-index]');
+            const index = parseInt($card.attr('data-component-index'));
+            const ruleIndex = parseInt($this.attr('data-rule-index'));
+            const rangeIndex = parseInt($this.attr('data-range-index'));
+            let pathStr = $this.attr('data-path');
+            const conditionIndex = parseInt($this.attr('data-condition-index'));
+            const groupType = $this.attr('data-group-type');
+
+            try {
+   
+                const path = pathStr ? JSON.parse(pathStr) : [];
+                
+                if (components[index] && components[index].instance.removeRangeConditionByPath) {
+                    components[index].instance.removeRangeConditionByPath(ruleIndex, rangeIndex, path, conditionIndex, groupType);
+                    updateView();
+                    updateJSON();
+                }
+            } catch (error) {
+                console.warn('Using fallback path for remove condition:', error);
+                if (components[index] && components[index].instance.removeRangeConditionByPath) {
+                    components[index].instance.removeRangeConditionByPath(ruleIndex, rangeIndex, [], conditionIndex, groupType);
+                    updateView();
+                    updateJSON();
+                }
+            }
+        });
+
+
+        /**
+         * Update rule range condition type by path
+         */
+       window.updateRuleRangeConditionTypeByPath = function(componentIndex, ruleIndex, rangeIndex, pathStr, conditionType) {
+            if (components[componentIndex] && components[componentIndex].instance.updateRangeConditionTypeByPath) {
+                try {
+                    let path = [];
+                    
+                    // 🔥 แก้ type checking
+                    if (pathStr !== null && pathStr !== undefined && pathStr !== '') {
+                        if (Array.isArray(pathStr)) {
+                            path = pathStr; // Already an array
+                        } else if (typeof pathStr === 'string') {
+                            path = JSON.parse(pathStr);
+                        }
+                    }
+                    
+                    components[componentIndex].instance.updateRangeConditionTypeByPath(ruleIndex, rangeIndex, path, conditionType);
+                    updateView();
+                    updateJSON();
+                } catch (error) {
+                    console.warn('Path fallback used');
+                    components[componentIndex].instance.updateRangeConditionTypeByPath(ruleIndex, rangeIndex, [], conditionType);
+                    updateView();
+                    updateJSON();
+                }
+            }
+        };
+
+
+        /**
+         * Add condition to rule range group by path
+         */
+        window.addConditionToRuleRangeGroupByPath = function(componentIndex, ruleIndex, rangeIndex, pathStr, groupType) {
+            if (components[componentIndex] && components[componentIndex].instance.addConditionToRangeGroupByPath) {
+                try {
+                    let path = [];
+                    if (pathStr !== null && pathStr !== undefined && pathStr !== '') {
+                        if (Array.isArray(pathStr)) {
+                            path = pathStr;
+                        } else if (typeof pathStr === 'string') {
+                            path = JSON.parse(pathStr);
+                        }
+                    }
+                    components[componentIndex].instance.addConditionToRangeGroupByPath(ruleIndex, rangeIndex, path, groupType);
+                    updateView();
+                    updateJSON();
+                } catch (error) {
+                    console.warn('Add fallback used');
+                    components[componentIndex].instance.addConditionToRangeGroupByPath(ruleIndex, rangeIndex, [], groupType);
+                    updateView();
+                    updateJSON();
+                }
+            }
+        };
+        /**
+         * Remove rule range condition by path
+         */
+         window.removeRuleRangeConditionByPath = function(componentIndex, ruleIndex, rangeIndex, pathStr, conditionIndex, groupType) {
+            if (components[componentIndex] && components[componentIndex].instance.removeRangeConditionByPath) {
+                try {
+                    let path = [];
+                    if (pathStr !== null && pathStr !== undefined && pathStr !== '') {
+                        if (Array.isArray(pathStr)) {
+                            path = pathStr;
+                        } else if (typeof pathStr === 'string') {
+                            path = JSON.parse(pathStr);
+                        }
+                    }
+                    components[componentIndex].instance.removeRangeConditionByPath(ruleIndex, rangeIndex, path, conditionIndex, groupType);
+                    updateView();
+                    updateJSON();
+                } catch (error) {
+                    console.warn('Remove condition fallback used');
+                    components[componentIndex].instance.removeRangeConditionByPath(ruleIndex, rangeIndex, [], conditionIndex, groupType);
+                    updateView();
+                    updateJSON();
+                }
+            }
+        };
+
+        /**
+         * Update rule range condition by path
+         */
+       window.updateRuleRangeConditionByPath = function(componentIndex, ruleIndex, rangeIndex, pathStr, field, value) {
+            if (components[componentIndex] && components[componentIndex].instance.updateRangeConditionByPath) {
+                try {
+                    let path = [];
+                    
+                    if (pathStr !== null && pathStr !== undefined && pathStr !== '') {
+                        if (Array.isArray(pathStr)) {
+                            path = pathStr; // Already an array
+                        } else if (typeof pathStr === 'string') {
+                            path = JSON.parse(pathStr);
+                        }
+                    }
+                    
+                    components[componentIndex].instance.updateRangeConditionByPath(ruleIndex, rangeIndex, path, field, value);
+                    updateJSON();
+                    updateInputVariables();
+                } catch (error) {
+                    console.warn('Update condition fallback used');
+                    components[componentIndex].instance.updateRangeConditionByPath(ruleIndex, rangeIndex, [], field, value);
+                    updateJSON();
+                    updateInputVariables();
+                }
+            }
+        };
+
+        window.updateNestedRuleConditionTypeByPath = function(componentIndex, ruleIndex, rangeIndex, pathStr, conditionType) {
+            if (components[componentIndex] && components[componentIndex].instance.updateNestedConditionTypeByPath) {
+                try {
+                    let path = [];
+                    
+                    if (pathStr !== null && pathStr !== undefined && pathStr !== '') {
+                        if (Array.isArray(pathStr)) {
+                            path = pathStr; // Already an array
+                        } else if (typeof pathStr === 'string') {
+                            path = JSON.parse(pathStr);
+                        }
+                    }
+                    
+                    components[componentIndex].instance.updateNestedConditionTypeByPath(ruleIndex, rangeIndex, path, conditionType);
+                    updateView();
+                    updateJSON();
+                } catch (error) {
+                    console.warn('Nested type fallback used');
+                    components[componentIndex].instance.updateNestedConditionTypeByPath(ruleIndex, rangeIndex, [], conditionType);
+                    updateView();
+                    updateJSON();
+                }
+            }
+        };
+
+
+
         //Rules component management end 
 
         $(document).on('change', '.branch-condition-type-select', function () {
@@ -1631,13 +1861,7 @@ $(document).ready(function () {
         }
     };
 
-    window.updateSetVars = function (componentIndex, branchIndex, rangeIndex, varsString) {
-        if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
-            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
-            updateJSON();
-            updateInputVariables();
-        }
-    };
+    
 
     window.addRangeToBranch = function (componentIndex, branchIndex) {
         if (components[componentIndex] && components[componentIndex].instance.addRangeToBranch) {
@@ -1663,13 +1887,7 @@ $(document).ready(function () {
         }
     };
 
-    window.updateSetVars = function (componentIndex, branchIndex, rangeIndex, varsString) {
-        if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
-            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
-            updateJSON();
-            updateInputVariables();
-        }
-    };
+    
 
     window.addCustomFieldToRange = function (componentIndex, branchIndex, rangeIndex, fieldName) {
         if (components[componentIndex] && components[componentIndex].instance.addCustomFieldToRange) {
@@ -1777,13 +1995,14 @@ $(document).ready(function () {
         }
     };
 
-    window.removeRangeFromRule = function(componentIndex, ruleIndex, rangeIndex) {
+     window.removeRangeFromRule = function(componentIndex, ruleIndex, rangeIndex) {
         if (components[componentIndex] && components[componentIndex].instance.removeRangeFromRule) {
             components[componentIndex].instance.removeRangeFromRule(ruleIndex, rangeIndex);
             updateView();
             updateJSON();
         }
     };
+
 
     window.updateRuleRangeField = function(componentIndex, ruleIndex, rangeIndex, field, value) {
         if (components[componentIndex] && components[componentIndex].instance.updateRangeField) {
@@ -1828,9 +2047,17 @@ $(document).ready(function () {
     };
 
     // Set vars management
-    window.updateRuleSetVars = function(componentIndex, ruleIndex, rangeIndex, varsString) {
+     window.updateRuleSetVars = function(componentIndex, ruleIndex, rangeIndex, varsString) {
         if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
             components[componentIndex].instance.updateSetVars(ruleIndex, rangeIndex, varsString);
+            updateJSON();
+            updateInputVariables();
+        }
+    };
+
+    window.updateSetVars = function(componentIndex, branchIndex, rangeIndex, varsString) {
+        if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
+            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
             updateJSON();
             updateInputVariables();
         }
