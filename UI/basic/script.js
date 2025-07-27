@@ -45,19 +45,17 @@ $(document).ready(function () {
             deleteComponent(index);
         });
 
-        // Component field change events
-        $(document).on('change', '.component-form input, .component-form select', function () {
+        $(document).on('change', '.component-form input[data-field], .component-form select[data-field]', function () {
             const $this = $(this);
             const $card = $this.closest('.card[data-component-index]');
             const index = parseInt($card.attr('data-component-index'));
-            const field = $this.attr('data-field') || getFieldFromElement($this);
+            const field = $this.attr('data-field'); // ใช้แค่ data-field 
             const value = $this.val();
 
             if (index >= 0 && field) {
-                updateComponentField(index, field, value);
+                updateComponentField(index, field, value); // ใช้ function เดิม
             }
         });
-
 
         // Scoring component management
         $(document).on('click', '.add-scoring-branch-btn', function () {
@@ -131,17 +129,6 @@ $(document).ready(function () {
             const fieldName = $this.attr('data-field-name');
             removeCustomFieldFromRange(index, branchIndex, rangeIndex, fieldName);
         });
-
-        $(document).on('change', '.set-vars-field', function () {
-            const $this = $(this);
-            const $card = $this.closest('.card[data-component-index]');
-            const index = parseInt($card.attr('data-component-index'));
-            const branchIndex = parseInt($this.attr('data-branch-index'));
-            const rangeIndex = parseInt($this.attr('data-range-index'));
-            const value = $this.val();
-            updateSetVars(index, branchIndex, rangeIndex, value);
-        });
-
 
         // Switch case management
         $(document).on('click', '.add-case-btn', function () {
@@ -967,6 +954,11 @@ $(document).ready(function () {
      * Get field name from element
      */
     function getFieldFromElement($element) {
+
+        if ($element.hasClass('set-vars-field') || $element.hasClass('rule-set-vars-field')) {
+            return null;
+        }
+
         const placeholder = $element.attr('placeholder');
         const id = $element.attr('id');
 
@@ -2057,7 +2049,7 @@ $(document).ready(function () {
 
     window.updateSetVars = function(componentIndex, branchIndex, rangeIndex, varsString) {
         if (components[componentIndex] && components[componentIndex].instance.updateSetVars) {
-            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString);
+            components[componentIndex].instance.updateSetVars(branchIndex, rangeIndex, varsString); // ← ใช้ varsString ที่ถูกต้อง
             updateJSON();
             updateInputVariables();
         }

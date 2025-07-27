@@ -88,7 +88,11 @@ class SwitchComponent {
         } else if (field === 'condition_type') {
             // Change between simple and nested conditions
             if (value === 'simple') {
-                this.when[caseIndex].if = { op: '==', var: '', value: '' };
+                this.when[caseIndex].if = { 
+                    op: '==', 
+                    var: this.switch, // ใช้ switch variable แทน
+                    value: '' 
+                };
             } else if (value === 'and') {
                 this.when[caseIndex].if = {
                     and: [

@@ -57,6 +57,7 @@ class ScoringComponent {
             case 'vars':
                 this.scoring.ifs.vars = value ? value.split(',').map(s => s.trim()) : [];
                 break;
+
         }
     }
 
@@ -1902,8 +1903,8 @@ class ScoringComponent {
             scoring: this.scoring
         };
 
-        if (this.as) {
-            json.as = this.as;
+        if (this.as && this.as.trim() !== '') {
+            json.as = this.as.trim();
         }
 
         return json;
