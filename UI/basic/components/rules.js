@@ -496,8 +496,8 @@ class RulesComponent {
            ranges: [
                { 
                    if: { op: '>=',  value: 0 },
-                   score: 0,
-                   set_vars: {}
+                   score: 0
+                  
                }
            ]
        });
@@ -526,8 +526,7 @@ class RulesComponent {
 
        this.rules[ruleIndex].ranges.push({
            if: { op: '>=', value: 0 },
-           score: 0,
-           set_vars: {}
+           score: 0
        });
    }
 
@@ -542,8 +541,7 @@ class RulesComponent {
        if (this.rules[ruleIndex].ranges.length === 0) {
            this.rules[ruleIndex].ranges.push({
                if: { op: '>=', value: 0 },
-               score: 0,
-               set_vars: {}
+               score: 0
            });
        }
    }
@@ -569,26 +567,43 @@ class RulesComponent {
     * Update set_vars for a range
     */
    updateSetVars(ruleIndex, rangeIndex, varsString) {
-       if (!this.rules[ruleIndex] || !this.rules[ruleIndex].ranges[rangeIndex]) return;
+        if (!this.rules[ruleIndex] || !this.rules[ruleIndex].ranges[rangeIndex]) return;
 
-       const range = this.rules[ruleIndex].ranges[rangeIndex];
-       
-       try {
-           const setVars = {};
-           if (varsString.trim()) {
-               const pairs = varsString.split(',');
-               pairs.forEach(pair => {
-                   const [key, value] = pair.split('=').map(s => s.trim());
-                   if (key && value) {
-                       setVars[key] = this.parseValue(value);
-                   }
-               });
-           }
-           range.set_vars = setVars;
-       } catch (e) {
-           console.warn('Invalid set_vars format:', varsString);
-       }
-   }
+        const range = this.rules[ruleIndex].ranges[rangeIndex];
+        
+        try {
+            const setVars = {};
+            
+            if (varsString && varsString.trim()) {
+                const pairs = varsString.split(',');
+                
+                pairs.forEach(pair => {
+                    const [key, value] = pair.split('=').map(s => s.trim());
+                    
+                    if (key && value) {
+                        // 🔥 ถ้า key ซ้ำ ให้แปลงเป็น array
+                        if (setVars.hasOwnProperty(key)) {
+                            if (!Array.isArray(setVars[key])) {
+                                setVars[key] = [setVars[key]];
+                            }
+                            setVars[key].push(this.parseValue(value));
+                        } else {
+                            setVars[key] = this.parseValue(value);
+                        }
+                    }
+                });
+            }
+            
+            //  ถ้า setVars ว่าง ให้ลบ property นี้ออก
+            if (Object.keys(setVars).length === 0) {
+                delete range.set_vars;
+            } else {
+                range.set_vars = setVars;
+            }
+        } catch (error) {
+            delete range.set_vars;
+        }
+    }
 
    /**
     * Parse value helper
@@ -619,11 +634,16 @@ class RulesComponent {
     * Format set_vars for display
     */
    formatSetVars(setVars) {
-       if (!setVars || typeof setVars !== 'object') return '';
-       
-       return Object.entries(setVars)
-           .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
-           .join(', ');
+       if (!setVars || Object.keys(setVars).length === 0) return '';
+    
+        return Object.entries(setVars)
+            .map(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return value.map(v => `${key} = ${JSON.stringify(v)}`).join(', ');
+                }
+                return `${key} = ${JSON.stringify(value)}`;
+            })
+            .join(', ');
    }
 
    /**
@@ -632,7 +652,7 @@ class RulesComponent {
    toJSON() {
        const json = {
            id: this.id,
-           rules: this.rules
+           rules: this.cleanRulesData(this.rules)
        };
 
        if (this.as) {
@@ -650,6 +670,43 @@ class RulesComponent {
        this.rules = json.rules || [];
        this.as = json.as || '';
    }
+
+   cleanRulesData(rules) {
+        return rules.map(rule => {
+            const cleanedRule = {
+                var: rule.var,
+                ranges: []
+            };
+
+            if (rule.ranges) {
+                cleanedRule.ranges = rule.ranges.map(range => {
+                    const cleanedRange = {
+                        if: range.if,
+                        score: range.score
+                    };
+
+                    // 🔥 เพิ่ม set_vars เฉพาะเมื่อมีข้อมูล
+                    if (range.set_vars && Object.keys(range.set_vars).length > 0) {
+                        cleanedRange.set_vars = range.set_vars;
+                    }
+
+                    // 🔥 เพิ่ม custom fields อื่นๆ
+                    Object.keys(range).forEach(key => {
+                        if (!['if', 'score', 'set_vars'].includes(key) && 
+                            range[key] !== '' && range[key] !== null && range[key] !== undefined) {
+                            cleanedRange[key] = range[key];
+                        }
+                    });
+
+                    return cleanedRange;
+                });
+            }
+
+            return cleanedRule;
+        });
+    }
+
+
 }
 
 // Export for global use
