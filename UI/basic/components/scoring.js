@@ -949,7 +949,7 @@ class ScoringComponent {
         return `
             <div class="simple-condition-inline">
                 <div class="row g-2">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <select class="form-select form-select-sm branch-nested-condition-field" 
                                 data-branch-index="${branchIndex}"
                                 data-path='${pathStr}'
@@ -957,7 +957,18 @@ class ScoringComponent {
                             ${getOperatorOptions(condition.op)}
                         </select>
                     </div>
-                    <div class="col-md-8">
+
+                     <div class="col-md-4">
+                        <input type="text" 
+                            class="form-control form-control-sm branch-nested-condition-field" 
+                            placeholder="Variable name"
+                            value="${condition.var || condition.field || ''}"
+                            data-branch-index="${branchIndex}"
+                            data-path='${pathStr}'
+                            data-condition-field="var">
+                    </div>
+
+                    <div class="col-md-5">
                         <input type="text" 
                             class="form-control form-control-sm branch-nested-condition-field" 
                             placeholder="${getValuePlaceholder(condition.op)}"
@@ -1897,6 +1908,21 @@ class ScoringComponent {
         } else if (field === 'value') {
             condition.value = this.parseValue(value);
         }
+
+        const orderedCondition = {
+            op: condition.op || '>='
+        };
+
+        // เพิ่ม var เฉพาะเมื่อไม่ว่าง
+        if (condition.var && condition.var.trim() !== '') {
+            orderedCondition.var = condition.var;
+        }
+
+        orderedCondition.value = condition.value;
+
+        Object.keys(condition).forEach(key => delete condition[key]);
+        Object.assign(condition, orderedCondition);
+
     }
 
 
