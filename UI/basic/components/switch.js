@@ -288,7 +288,7 @@ class SwitchComponent {
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Switch Variable</label>
                         <input type="text" 
-                               class="form-control" 
+                               class="form-control switch-var-field" 
                                placeholder="$variable or variable"
                                value="${this.switch}" 
                                data-field="switch">

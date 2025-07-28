@@ -955,7 +955,12 @@ $(document).ready(function () {
      */
     function getFieldFromElement($element) {
 
-        if ($element.hasClass('set-vars-field') || $element.hasClass('rule-set-vars-field')) {
+        if ($element.hasClass('set-vars-field') || 
+            $element.hasClass('rule-set-vars-field') || 
+            $element.hasClass('scoring-vars-field') ||
+            $element.hasClass('rule-var-field') || 
+            $element.hasClass('switch-var-field')
+            ) {
             return null;
         }
 

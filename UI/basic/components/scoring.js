@@ -759,7 +759,7 @@ class ScoringComponent {
                 <div class="mb-3">
                     <label class="form-label">Scoring Variables</label>
                     <input type="text" 
-                           class="form-control" 
+                           class="form-control scoring-vars-field" 
                            placeholder="$perf_score, years_service"
                            value="${this.scoring.ifs.vars.join(', ')}" 
                            data-field="vars">
