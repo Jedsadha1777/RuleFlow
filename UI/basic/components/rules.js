@@ -58,19 +58,7 @@ class RulesComponent {
    render(index) {
        let html = `
             <div class="formula-component" data-type="rules" data-index="${index}">
-               <div class="card mb-3">
-                   <div class="card-header">
-                       <div class="d-flex justify-content-between align-items-center">
-                           <h6 class="mb-0">
-                               <i class="bi bi-list-check text-success me-2"></i>
-                               Accumulative Rules Component
-                           </h6>
-                           <button type="button" class="btn btn-sm btn-outline-danger remove-component-btn" data-index="${index}">
-                               <i class="bi bi-trash"></i>
-                           </button>
-                       </div>
-                   </div>
-                   <div class="card-body">
+               
                        <div class="row g-3 mb-3">
                            <div class="col-md-6">
                                <label class="form-label">Component ID <span class="text-danger">*</span></label>
@@ -114,8 +102,7 @@ class RulesComponent {
 
        html += `
                    </div>
-               </div>
-           </div>
+              
        `;
 
        return html;
@@ -280,6 +267,7 @@ class RulesComponent {
                // 🔁 Recursive call - ไม่จำกัดชั้น!
                html += this.renderRangeConditionRecursive(componentIndex, ruleIndex, rangeIndex, subCondition, newPath, depth + 1);
                
+               
                html += `
                            </div>
                            ${conditions.length > 1 ? `
@@ -309,7 +297,7 @@ class RulesComponent {
             html += `
                 <div class="simple-condition-inline">
                     <div class="row g-2">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <select class="form-select form-select-sm rule-range-nested-condition-field" 
                                     data-rule-index="${ruleIndex}"
                                     data-range-index="${rangeIndex}"
@@ -318,7 +306,17 @@ class RulesComponent {
                                 ${getOperatorOptions(condition.op)}
                             </select>
                         </div>
-                        <div class="col-md-8">
+                         <div class="col-md-3">
+                            <input type="text" 
+                                class="form-control form-control-sm rule-range-nested-condition-field" 
+                                placeholder="Variable"
+                                value="${condition.var || condition.field || ''}"
+                                data-rule-index="${ruleIndex}"
+                                data-range-index="${rangeIndex}"
+                                data-path='${pathStr}'
+                                data-condition-field="var">
+                        </div>                        
+                        <div class="col-md-6">
                             <input type="text" 
                                 class="form-control form-control-sm rule-range-nested-condition-field" 
                                 placeholder="${getValuePlaceholder(condition.op)}"
@@ -369,21 +367,21 @@ class RulesComponent {
 
        if (conditionType === 'simple') {
            Object.keys(condition).forEach(key => delete condition[key]);
-           Object.assign(condition, { op: '>=', value: 0 });
+           Object.assign(condition, { op: '>=',  value: 0 });
        } else if (conditionType === 'and') {
            Object.keys(condition).forEach(key => delete condition[key]);
            Object.assign(condition, {
                and: [
-                   { op: '>', var: '', value: '' },
-                   { op: '>', var: '', value: '' }
+                   { op: '>',  value: '' },
+                   { op: '>',  value: '' }
                ]
            });
        } else if (conditionType === 'or') {
            Object.keys(condition).forEach(key => delete condition[key]);
            Object.assign(condition, {
                or: [
-                   { op: '>', var: '', value: '' },
-                   { op: '>', var: '', value: '' }
+                   { op: '>',  value: '' },
+                   { op: '>',  value: '' }
                ]
            });
        }
@@ -396,7 +394,7 @@ class RulesComponent {
        const condition = this.getRangeNestedCondition(ruleIndex, rangeIndex, path);
        if (!condition) return;
 
-       const newCondition = { op: '>', var: '', value: '' };
+       const newCondition = { op: '>', value: '' };
 
        if (groupType === 'and' && condition.and) {
            condition.and.push(newCondition);
@@ -415,12 +413,12 @@ class RulesComponent {
        if (groupType === 'and' && condition.and) {
            condition.and.splice(conditionIndex, 1);
            if (condition.and.length === 0) {
-               condition.and.push({ op: '>', var: '', value: '' });
+               condition.and.push({ op: '>', value: '' });
            }
        } else if (groupType === 'or' && condition.or) {
            condition.or.splice(conditionIndex, 1);
            if (condition.or.length === 0) {
-               condition.or.push({ op: '>', var: '', value: '' });
+               condition.or.push({ op: '>',  value: '' });
            }
        }
    }
@@ -429,17 +427,33 @@ class RulesComponent {
     * Update range condition by path (ก็อปจาก scoring.js)
     */
    updateRangeConditionByPath(ruleIndex, rangeIndex, path, field, value) {
-       const condition = this.getRangeNestedCondition(ruleIndex, rangeIndex, path);
-       if (!condition) return;
+        const condition = this.getRangeNestedCondition(ruleIndex, rangeIndex, path);
+        if (!condition) return;
 
-       if (field === 'op') {
-           condition.op = value;
-       } else if (field === 'var') {
-           condition.var = value;
-       } else if (field === 'value') {
-           condition.value = this.parseValue(value);
-       }
-   }
+        // อัพเดท value
+        if (field === 'op') {
+            condition.op = value;
+        } else if (field === 'var') {
+            condition.var = value;
+        } else if (field === 'value') {
+            condition.value = this.parseValue(value);
+        }
+
+        // สร้าง object ใหม่ที่มีลำดับถูกต้อง
+        const orderedCondition = {
+            op: condition.op || '>='
+        };
+
+        // เพิ่ม var เฉพาะเมื่อไม่ว่าง
+        if (condition.var && condition.var.trim() !== '') {
+            orderedCondition.var = condition.var;
+        }
+
+        orderedCondition.value = condition.value;
+
+        Object.keys(condition).forEach(key => delete condition[key]);
+        Object.assign(condition, orderedCondition);
+    }
 
    /**
      * Update nested condition type by path
@@ -457,8 +471,8 @@ class RulesComponent {
             Object.keys(condition).forEach(key => delete condition[key]);
             Object.assign(condition, {
                 and: [
-                    { op: '>', var: '', value: '' },
-                    { op: '>', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '>', value: '' }
                 ]
             });
         } else if (conditionType === 'or') {
@@ -466,8 +480,8 @@ class RulesComponent {
             Object.keys(condition).forEach(key => delete condition[key]);
             Object.assign(condition, {
                 or: [
-                    { op: '>', var: '', value: '' },
-                    { op: '>', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '>', value: '' }
                 ]
             });
         }
@@ -478,10 +492,10 @@ class RulesComponent {
     */
    addRule() {
        this.rules.push({
-           var: '',
+            var: '',
            ranges: [
                { 
-                   if: { op: '>=', value: 0 }, 
+                   if: { op: '>=',  value: 0 },
                    score: 0,
                    set_vars: {}
                }

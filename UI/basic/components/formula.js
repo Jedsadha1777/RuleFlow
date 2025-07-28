@@ -113,12 +113,12 @@ class FormulaComponent {
             formula: this.formula
         };
 
-        if (this.as) {
-            json.as = this.as;
-        }
-
         if (this.inputs && this.inputs.length > 0) {
             json.inputs = this.inputs;
+        }
+
+        if (this.as) {
+            json.as = this.as;
         }
 
         return json;

@@ -116,7 +116,7 @@ class UIController {
                     </div>
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-primary copy-btn" data-index="${index}">
-                            <i class="bi bi-copy"></i>
+                            <i class="bi bi-clipboard"></i>
                         </button>
                         <button class="btn btn-outline-danger delete-btn" data-index="${index}">
                             <i class="bi bi-trash"></i>

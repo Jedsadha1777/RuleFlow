@@ -103,15 +103,15 @@ class ScoringComponent {
             } else if (value === 'and') {
                 branch.if = {
                     and: [
-                        { op: '>', var: '', value: '' },
-                        { op: '==', var: '', value: '' }
+                        { op: '>',  value: '' },
+                        { op: '==',  value: '' }
                     ]
                 };
             } else if (value === 'or') {
                 branch.if = {
                     or: [
-                        { op: '>', var: '', value: '' },
-                        { op: '==', var: '', value: '' }
+                        { op: '>',  value: '' },
+                        { op: '==', value: '' }
                     ]
                 };
             }
@@ -153,9 +153,9 @@ class ScoringComponent {
         const branchIf = this.scoring.ifs.tree[branchIndex].if;
         
         if (groupType === 'and' && branchIf.and) {
-            branchIf.and.push({ op: '==', var: '', value: '' });
+            branchIf.and.push({ op: '==',  value: '' });
         } else if (groupType === 'or' && branchIf.or) {
-            branchIf.or.push({ op: '==', var: '', value: '' });
+            branchIf.or.push({ op: '==',  value: '' });
         }
     }
 
@@ -207,21 +207,21 @@ class ScoringComponent {
 
         if (conditionType === 'simple') {
             Object.keys(condition).forEach(key => delete condition[key]);
-            Object.assign(condition, { op: '==', var: '', value: '' });
+            Object.assign(condition, { op: '==', value: '' });
         } else if (conditionType === 'and') {
             Object.keys(condition).forEach(key => delete condition[key]);
             Object.assign(condition, {
                 and: [
-                    { op: '>', var: '', value: '' },
-                    { op: '>', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '>',  value: '' }
                 ]
             });
         } else if (conditionType === 'or') {
             Object.keys(condition).forEach(key => delete condition[key]);
             Object.assign(condition, {
                 or: [
-                    { op: '>', var: '', value: '' },
-                    { op: '>', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '>', value: '' }
                 ]
             });
         }
@@ -234,7 +234,7 @@ class ScoringComponent {
         const condition = this.getRangeNestedCondition(branchIndex, rangeIndex, path);
         if (!condition) return;
 
-        const newCondition = { op: '>', var: '', value: '' };
+        const newCondition = { op: '>', value: '' };
 
         if (groupType === 'and' && condition.and) {
             condition.and.push(newCondition);
@@ -253,12 +253,12 @@ class ScoringComponent {
         if (groupType === 'and' && condition.and) {
             condition.and.splice(conditionIndex, 1);
             if (condition.and.length === 0) {
-                condition.and.push({ op: '>', var: '', value: '' });
+                condition.and.push({ op: '>', value: '' });
             }
         } else if (groupType === 'or' && condition.or) {
             condition.or.splice(conditionIndex, 1);
             if (condition.or.length === 0) {
-                condition.or.push({ op: '>', var: '', value: '' });
+                condition.or.push({ op: '>', value: '' });
             }
         }
     }
@@ -271,6 +271,7 @@ class ScoringComponent {
         const condition = this.getRangeNestedCondition(branchIndex, rangeIndex, path);
         if (!condition) return;
 
+        // อัพเดท value
         if (field === 'op') {
             condition.op = value;
         } else if (field === 'var') {
@@ -278,6 +279,21 @@ class ScoringComponent {
         } else if (field === 'value') {
             condition.value = this.parseValue(value);
         }
+
+        // สร้าง object ใหม่ที่มีลำดับถูกต้อง
+        const orderedCondition = {
+            op: condition.op || '=='
+        };
+
+        // เพิ่ม var เฉพาะเมื่อไม่ว่าง
+        if (condition.var && condition.var.trim() !== '') {
+            orderedCondition.var = condition.var;
+        }
+
+        orderedCondition.value = condition.value;
+
+        Object.keys(condition).forEach(key => delete condition[key]);
+        Object.assign(condition, orderedCondition);
     }
 
 
@@ -390,15 +406,15 @@ class ScoringComponent {
         } else if (conditionType === 'and') {
             range.if = {
                 and: [
-                    { op: '>', var: '', value: '' },
-                    { op: '==', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '==', value: '' }
                 ]
             };
         } else if (conditionType === 'or') {
             range.if = {
                 or: [
-                    { op: '>', var: '', value: '' },
-                    { op: '==', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '==', value: '' }
                 ]
             };
         }
@@ -442,9 +458,9 @@ class ScoringComponent {
         const rangeIf = this.scoring.ifs.tree[branchIndex].ranges[rangeIndex].if;
         
         if (groupType === 'and' && rangeIf.and) {
-            rangeIf.and.push({ op: '==', var: '', value: '' });
+            rangeIf.and.push({ op: '==', value: '' });
         } else if (groupType === 'or' && rangeIf.or) {
-            rangeIf.or.push({ op: '==', var: '', value: '' });
+            rangeIf.or.push({ op: '==',  value: '' });
         }
     }
 
@@ -472,15 +488,15 @@ class ScoringComponent {
             } else if (value === 'and') {
                 range.if = {
                     and: [
-                        { op: '>', var: '', value: '' },
-                        { op: '==', var: '', value: '' }
+                        { op: '>',  value: '' },
+                        { op: '==',  value: '' }
                     ]
                 };
             } else if (value === 'or') {
                 range.if = {
                     or: [
-                        { op: '>', var: '', value: '' },
-                        { op: '==', var: '', value: '' }
+                        { op: '>', value: '' },
+                        { op: '==', value: '' }
                     ]
                 };
             }
@@ -545,9 +561,9 @@ class ScoringComponent {
         if (targetCondition) {
             // 🔥 ถ้ามี nested อยู่แล้ว ให้เพิ่มใน nested นั้น
             if (targetCondition.and) {
-                targetCondition.and.push({ op: '==', var: '', value: '' });
+                targetCondition.and.push({ op: '==',  value: '' });
             } else if (targetCondition.or) {
-                targetCondition.or.push({ op: '==', var: '', value: '' });
+                targetCondition.or.push({ op: '==', value: '' });
             } else {
                 // 🔥 ถ้ายังไม่มี nested ให้สร้างใหม่ โดย**ไม่ลบข้อมูลเดิม**
                 const existingData = {
@@ -559,12 +575,12 @@ class ScoringComponent {
                 if (nestType === 'and') {
                     targetCondition.and = [
                         existingData, // เก็บข้อมูลเดิม
-                        { op: '==', var: '', value: '' } // เพิ่มใหม่
+                        { op: '==',  value: '' } // เพิ่มใหม่
                     ];
                 } else if (nestType === 'or') {
                     targetCondition.or = [
                         existingData, // เก็บข้อมูลเดิม
-                        { op: '==', var: '', value: '' } // เพิ่มใหม่
+                        { op: '==', value: '' } // เพิ่มใหม่
                     ];
                 }
 
@@ -650,12 +666,12 @@ class ScoringComponent {
                 if (nestType === 'and') {
                     deepCondition.and = [
                         existingData,
-                        { op: '==', var: '', value: '' }
+                        { op: '==', value: '' }
                     ];
                 } else if (nestType === 'or') {
                     deepCondition.or = [
                         existingData,
-                        { op: '==', var: '', value: '' }
+                        { op: '==',  value: '' }
                     ];
                 }
 
@@ -747,7 +763,7 @@ class ScoringComponent {
                            placeholder="$perf_score, years_service"
                            value="${this.scoring.ifs.vars.join(', ')}" 
                            data-field="vars">
-                    <small class="text-muted">Variables for multi-dimensional scoring (use $ for calculated vars)</small>
+                    <small class="text-muted">Multi-dimensional scoring uses <span class="text-primary">2 variables</span>: <span class="text-primary">when</span> and <span class="text-primary">range</span> (prefix $ for calculated).</small>
                 </div>
                 
                 <div class="mb-3">
@@ -1675,12 +1691,12 @@ class ScoringComponent {
                     if (nestType === 'and') {
                         recursiveCondition.and = [
                             existingData,
-                            { op: '==', var: '', value: '' }
+                            { op: '==', value: '' }
                         ];
                     } else if (nestType === 'or') {
                         recursiveCondition.or = [
                             existingData,
-                            { op: '==', var: '', value: '' }
+                            { op: '==', value: '' }
                         ];
                     }
 
@@ -1713,7 +1729,7 @@ class ScoringComponent {
                 // Convert back to simple
                 const firstCondition = targetCondition.and ? targetCondition.and[0] : 
                                     targetCondition.or ? targetCondition.or[0] : 
-                                    { op: '==', var: '', value: '' };
+                                    { op: '==', value: '' };
                 
                 targetCondition.op = firstCondition.op;
                 targetCondition.var = firstCondition.var;
@@ -1728,7 +1744,7 @@ class ScoringComponent {
                     value: targetCondition.value || ''
                 };
                 
-                targetCondition.and = [existingData, { op: '==', var: '', value: '' }];
+                targetCondition.and = [existingData, { op: '==', value: '' }];
                 delete targetCondition.or;
                 delete targetCondition.op;
                 delete targetCondition.var;
@@ -1740,7 +1756,7 @@ class ScoringComponent {
                     value: targetCondition.value || ''
                 };
                 
-                targetCondition.or = [existingData, { op: '==', var: '', value: '' }];
+                targetCondition.or = [existingData, { op: '==', value: '' }];
                 delete targetCondition.and;
                 delete targetCondition.op;
                 delete targetCondition.var;
@@ -1770,7 +1786,7 @@ class ScoringComponent {
                 // Convert deep nested back to simple
                 const firstCondition = targetCondition.and ? targetCondition.and[0] : 
                                     targetCondition.or ? targetCondition.or[0] : 
-                                    { op: '==', var: '', value: '' };
+                                    { op: '==', value: '' };
                 
                 targetCondition.op = firstCondition.op;
                 targetCondition.var = firstCondition.var;
@@ -1823,16 +1839,16 @@ class ScoringComponent {
             Object.keys(condition).forEach(key => delete condition[key]);
             Object.assign(condition, {
                 and: [
-                    { op: '>', var: '', value: '' },
-                    { op: '>', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '>', value: '' }
                 ]
             });
         } else if (conditionType === 'or') {
             Object.keys(condition).forEach(key => delete condition[key]);
             Object.assign(condition, {
                 or: [
-                    { op: '>', var: '', value: '' },
-                    { op: '>', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '>', value: '' }
                 ]
             });
         }
@@ -1843,7 +1859,7 @@ class ScoringComponent {
         const condition = this.getBranchNestedCondition(branchIndex, path);
         if (!condition) return;
 
-        const newCondition = { op: '>', var: '', value: '' };
+        const newCondition = { op: '>', value: '' };
 
         if (groupType === 'and' && condition.and) {
             condition.and.push(newCondition);
@@ -1859,12 +1875,12 @@ class ScoringComponent {
         if (groupType === 'and' && condition.and) {
             condition.and.splice(conditionIndex, 1);
             if (condition.and.length === 0) {
-                condition.and.push({ op: '>', var: '', value: '' });
+                condition.and.push({ op: '>', value: '' });
             }
         } else if (groupType === 'or' && condition.or) {
             condition.or.splice(conditionIndex, 1);
             if (condition.or.length === 0) {
-                condition.or.push({ op: '>', var: '', value: '' });
+                condition.or.push({ op: '>', value: '' });
             }
         }
     }

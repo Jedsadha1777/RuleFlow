@@ -50,7 +50,7 @@ class SwitchComponent {
      */
     addCase() {
         this.when.push({
-            if: { op: '==', var: this.switch, value: '' },
+            if: { op: '==', value: '' },
             result: ''
         });
     }
@@ -62,8 +62,8 @@ class SwitchComponent {
         this.when.push({
             if: {
                 and: [
-                    { op: '>', var: '', value: '' },
-                    { op: '==', var: '', value: '' }
+                    { op: '>', value: '' },
+                    { op: '==', value: '' }
                 ]
             },
             result: ''
@@ -89,22 +89,21 @@ class SwitchComponent {
             // Change between simple and nested conditions
             if (value === 'simple') {
                 this.when[caseIndex].if = { 
-                    op: '==', 
-                    var: this.switch, // ใช้ switch variable แทน
+                    op: '==',                    
                     value: '' 
                 };
             } else if (value === 'and') {
                 this.when[caseIndex].if = {
                     and: [
-                        { op: '>', var: '', value: '' },
-                        { op: '==', var: '', value: '' }
+                        { op: '>', value: '' },
+                        { op: '==', value: '' }
                     ]
                 };
             } else if (value === 'or') {
                 this.when[caseIndex].if = {
                     or: [
-                        { op: '>', var: '', value: '' },
-                        { op: '==', var: '', value: '' }
+                        { op: '>', value: '' },
+                        { op: '==', value: '' }
                     ]
                 };
             }
@@ -149,24 +148,40 @@ class SwitchComponent {
             // Convert condition type
             if (value === 'simple') {
                 Object.keys(condition).forEach(key => delete condition[key]);
-                Object.assign(condition, { op: '>', var: '', value: '' });
+                Object.assign(condition, { op: '>', value: '' });
             } else if (value === 'and') {
                 Object.keys(condition).forEach(key => delete condition[key]);
                 Object.assign(condition, {
                     and: [
-                        { op: '>', var: '', value: '' },
-                        { op: '>', var: '', value: '' }
+                        { op: '>', value: '' },
+                        { op: '>', value: '' }
                     ]
                 });
             } else if (value === 'or') {
                 Object.keys(condition).forEach(key => delete condition[key]);
                 Object.assign(condition, {
                     or: [
-                        { op: '>', var: '', value: '' },
-                        { op: '>', var: '', value: '' }
+                        { op: '>', value: '' },
+                        { op: '>', value: '' }
                     ]
                 });
             }
+        }
+
+         // ถ้าไม่ใช่การเปลี่ยน type ให้จัดลำดับ property
+        if (field !== 'type') {
+            const orderedCondition = {
+                op: condition.op || '>'
+            };
+
+            if (condition.var && condition.var.trim() !== '') {
+                orderedCondition.var = condition.var;
+            }
+
+            orderedCondition.value = condition.value;
+
+            Object.keys(condition).forEach(key => delete condition[key]);
+            Object.assign(condition, orderedCondition);
         }
     }
 
@@ -179,7 +194,7 @@ class SwitchComponent {
         const condition = this.getNestedCondition(this.when[caseIndex].if, path);
         if (!condition) return;
 
-        const newCondition = { op: '>', var: '', value: '' };
+        const newCondition = { op: '>', value: '' };
 
         if (groupType === 'and' && condition.and) {
             condition.and.push(newCondition);
@@ -200,12 +215,12 @@ class SwitchComponent {
         if (groupType === 'and' && condition.and) {
             condition.and.splice(conditionIndex, 1);
             if (condition.and.length === 0) {
-                condition.and.push({ op: '>', var: '', value: '' });
+                condition.and.push({ op: '>', value: '' });
             }
         } else if (groupType === 'or' && condition.or) {
             condition.or.splice(conditionIndex, 1);
             if (condition.or.length === 0) {
-                condition.or.push({ op: '>', var: '', value: '' });
+                condition.or.push({ op: '>', value: '' });
             }
         }
     }
