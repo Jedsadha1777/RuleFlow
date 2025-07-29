@@ -167,59 +167,193 @@ class RuleFlow {
     * Generate JavaScript code from configuration
     */
    generateCode(config) {
-       const validation = this.validateConfig(config);
-       if (!validation.valid) {
-           throw new RuleFlowException('Cannot generate code for invalid configuration: ' + validation.errors.join(', '));
-       }
+        const validation = this.validateConfig(config);
+        if (!validation.valid) {
+            throw new RuleFlowException('Cannot generate code for invalid configuration: ' + validation.errors.join(', '));
+        }
 
-       let code = '// Generated JavaScript function from RuleFlow configuration\n';
-       code += 'function generatedRuleFunction(inputs) {\n';
-       code += '  const results = {};\n';
-       code += '  const variables = { ...inputs };\n\n';
+        let code = '// Generated JavaScript function from RuleFlow configuration\n';
+        code += 'function generatedRuleFunction(inputs) {\n';
+        code += '  const results = {};\n';
+        code += '  const variables = { ...inputs };\n\n';
 
-       // Helper functions
-       code += '  // Helper functions\n';
-       code += '  const functions = {\n';
-       
-       // Add math functions
-       code += '    sqrt: Math.sqrt,\n';
-       code += '    pow: Math.pow,\n';
-       code += '    abs: Math.abs,\n';
-       code += '    min: Math.min,\n';
-       code += '    max: Math.max,\n';
-       code += '    round: (num, decimals = 0) => {\n';
-       code += '      const factor = Math.pow(10, decimals);\n';
-       code += '      return Math.round(num * factor) / factor;\n';
-       code += '    },\n';
-       code += '    ceil: Math.ceil,\n';
-       code += '    floor: Math.floor,\n';
-       
-       // Add business functions
-       code += '    bmi: (weight, height) => weight / ((height / 100) ** 2),\n';
-       code += '    percentage: (value, total) => total === 0 ? 0 : (value / total) * 100,\n';
-       code += '    discount: (price, rate) => price * (1 - rate / 100),\n';
-       code += '    avg: (...numbers) => numbers.reduce((a, b) => a + b, 0) / numbers.length\n';
-       code += '  };\n\n';
+        // Helper functions
+        code += '  // Helper functions\n';
+        code += '  const functions = {\n';
+        
+        // Add math functions
+        code += '    sqrt: Math.sqrt,\n';
+        code += '    pow: Math.pow,\n';
+        code += '    abs: Math.abs,\n';
+        code += '    min: Math.min,\n';
+        code += '    max: Math.max,\n';
+        code += '    round: (num, decimals = 0) => {\n';
+        code += '      const factor = Math.pow(10, decimals);\n';
+        code += '      return Math.round(num * factor) / factor;\n';
+        code += '    },\n';
+        code += '    ceil: Math.ceil,\n';
+        code += '    floor: Math.floor,\n';
+        
+        // Add business functions
+        code += '    bmi: (weight, height) => weight / ((height / 100) ** 2),\n';
+        code += '    percentage: (value, total) => total === 0 ? 0 : (value / total) * 100,\n';
+        code += '    discount: (price, rate) => price * (1 - rate / 100),\n';
+        code += '    avg: (...numbers) => numbers.reduce((a, b) => a + b, 0) / numbers.length\n';
+        code += '  };\n\n';
 
-       // Process each formula
-       for (const formula of config.formulas) {
-           if (formula.formula) {
-               code += this.generateFormulaCode(formula);
-           } else if (formula.switch) {
-               code += this.generateSwitchCode(formula);
-           } else if (formula.conditions) {
-               code += this.generateConditionsCode(formula);
-           } else if (formula.function_call) {
-               code += this.generateFunctionCallCode(formula);
-           }
-           code += '\n';
-       }
+        // Process each formula
+        for (const formula of config.formulas) {
+            if (formula.formula) {
+                code += this.generateFormulaCode(formula);
+            } else if (formula.switch) {
+                code += this.generateSwitchCode(formula);
+            } else if (formula.conditions) {
+                code += this.generateConditionsCode(formula);
+            } else if (formula.function_call) {
+                code += this.generateFunctionCallCode(formula);
+            } else if (formula.rules) {
+                code += this.generateRulesCode(formula);  // เพิ่ม
+            } else if (formula.scoring) {
+                code += this.generateScoringCode(formula);  // เพิ่ม
+            }
+            code += '\n';
+        }
 
-       code += '  return results;\n';
-       code += '}';
+        code += '  return results;\n';
+        code += '}';
 
-       return code;
-   }
+        return code;
+    }
+
+    /**
+     * Generate code for rules (accumulative scoring)
+     */
+    generateRulesCode(formula) {
+        let code = '  // ' + formula.id + ' (rules)\n';
+        code += '  let totalScore_' + formula.id + ' = 0;\n';
+        
+        formula.rules.forEach((rule, ruleIndex) => {
+            const varName = rule.var.startsWith('$') ? 
+                'variables.' + rule.var.substring(1) : 
+                'inputs.' + rule.var;
+                
+            code += '  \n  // Rule ' + (ruleIndex + 1) + ': ' + rule.var + '\n';
+            code += '  if (' + varName + ' !== undefined) {\n';
+            
+            if (rule.ranges) {
+                rule.ranges.forEach((range, rangeIndex) => {
+                    const condition = this.generateConditionCode(range.if, varName);
+                    const score = range.score || 0;
+                    
+                    if (rangeIndex === 0) {
+                        code += '    if (' + condition + ') {\n';
+                    } else {
+                        code += '    } else if (' + condition + ') {\n';
+                    }
+                    code += '      totalScore_' + formula.id + ' += ' + score + ';\n';
+                    
+                    // Handle set_vars
+                    if (range.set_vars) {
+                        Object.entries(range.set_vars).forEach(([key, value]) => {
+                            code += '      variables.' + key + ' = ' + JSON.stringify(value) + ';\n';
+                        });
+                    }
+                });
+                code += '    }\n';
+            }
+            
+            code += '  }\n';
+        });
+        
+        code += '  results.' + formula.id + ' = totalScore_' + formula.id + ';\n';
+        
+        if (formula.as) {
+            const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+            code += '  variables.' + varName + ' = results.' + formula.id + ';\n';
+        }
+        
+        return code;
+    }
+
+    /**
+     * Generate code for scoring (multi-dimensional scoring)
+     */
+    generateScoringCode(formula) {
+        let code = '  // ' + formula.id + ' (scoring)\n';
+        
+        if (formula.scoring.ifs) {
+            // Multi-dimensional scoring
+            const vars = formula.scoring.ifs.vars || [];
+            
+            code += '  // Get scoring variables\n';
+            vars.forEach((varName, index) => {
+                const cleanVar = varName.startsWith('$') ? 
+                    'variables.' + varName.substring(1) : 
+                    'inputs.' + varName;
+                code += '  const scoringVar' + index + ' = ' + cleanVar + ';\n';
+            });
+            
+            code += '  \n  // Process scoring tree\n';
+            formula.scoring.ifs.tree.forEach((branch, branchIndex) => {
+                const condition = this.generateConditionCode(branch.if, 'scoringVar0');
+                
+                if (branchIndex === 0) {
+                    code += '  if (' + condition + ') {\n';
+                } else {
+                    code += '  } else if (' + condition + ') {\n';
+                }
+                
+                if (branch.ranges) {
+                    code += '    // Check ranges\n';
+                    branch.ranges.forEach((range, rangeIndex) => {
+                        const rangeCondition = this.generateConditionCode(range.if, 'scoringVar1');
+                        
+                        if (rangeIndex === 0) {
+                            code += '    if (' + rangeCondition + ') {\n';
+                        } else {
+                            code += '    } else if (' + rangeCondition + ') {\n';
+                        }
+                        
+                        // Build result object
+                        code += '      results.' + formula.id + ' = {\n';
+                        code += '        score: ' + (range.score || 0) + ',\n';
+                        
+                        // Add other properties
+                        Object.keys(range).forEach(key => {
+                            if (key !== 'if' && key !== 'score' && key !== 'set_vars') {
+                                code += '        ' + key + ': ' + JSON.stringify(range[key]) + ',\n';
+                            }
+                        });
+                        
+                        code += '      };\n';
+                        
+                        // Handle set_vars
+                        if (range.set_vars) {
+                            Object.entries(range.set_vars).forEach(([key, value]) => {
+                                code += '      variables.' + key + ' = ' + JSON.stringify(value) + ';\n';
+                            });
+                        }
+                    });
+                    code += '    }\n';
+                } else {
+                    // Simple branch result
+                    code += '    results.' + formula.id + ' = { score: ' + (branch.score || 0) + ' };\n';
+                }
+            });
+            
+            code += '  } else {\n';
+            code += '    results.' + formula.id + ' = { score: 0 };\n';
+            code += '  }\n';
+        }
+        
+        if (formula.as) {
+            const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+            code += '  variables.' + varName + ' = results.' + formula.id + ';\n';
+        }
+        
+        return code;
+    }
+
 
    /**
     * Generate code for formula

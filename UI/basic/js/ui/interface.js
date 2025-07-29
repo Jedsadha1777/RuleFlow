@@ -344,7 +344,8 @@ const RuleFlowUI = {
      * Generate JavaScript code
      */
     generateCode() {
-        const config = this.getCurrentConfig();
+        const config = window.getCurrentConfig ? window.getCurrentConfig() : null; 
+
         if (!config) {
             this.showError('No configuration available for code generation');
             return;
