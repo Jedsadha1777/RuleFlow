@@ -1796,11 +1796,59 @@ $(document).ready(function () {
     /**
      * Format value for display
      */
+    /**
+     * Format value for display - แก้ไขให้ handle nested objects ได้ดี
+     */
     function formatValue(value) {
         if (typeof value === 'number') {
             return Number.isInteger(value) ? value.toString() : value.toFixed(3);
         }
-        return value;
+        
+        if (typeof value === 'boolean') {
+            return value ? 'true' : 'false';
+        }
+        
+        if (Array.isArray(value)) {
+            return JSON.stringify(value);
+        }
+        
+        if (typeof value === 'object' && value !== null) {
+            // สำหรับ scoring results ที่มี score + properties อื่น
+            if (value.score !== undefined) {
+                let result = `Score: ${value.score}`;
+                
+                // เพิ่ม properties อื่นที่มีค่า แต่ skip properties ที่ไม่ต้องแสดง
+                Object.keys(value).forEach(key => {
+                    if (key !== 'score' && value[key] !== undefined && value[key] !== '') {
+                        // Skip complex objects ที่ไม่ต้องแสดงใน summary
+                        if (key === 'if' || key === 'set_vars') {
+                            return; // ข้าม if และ set_vars
+                        }
+                        
+                        let displayValue;
+                        if (typeof value[key] === 'object') {
+                            displayValue = JSON.stringify(value[key]).substring(0, 50) + '...';
+                        } else {
+                            displayValue = value[key];
+                        }
+                        
+                        result += `, ${key}: ${displayValue}`;
+                    }
+                });
+                
+                return result;
+            }
+            
+            // สำหรับ object ทั่วไป - แสดงแบบย่อ
+            const keys = Object.keys(value);
+            if (keys.length <= 3) {
+                return JSON.stringify(value, null, 0);
+            } else {
+                return `{${keys.slice(0, 3).join(', ')}... (${keys.length} fields)}`;
+            }
+        }
+        
+        return String(value);
     }
 
     /**

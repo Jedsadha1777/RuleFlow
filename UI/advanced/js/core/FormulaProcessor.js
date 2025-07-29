@@ -12,9 +12,9 @@ class FormulaProcessor {
     /**
      * Process array of formulas
      */
-    process(formulas, inputs) {
+    rocess(formulas, inputs) {
         const context = { ...inputs };
-
+        
         for (const formula of formulas) {
             try {
                 if (formula.formula) {
@@ -25,16 +25,21 @@ class FormulaProcessor {
                     this.processConditions(formula, context);
                 } else if (formula.function_call) {
                     this.processFunctionCall(formula, context);
+                } else if (formula.scoring) {
+                    this.processScoring(formula, context);
+                } else if (formula.rules) {  // เพิ่มการประมวลผล rules
+                    this.processRules(formula, context);
                 } else {
-                    throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, conditions, or function_call`);
+                    throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, conditions, function_call, scoring, or rules`);
                 }
             } catch (error) {
                 throw new RuleFlowException(`Error processing formula '${formula.id}': ${error.message}`);
             }
         }
-
+        
         return context;
     }
+
 
     /**
      * Process mathematical formula

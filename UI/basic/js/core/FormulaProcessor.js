@@ -1,6 +1,6 @@
 /**
  * RuleFlow Core - FormulaProcessor
- * Ported from TypeScript with full switch logic support
+ * Complete implementation matching TypeScript and PHP versions
  */
 
 class FormulaProcessor {
@@ -10,7 +10,7 @@ class FormulaProcessor {
     }
 
     /**
-     * Process array of formulas
+     * Process array of formulas - ตาม TypeScript/PHP versions
      */
     process(formulas, inputs) {
         const context = { ...inputs };
@@ -25,8 +25,12 @@ class FormulaProcessor {
                     this.processConditions(formula, context);
                 } else if (formula.function_call) {
                     this.processFunctionCall(formula, context);
+                } else if (formula.rules) {
+                    this.processAccumulativeScoring(formula, context);
+                } else if (formula.scoring) {
+                    this.processAdvancedScoring(formula, context);
                 } else {
-                    throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, conditions, or function_call`);
+                    throw new RuleFlowException(`Formula '${formula.id}' must have formula, switch, conditions, function_call, rules, or scoring`);
                 }
             } catch (error) {
                 throw new RuleFlowException(`Error processing formula '${formula.id}': ${error.message}`);
@@ -64,7 +68,7 @@ class FormulaProcessor {
     }
 
     /**
-     * Process switch logic (new format)
+     * Process switch logic
      */
     processSwitch(formula, context) {
         const switchVariable = formula.switch;
@@ -127,8 +131,8 @@ class FormulaProcessor {
                 return;
             }
         }
-
-        // Use default value if no conditions matched
+        
+        // Use default if provided
         if (formula.default !== undefined) {
             const result = this.resolveValue(formula.default, context);
             context[formula.id] = result;
@@ -141,9 +145,13 @@ class FormulaProcessor {
     }
 
     /**
-     * Process function call
+     * Process function call - ตาม TypeScript/PHP versions
      */
     processFunctionCall(formula, context) {
+        if (!formula.function_call) {
+            throw new RuleFlowException(`Function call name is required for formula '${formula.id}'`);
+        }
+
         const functionName = formula.function_call;
         const params = formula.params || [];
 
@@ -166,7 +174,7 @@ class FormulaProcessor {
                 }
 
                 // Handle expressions
-                if (this.isExpression(param)) {
+                if (param.includes('(') || param.includes('+') || param.includes('-') || param.includes('*') || param.includes('/')) {
                     try {
                         return this.evaluator.safeEval(param, context);
                     } catch (error) {
@@ -175,34 +183,154 @@ class FormulaProcessor {
                 }
             }
 
+            // Return literal value
             return param;
         });
 
         try {
             const result = this.functionRegistry.call(functionName, resolvedParams);
-            context[formula.id] = result;
+            
+            // Round result if numeric
+            const finalResult = typeof result === 'number' ? Math.round(result * 1000) / 1000 : result;
+
+            context[formula.id] = finalResult;
 
             if (formula.as) {
                 const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
-                context[varName] = result;
+                context[varName] = finalResult;
             }
         } catch (error) {
-            throw new RuleFlowException(`Function call failed: ${error.message}`);
+            throw new RuleFlowException(`Function call failed for '${functionName}': ${error.message}`);
         }
     }
 
     /**
-     * Evaluate condition (supports AND/OR logic)
+     * Process accumulative scoring (rules) - ตาม PHP version
+     */
+    processAccumulativeScoring(formula, context) {
+        let totalScore = 0.0;
+
+        for (const rule of formula.rules) {
+            const varName = rule.var.startsWith('$') ? rule.var.substring(1) : rule.var;
+            const value = context[varName];
+
+            if (value === undefined) {
+                continue;
+            }
+
+            // Handle ranges
+            if (rule.ranges) {
+                for (const range of rule.ranges) {
+                    if (this.evaluateCondition(range.if, value, context)) {
+                        totalScore += range.score || 0;
+                        
+                        // Handle set_vars
+                        if (range.set_vars) {
+                            Object.assign(context, range.set_vars);
+                        }
+                        break;
+                    }
+                }
+            }
+            // Handle single condition
+            else if (rule.if) {
+                if (this.evaluateCondition(rule.if, value, context)) {
+                    totalScore += rule.score || 0;
+                }
+            }
+        }
+
+        context[formula.id] = totalScore;
+
+        if (formula.as) {
+            const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+            context[varName] = totalScore;
+        }
+    }
+
+    /**
+     * Process advanced scoring (scoring) - ตาม PHP version
+     */
+    processAdvancedScoring(formula, context) {
+        if (formula.scoring.ifs) {
+            // Multi-dimensional scoring
+            const result = this.processMultiConditionScoring(formula.scoring.ifs, context);
+            context[formula.id] = result;
+        } else if (formula.scoring.if) {
+            // Simple scoring
+            const result = this.processSimpleScoring(formula.scoring, context);
+            context[formula.id] = result;
+        } else {
+            throw new RuleFlowException("Invalid scoring structure");
+        }
+
+        if (formula.as) {
+            const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+            context[varName] = context[formula.id];
+        }
+    }
+
+    /**
+     * Process multi-condition scoring
+     */
+    processMultiConditionScoring(scoringIfs, context) {
+        const vars = scoringIfs.vars || [];
+        const tree = scoringIfs.tree || [];
+        
+        // Get values for scoring variables
+        const values = vars.map(varName => {
+            const cleanVarName = varName.startsWith('$') ? varName.substring(1) : varName;
+            return context[cleanVarName];
+        });
+
+        // Process scoring tree
+        for (const branch of tree) {
+            if (this.evaluateCondition(branch.if, values[0], context)) {
+                if (branch.ranges) {
+                    for (const range of branch.ranges) {
+                        if (this.evaluateCondition(range.if, values[1], context)) {
+                            return {
+                                score: range.score || 0,
+                                ...range
+                            };
+                        }
+                    }
+                }
+                return {
+                    score: branch.score || 0,
+                    ...branch
+                };
+            }
+        }
+
+        return { score: 0 };
+    }
+
+    /**
+     * Process simple scoring
+     */
+    processSimpleScoring(scoring, context) {
+        // Implementation for simple scoring logic
+        if (this.evaluateCondition(scoring.if, null, context)) {
+            return scoring.score || 0;
+        }
+        return 0;
+    }
+
+    /**
+     * Evaluate condition with support for nested AND/OR
      */
     evaluateCondition(condition, switchValue, context) {
-        // Handle logical AND
+        if (!condition) return false;
+
+        // Handle nested AND logic
         if (condition.and && Array.isArray(condition.and)) {
             return condition.and.every(subCondition => 
                 this.evaluateCondition(subCondition, switchValue, context)
             );
         }
 
-        // Handle logical OR
+        // Handle nested OR logic
         if (condition.or && Array.isArray(condition.or)) {
             return condition.or.some(subCondition => 
                 this.evaluateCondition(subCondition, switchValue, context)
@@ -237,139 +365,61 @@ class FormulaProcessor {
             return this.compareValues(switchValue, condition.op, compareValue);
         }
 
-        return Boolean(condition);
+        return false;
     }
 
     /**
-     * Compare two values using operator
+     * Compare values using operator
      */
     compareValues(leftValue, operator, rightValue) {
-        const left = this.convertValue(leftValue);
-        const right = this.convertValue(rightValue);
-
         switch (operator) {
             case '==':
-            case 'eq':
-                return left == right;
+            case 'equals':
+                return leftValue == rightValue;
             case '!=':
-            case 'ne':
-                return left != right;
+            case 'not_equals':
+                return leftValue != rightValue;
             case '>':
-            case 'gt':
-                return this.isNumeric(left) && this.isNumeric(right) && left > right;
+            case 'greater_than':
+                return Number(leftValue) > Number(rightValue);
             case '>=':
-            case 'gte':
-                return this.isNumeric(left) && this.isNumeric(right) && left >= right;
+            case 'greater_than_or_equal':
+                return Number(leftValue) >= Number(rightValue);
             case '<':
-            case 'lt':
-                return this.isNumeric(left) && this.isNumeric(right) && left < right;
+            case 'less_than':
+                return Number(leftValue) < Number(rightValue);
             case '<=':
-            case 'lte':
-                return this.isNumeric(left) && this.isNumeric(right) && left <= right;
+            case 'less_than_or_equal':
+                return Number(leftValue) <= Number(rightValue);
+            case 'in':
+                return Array.isArray(rightValue) ? rightValue.includes(leftValue) : false;
+            case 'not_in':
+                return Array.isArray(rightValue) ? !rightValue.includes(leftValue) : true;
             case 'between':
-                if (Array.isArray(right) && right.length === 2) {
-                    return this.isNumeric(left) && left >= right[0] && left <= right[1];
+                if (Array.isArray(rightValue) && rightValue.length === 2) {
+                    const num = Number(leftValue);
+                    return num >= Number(rightValue[0]) && num <= Number(rightValue[1]);
                 }
                 return false;
-            case 'in':
-                return Array.isArray(right) && right.includes(left);
-            case 'not_in':
-                return Array.isArray(right) && !right.includes(left);
             case 'contains':
-                return String(left).includes(String(right));
+                return String(leftValue).includes(String(rightValue));
             case 'starts_with':
-                return String(left).startsWith(String(right));
+                return String(leftValue).startsWith(String(rightValue));
             case 'ends_with':
-                return String(left).endsWith(String(right));
+                return String(leftValue).endsWith(String(rightValue));
             default:
                 throw new RuleFlowException(`Unknown operator: ${operator}`);
         }
     }
 
     /**
-     * Resolve value (handle variables, expressions, literals)
+     * Resolve value from context or return literal
      */
     resolveValue(value, context) {
-        if (typeof value !== 'string') {
-            return value;
-        }
-
-        // Handle variable reference
-        if (value.startsWith('$')) {
+        if (typeof value === 'string' && value.startsWith('$')) {
             const varName = value.substring(1);
-            if (context[varName] !== undefined) {
-                return context[varName];
-            } else {
-                throw new RuleFlowException(`Variable reference '${value}' not found in context`);
-            }
+            return context[varName];
         }
-
-        // Handle expression
-        if (this.isExpression(value)) {
-            try {
-                return this.evaluator.safeEval(value, context);
-            } catch (error) {
-                throw new RuleFlowException(`Cannot evaluate expression '${value}': ${error.message}`);
-            }
-        }
-
-        // Handle object with formula
-        if (typeof value === 'object' && value.formula) {
-            try {
-                return this.evaluator.safeEval(value.formula, context);
-            } catch (error) {
-                throw new RuleFlowException(`Cannot evaluate formula '${value.formula}': ${error.message}`);
-            }
-        }
-
-        // Convert string literal
-        return this.convertValue(value);
-    }
-
-    /**
-     * Check if string is an expression
-     */
-    isExpression(value) {
-        // Check for mathematical operators, variables, or function calls
-        return /[\$\w]+\s*[+\-*/]\s*[\$\w\d.]+|[\$\w]+\s*[+\-*/]\s*\d+|\d+\s*[+\-*/]\s*[\$\w]+|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(value);
-    }
-
-    /**
-     * Convert string value to appropriate type
-     */
-    convertValue(value) {
-        if (typeof value !== 'string') {
-            return value;
-        }
-
-        // Boolean conversion
-        if (value.toLowerCase() === 'true') return true;
-        if (value.toLowerCase() === 'false') return false;
-
-        // Number conversion
-        if (/^\d+$/.test(value)) {
-            return parseInt(value, 10);
-        }
-
-        if (/^\d*\.\d+$/.test(value)) {
-            return parseFloat(value);
-        }
-
-        // Return as string if no conversion possible
         return value;
     }
-
-    /**
-     * Check if value is numeric
-     */
-    isNumeric(value) {
-        return !isNaN(value) && !isNaN(parseFloat(value));
-    }
-}
-
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { FormulaProcessor };
-} else {
-    window.FormulaProcessor = FormulaProcessor;
 }

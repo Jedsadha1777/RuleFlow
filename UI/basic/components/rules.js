@@ -4,7 +4,7 @@
 */
 class RulesComponent {
    constructor(id = 'rules', as = '') {
-       this.id = id;
+       this.id = 'rules_' + Date.now(); 
        this.as = as;
        this.rules = [];
    }
