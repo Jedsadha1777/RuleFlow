@@ -1238,9 +1238,195 @@ $(document).ready(function () {
      * Update input variables
      */
     function updateInputVariables() {
-        const inputs = extractInputVariables();
-        renderInputVariables(inputs);
+        const config = getCurrentConfig();
+        if (!config || !config.formulas || config.formulas.length === 0) {
+            renderInputVariables([]);
+            return;
+        }
+
+        const inputs = new Set();
+        const calculatedValues = new Set();
+
+        // เก็บค่าที่คำนวณได้จากแต่ละ formula
+        config.formulas.forEach(formula => {
+            if (formula.id) {
+                calculatedValues.add(formula.id);
+            }
+            if (formula.as) {
+                const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+                calculatedValues.add(varName);
+            }
+        });
+
+        // หา input variables จากทุก formula
+        config.formulas.forEach(formula => {
+            // 1. จาก inputs array
+            if (formula.inputs) {
+                formula.inputs.forEach(input => {
+                    const cleanInput = input.startsWith('$') ? input.substring(1) : input;
+                    if (!calculatedValues.has(cleanInput)) {
+                        inputs.add(cleanInput);
+                    }
+                });
+            }
+
+            // 2. จาก formula string
+            if (formula.formula) {
+                extractVariablesFromFormula(formula.formula, inputs, calculatedValues);
+            }
+
+            // 3. จาก switch variable
+            if (formula.switch) {
+                const switchVar = formula.switch.startsWith('$') ? formula.switch.substring(1) : formula.switch;
+                if (!calculatedValues.has(switchVar)) {
+                    inputs.add(switchVar);
+                }
+            }
+
+            // 4. จาก switch conditions (when)
+            if (formula.when) {
+                formula.when.forEach(condition => {
+                    extractVariablesFromCondition(condition, inputs, calculatedValues);
+                });
+            }
+
+            // 5. จาก scoring system
+            if (formula.scoring && formula.scoring.ifs) {
+                // จาก scoring vars
+                if (formula.scoring.ifs.vars) {
+                    formula.scoring.ifs.vars.forEach(variable => {
+                        const cleanVar = variable.startsWith('$') ? variable.substring(1) : variable;
+                        if (!calculatedValues.has(cleanVar)) {
+                            inputs.add(cleanVar);
+                        }
+                    });
+                }
+
+                // จาก scoring tree
+                if (formula.scoring.ifs.tree) {
+                    formula.scoring.ifs.tree.forEach(branch => {
+                        // จาก branch conditions
+                        if (branch.if) {
+                            extractVariablesFromCondition(branch.if, inputs, calculatedValues);
+                        }
+
+                        // จาก ranges ใน scoring
+                        if (branch.ranges) {
+                            branch.ranges.forEach(range => {
+                                if (range.if) {
+                                    extractVariablesFromCondition(range.if, inputs, calculatedValues);
+                                }
+                                
+                                // จาก set_vars ใน range
+                                if (range.set_vars) {
+                                    Object.keys(range.set_vars).forEach(key => {
+                                        const value = range.set_vars[key];
+                                        if (typeof value === 'string') {
+                                            extractVariablesFromFormula(value, inputs, calculatedValues);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+
+            // 6. จาก rules system
+            if (formula.rules && Array.isArray(formula.rules)) {
+                formula.rules.forEach(rule => {
+                    // จาก rule variable
+                    if (rule.var) {
+                        const cleanVar = rule.var.startsWith('$') ? rule.var.substring(1) : rule.var;
+                        if (!calculatedValues.has(cleanVar)) {
+                            inputs.add(cleanVar);
+                        }
+                    }
+
+                    // จาก rule ranges
+                    if (rule.ranges) {
+                        rule.ranges.forEach(range => {
+                            if (range.if) {
+                                extractVariablesFromCondition(range.if, inputs, calculatedValues);
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 7. จาก match system
+            if (formula.match) {
+                // จาก match variable
+                if (formula.match.var) {
+                    const cleanVar = formula.match.var.startsWith('$') ? formula.match.var.substring(1) : formula.match.var;
+                    if (!calculatedValues.has(cleanVar)) {
+                        inputs.add(cleanVar);
+                    }
+                }
+
+                // จาก match patterns
+                if (formula.match.patterns) {
+                    formula.match.patterns.forEach(pattern => {
+                        if (pattern.if) {
+                            extractVariablesFromCondition(pattern.if, inputs, calculatedValues);
+                        }
+                        
+                        // จาก pattern result ถ้าเป็น formula
+                        if (pattern.result && typeof pattern.result === 'object' && pattern.result.formula) {
+                            extractVariablesFromFormula(pattern.result.formula, inputs, calculatedValues);
+                        }
+                    });
+                }
+            }
+        });
+
+        renderInputVariables(Array.from(inputs));
     }
+
+
+    /**
+     * Extract variables from formula string
+     */
+    function extractVariablesFromFormula(formula, inputs, calculatedValues) {
+        if (!formula || typeof formula !== 'string') return;
+
+        // หา variables ที่อยู่ในรูปแบบ word characters
+        const variablePattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+        const mathFunctions = [
+            // Math functions 
+            'abs', 'max', 'min', 'round', 'ceil', 'floor', 'sqrt', 'pow', 
+            'sin', 'cos', 'tan', 'log', 'exp', 
+            // Statistical functions
+            'avg', 'sum', 'count',
+            // Business functions
+            'bmi', 'percentage', 'discount'
+        ];
+        
+        let match;
+        while ((match = variablePattern.exec(formula)) !== null) {
+            const variable = match[1];
+            
+            if (!mathFunctions.includes(variable) && 
+                !calculatedValues.has(variable) && 
+                !isNumeric(variable)) {
+                inputs.add(variable);
+            }
+        }
+        
+        // หา $variables
+        const dollarVariablePattern = /\$([a-zA-Z_][a-zA-Z0-9_]*)/g;
+        while ((match = dollarVariablePattern.exec(formula)) !== null) {
+            const variable = match[1];
+            if (!calculatedValues.has(variable)) {
+                inputs.add(variable);
+            }
+        }
+    }
+
+    function isNumeric(str) {
+        return !isNaN(str) && !isNaN(parseFloat(str));
+    }
+
 
     /**
      * Extract input variables from components
@@ -1400,13 +1586,18 @@ $(document).ready(function () {
      */
     function getCurrentConfig() {
         try {
+        // ถ้าไม่มี components ให้ return config เปล่า แทน null
+            if (!components || components.length === 0) {
+                return { formulas: [] };
+            }
+            
             const config = {
                 formulas: components.map(comp => comp.instance.toJSON())
             };
             return config;
         } catch (error) {
             debug(`Error getting config: ${error.message}`, 'error');
-            return null;
+            return { formulas: [] };  // ← เปลี่ยนจาก null เป็น empty config
         }
     }
 
@@ -1415,7 +1606,7 @@ $(document).ready(function () {
      */
     function validateConfiguration() {
         const config = getCurrentConfig();
-        if (!config) {
+        if (!config || config.formulas.length === 0) {
             showError('Please add components to validate');
             return;
         }

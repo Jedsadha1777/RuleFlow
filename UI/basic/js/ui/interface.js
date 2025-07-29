@@ -75,14 +75,14 @@ const RuleFlowUI = {
     /**
      * Update input variables based on current configuration
      */
-    updateInputVariables() {
-        const config = this.getCurrentConfig();
-        if (!config) return;
+    // updateInputVariables() {
+    //     const config = this.getCurrentConfig();
+    //     if (!config) return;
 
-        const inputs = this.extractInputVariables(config);
-        this.renderInputVariables(inputs);
-        this.debug(`Updated input variables: ${inputs.join(', ')}`, 'info');
-    },
+    //     const inputs = this.extractInputVariables(config);
+    //     this.renderInputVariables(inputs);
+    //     this.debug(`Updated input variables: ${inputs.join(', ')}`, 'info');
+    // },
 
     /**
      * Extract input variables from configuration
@@ -232,16 +232,16 @@ const RuleFlowUI = {
     /**
      * Get current configuration from components
      */
-    getCurrentConfig() {
-        try {
-            // This should be implemented to get config from components
-            // For now, return null to indicate no config available
-            return null;
-        } catch (error) {
-            this.debug(`Error getting current config: ${error.message}`, 'error');
-            return null;
-        }
-    },
+    // getCurrentConfig() {
+    //     try {
+    //         // This should be implemented to get config from components
+    //         // For now, return null to indicate no config available
+    //         return null;
+    //     } catch (error) {
+    //         this.debug(`Error getting current config: ${error.message}`, 'error');
+    //         return null;
+    //     }
+    // },
 
     /**
      * Get current input values

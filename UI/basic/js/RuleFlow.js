@@ -96,34 +96,49 @@ class RuleFlow {
        const hasSwitch = !!formula.switch;
        const hasConditions = !!formula.conditions;
        const hasFunctionCall = !!formula.function_call;
+       const hasScoring = !!formula.scoring;  // เพิ่มบรรทัดนี้
+       const hasRules = !!formula.rules;      // เพิ่มบรรทัดนี้
 
-       if (!(hasFormula || hasSwitch || hasConditions || hasFunctionCall)) {
+       if (!(hasFormula || hasSwitch || hasConditions || hasFunctionCall || hasScoring || hasRules)) {
            errors.push('Formula "' + formula.id + '" must have one of: formula, switch, conditions, or function_call');
        }
 
        // Validate formula expression
-       if (hasFormula) {
-           try {
-               this.processor.evaluator.validateFormulaSyntax(formula.formula);
-           } catch (error) {
-               errors.push('Formula "' + formula.id + '" syntax error: ' + error.message);
-           }
-       }
+        if (hasFormula) {
+            try {
+                this.processor.evaluator.validateFormulaSyntax(formula.formula);
+            } catch (error) {
+                errors.push('Formula "' + formula.id + '" syntax error: ' + error.message);
+            }
+        }
 
-       // Validate switch logic
-       if (hasSwitch) {
-           if (!formula.when || !Array.isArray(formula.when)) {
-               errors.push('Switch formula "' + formula.id + '" must have "when" array');
-           }
-       }
+        // Validate switch logic
+        if (hasSwitch) {
+            if (!formula.when || !Array.isArray(formula.when)) {
+                errors.push('Switch formula "' + formula.id + '" must have "when" array');
+            }
+        }
 
-       // Validate function calls
-       if (hasFunctionCall) {
-           if (!this.functionRegistry.has(formula.function_call)) {
-               errors.push('Function "' + formula.function_call + '" in formula "' + formula.id + '" is not registered');
-           }
-       }
+        // Validate function calls
+        if (hasFunctionCall) {
+            if (!this.functionRegistry.has(formula.function_call)) {
+                errors.push('Function "' + formula.function_call + '" in formula "' + formula.id + '" is not registered');
+            }
+        }
 
+        // เพิ่ม validation สำหรับ scoring
+        if (hasScoring) {
+            if (!formula.scoring.ifs || !Array.isArray(formula.scoring.ifs.vars)) {
+                errors.push('Scoring formula "' + formula.id + '" must have valid scoring.ifs.vars array');
+            }
+        }
+
+        // เพิ่ม validation สำหรับ rules
+        if (hasRules) {
+            if (!Array.isArray(formula.rules)) {
+                errors.push('Rules formula "' + formula.id + '" must have rules array');
+            }
+        }
        return errors;
    }
 
