@@ -14,22 +14,25 @@
 <body>
     <div class="container-fluid">
         <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h1 class="card-title">RuleFlow POC : Basic</h1>
-                        <p class="card-text text-muted">Build business logic configurations visually</p>
-                    </div>
+     
+        <div class="container"> 
+            <div class="row mb-4">
+                <div class="col-12 text-center">
+                    <h1 class="display-4 text-primary"><i class="bi bi-gear-fill"></i> RuleFlow POC</h1>
+                    <p class="lead text-muted">Interactive Business Logic Engine Demo</p>
+                           
                 </div>
             </div>
         </div>
+
+
+
         
         <!-- Main Content -->
-        <div class="row">
+        <div class="container-row">
             <!-- Builder Area -->
-            <div class="col-lg-8 col-md-7">
-                <div class="card">
+            <div class=" conent-left">
+                <div class="card" style="margin-left: 14px; margin-right: 10px;">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Components</h5>
                         
@@ -71,7 +74,7 @@
                 </div>
 
                 <!-- Test Configuration Section -->
-                <div class="row mt-4">
+                <div class=" mt-4" style="margin-left: 14px; margin-right: 10px;">
                     <div class="col-12">
                         <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
@@ -140,10 +143,12 @@
                     </div>
                 </div>
             </div>
+
+             <div class="col-resize"> </div>
             
             <!-- Sidebar -->
-            <div class="col-lg-4 col-md-5">
-                <div class="card sticky-top" style="top: 1rem;">
+            <div class=" conent-right">
+                <div class="card sticky-top" style="top: 1rem; margin-left: 10px; margin-right: 14px; top: 0px !important;">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Generated JSON</h6>
                         <button id="copyJsonBtn" class="btn btn-outline-primary btn-sm">
@@ -194,6 +199,85 @@
     <script src="components/scoring.js"></script>
 
     <script src="script.js"></script>
- 
+
+<style>
+ .container-row {
+  padding-top: 5px;
+  display: flex;
+  width: 100vw;
+  min-height: 600px;
+  overflow: hidden;
+
+  margin-right: calc(-.5 * var(--bs-gutter-x));
+  margin-left: calc(-.5 * var(--bs-gutter-x));
+}
+
+.conent-left {
+
+  width: calc(70% - 3px);
+  min-width: 10%;
+  padding-left: 0px;
+  padding-right: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+  box-sizing: border-box;
+}
+
+.conent-right {
+
+  flex-grow: 1;
+  min-width: 10%;
+  padding-left: 0px;
+  padding-right: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+  box-sizing: border-box;
+}
+
+.col-resize {
+  width: 3px;
+  background: #ddd;
+  cursor: col-resize;
+  user-select: none;
+  padding-left: 0px;
+  padding-right: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+}
+ </style>
+
+<script>
+  const resizer = document.querySelector('.col-resize');
+  const left = document.querySelector('.conent-left');
+  const container = document.querySelector('.container-row');
+
+  let isDragging = false;
+
+  resizer.addEventListener('mousedown', function (e) {
+    isDragging = true;
+    document.body.style.cursor = 'col-resize';
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!isDragging) return;
+
+    const containerRect = container.getBoundingClientRect();
+    let newLeftWidth = e.clientX - containerRect.left;
+    const minWidth = containerRect.width * 0.1;
+    const maxWidth = containerRect.width * 0.9;
+
+    if (newLeftWidth < minWidth) newLeftWidth = minWidth;
+    if (newLeftWidth > maxWidth) newLeftWidth = maxWidth;
+
+    left.style.width = newLeftWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', function () {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.cursor = '';
+    }
+  });
+</script>
 </body>
 </html>
