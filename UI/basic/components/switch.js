@@ -29,6 +29,9 @@ class SwitchComponent {
     }
 
     updateField(field, value) {
+
+            console.log('🟡 updateField:', {field, value});
+
         switch(field) {
             case 'id':
                 this.id = value;
@@ -81,6 +84,8 @@ class SwitchComponent {
      * Update case
      */
     updateCase(caseIndex, field, value) {
+
+        console.log('🔵 updateCase:', {caseIndex, field, value});
         if (!this.when[caseIndex]) return;
 
         if (field === 'result') {
@@ -133,9 +138,15 @@ class SwitchComponent {
      * Update nested condition by path
      */
     updateNestedConditionByPath(caseIndex, path, field, value) {
+            console.log('🔴 updateNestedConditionByPath:', {caseIndex, path, field, value});
+
+
         if (!this.when[caseIndex]) return;
 
         const condition = this.getNestedCondition(this.when[caseIndex].if, path);
+            console.log('🔥 getNestedCondition result:', condition);
+    console.log('🔥 Original condition:', this.when[caseIndex].if);
+
         if (!condition) return;
 
         if (field === 'op') {
@@ -169,20 +180,20 @@ class SwitchComponent {
         }
 
          // ถ้าไม่ใช่การเปลี่ยน type ให้จัดลำดับ property
-        if (field !== 'type') {
-            const orderedCondition = {
-                op: condition.op || '>'
-            };
+        // if (field !== 'type') {
+        //     const orderedCondition = {
+        //         op: condition.op || '>'
+        //     };
 
-            if (condition.var && condition.var.trim() !== '') {
-                orderedCondition.var = condition.var;
-            }
+        //     if (condition.var && condition.var.trim() !== '') {
+        //         orderedCondition.var = condition.var;
+        //     }
 
-            orderedCondition.value = condition.value;
+        //     orderedCondition.value = condition.value;
 
-            Object.keys(condition).forEach(key => delete condition[key]);
-            Object.assign(condition, orderedCondition);
-        }
+        //     Object.keys(condition).forEach(key => delete condition[key]);
+        //     Object.assign(condition, orderedCondition);
+        // }
     }
 
     /**
@@ -228,9 +239,13 @@ class SwitchComponent {
     /**
      * Legacy methods for backward compatibility
      */
-    updateNestedCondition(caseIndex, conditionIndex, field, value) {
+    updateNestedCondition(caseIndex, conditionIndex, field, value) {        
+        console.log('🟢 updateNestedCondition:', {caseIndex, conditionIndex, field, value});
+
+        const path = conditionIndex > 0 ? [{ type: 'and', index: conditionIndex }] : [];
         this.updateNestedConditionByPath(caseIndex, [], field, value);
     }
+
 
     addConditionToGroup(caseIndex, groupType) {
         this.addConditionToGroupByPath(caseIndex, [], groupType);
@@ -467,6 +482,7 @@ class SwitchComponent {
                         <select class="form-select form-select-sm nested-condition-field" 
                                 data-case-index="${caseIndex}"
                                 data-condition-index="0"
+                                 data-path='${pathStr}'
                                 data-condition-field="op">
                             ${getOperatorOptions(condition.op)}
                         </select>

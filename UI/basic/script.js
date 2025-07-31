@@ -8,6 +8,8 @@ $(document).ready(function () {
     const ruleFlow = new RuleFlow();
     let components = [];
     let debugEnabled = true;
+    let updateInputVariablesTimeout;
+
 
 
 
@@ -877,6 +879,17 @@ $(document).ready(function () {
 
         $('#addCustomBtn').on('click', addCustomVariable);
 
+        // เพิ่ม event listeners สำหรับปุ่ม swap
+        $(document).on('click', '.move-up-btn', function () {
+            const index = parseInt($(this).data('index'));
+            moveComponentUp(index);
+        });
+
+        $(document).on('click', '.move-down-btn', function () {
+            const index = parseInt($(this).data('index'));
+            moveComponentDown(index);
+        });
+
 
     }
 
@@ -1099,7 +1112,7 @@ $(document).ready(function () {
             components.splice(index, 1);
             updateView();
             updateJSON();
-            updateInputVariables();
+            updateInputVariablesDebounced();
 
             debug(`Deleted component ${componentId}`, 'info');
             showToast('Component deleted', 'success');
@@ -1113,17 +1126,15 @@ $(document).ready(function () {
         if (components[index] && components[index].instance.updateField) {
             const oldTitle = components[index].instance.getTitle();
             
-            // Update the component data
             components[index].instance.updateField(field, value);
             
-            // Check if title changed
-            const newTitle = components[index].instance.getTitle();
+            const newTitle = components[index].instance.getTitle(); // ← เพิ่มบรรทัดนี้
             if (field === 'id' && oldTitle !== newTitle) {
                 updateComponentTitle(index, newTitle);
             }
             
             updateJSON();
-            updateInputVariables();
+            updateInputVariables(); // ← ใช้ตัวเดียว (มีการเก็บค่า)
 
             debug(`Updated ${field} for component ${index}`, 'info');
         }
@@ -1169,32 +1180,91 @@ $(document).ready(function () {
     /**
      * Create component element using jQuery
      */
-    function createComponentElement(component, index) {
-        const iconClass = component.type;
-        const title = component.instance.getTitle();
-        const chevronIcon = component.open ? 'bi-chevron-down' : 'bi-chevron-right';
 
+    function swapComponents(index1, index2) {
+        // ตรวจสอบ index ที่ถูกต้อง
+        if (index1 < 0 || index1 >= components.length || 
+            index2 < 0 || index2 >= components.length || 
+            index1 === index2) {
+            debug('Invalid indices for swapping', 'error');
+            return;
+        }
+
+        // สลับตำแหน่งใน array
+        [components[index1], components[index2]] = [components[index2], components[index1]];
+        
+        // อัพเดท UI ทั้งหมด
+        updateView();
+        updateJSON();
+        updateInputVariablesDebounced();
+        
+        debug(`Swapped component ${index1} with ${index2}`, 'info');
+    }
+
+    /**
+     * ขยับ component ขึ้น
+     */
+    function moveComponentUp(index) {
+        if (index > 0) {
+            swapComponents(index, index - 1);
+        }
+    }
+
+    /**
+     * ขยับ component ลง
+     */
+    function moveComponentDown(index) {
+        if (index < components.length - 1) {
+            swapComponents(index, index + 1);
+        }
+    }
+
+    function createComponentElement(component, index) {
+        const title = component.instance.getTitle ? component.instance.getTitle() : 
+                    component.instance.title || component.type;
+        
+        // ถ้า getIcon return HTML ให้ใช้ตรงๆ, ถ้าไม่ใช่ให้ใส่ class
+        let iconHtml;
+        if (component.instance.getIcon) {
+            const iconResult = component.instance.getIcon();
+            if (iconResult.includes('<i')) {
+                // ถ้าได้ HTML tag มาแล้ว
+                iconHtml = iconResult;
+            } else {
+                // ถ้าได้แค่ class name
+                iconHtml = `<i class="bi ${iconResult} me-2"></i>`;
+            }
+        } else {
+            iconHtml = `<i class="bi bi-gear me-2"></i>`;
+        }
+        
+        const chevron = component.open ? 'bi-chevron-down' : 'bi-chevron-right';
+        
         let html = `
             <div class="card component-card mb-3" data-component-index="${index}">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <button class="btn btn-sm btn-outline-secondary me-2 toggle-btn" 
-                                data-index="${index}">
-                            <i class="bi ${chevronIcon}"></i>
+                        <button class="btn btn-sm btn-outline-secondary me-2 toggle-btn" data-index="${index}">
+                            <i class="bi ${chevron}"></i>
                         </button>
-                        <div class="component-icon me-2">
-                            ${component.instance.getIcon ? component.instance.getIcon() : '<i class="bi bi-gear"></i>'}
-                        </div>
-                        <div class="component-title">
-                            <h6 class="mb-0">${title}</h6>
-                            <small class="text-muted">${component.type}</small>
-                        </div>
+                        ${iconHtml}
+                        <span class="fw-bold">${title}</span>
                     </div>
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary copy-btn" data-index="${index}">
+                        <button class="btn btn-outline-info move-up-btn" data-index="${index}" 
+                                ${index === 0 ? 'disabled' : ''} 
+                                title="Move Up">
+                            <i class="bi bi-arrow-up"></i>
+                        </button>
+                        <button class="btn btn-outline-info move-down-btn" data-index="${index}" 
+                                ${index === components.length - 1 ? 'disabled' : ''} 
+                                title="Move Down">
+                            <i class="bi bi-arrow-down"></i>
+                        </button>
+                        <button class="btn btn-outline-primary copy-btn" data-index="${index}" title="Copy">
                             <i class="bi bi-clipboard"></i>
                         </button>
-                        <button class="btn btn-outline-danger delete-btn" data-index="${index}">
+                        <button class="btn btn-outline-danger delete-btn" data-index="${index}" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -1205,13 +1275,7 @@ $(document).ready(function () {
                 html += `<div class="card-body">${component.instance.render(index)}</div>`;
             } catch (error) {
                 console.error('Error rendering component:', error);
-                html += `
-                    <div class="card-body">
-                        <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Error rendering component: ${error.message}
-                        </div>
-                    </div>`;
+                html += `<div class="card-body"><div class="alert alert-danger">Error rendering component: ${error.message}</div></div>`;
             }
         }
 
@@ -1237,7 +1301,26 @@ $(document).ready(function () {
     /**
      * Update input variables
      */
+
+    function updateInputVariablesDebounced() {
+        clearTimeout(updateInputVariablesTimeout);
+        updateInputVariablesTimeout = setTimeout(() => {
+            updateInputVariables();
+        }, 100); // รอ 100ms ก่อนอัพเดท
+    }
+
+    // หา input variables จากทุก formula
     function updateInputVariables() {
+        // เก็บค่าปัจจุบันก่อน
+        const currentValues = {};
+        $('#inputVariables input').each(function() {
+            const $input = $(this);
+            const varName = $input.attr('id') ? $input.attr('id').replace('input_', '') : '';
+            if (varName) {
+                currentValues[varName] = $input.val();
+            }
+        });
+
         const config = getCurrentConfig();
         if (!config || !config.formulas || config.formulas.length === 0) {
             renderInputVariables([]);
@@ -1381,6 +1464,16 @@ $(document).ready(function () {
         });
 
         renderInputVariables(Array.from(inputs));
+        
+        // คืนค่าเดิมหลัง render เสร็จ
+        setTimeout(() => {
+            Object.keys(currentValues).forEach(varName => {
+                const $input = $(`#input_${varName}`);
+                if ($input.length && currentValues[varName]) {
+                    $input.val(currentValues[varName]);
+                }
+            });
+        }, 10);
     }
 
 
