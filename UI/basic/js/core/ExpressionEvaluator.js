@@ -314,10 +314,19 @@ class ExpressionEvaluator {
      * Validate final expression before evaluation
      */
     validateFinalExpression(expression) {
-        // Simple validation - should only contain numbers, operators, and basic math
-        const validPattern = /^[\d+\-*/().\s]+$/;
-        if (!validPattern.test(expression)) {
-            throw new RuleFlowException(`Expression contains invalid characters after processing: ${expression}`);
+        const availableFunctions = this.functionRegistry.getAvailableFunctions();
+        for (const func of availableFunctions) {
+            if (expression.includes(func)) {
+                return;
+            }
+        }
+
+        if (/\$/.test(expression)) {
+            throw new RuleFlowException(`Expression contains unresolved variables or invalid characters: '${expression}'`);
+        }
+        
+        if (!/^[0-9+\-*\/\(\)\s\.\*]+$/.test(expression)) {
+            throw new RuleFlowException(`Expression contains unresolved variables or invalid characters: '${expression}'`);
         }
     }
 
