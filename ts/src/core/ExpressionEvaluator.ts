@@ -1,6 +1,3 @@
-// 🔧 COMPLETE FIXED: TypeScript ExpressionEvaluator with PHP Parity
-// This includes unary minus support, dollar notation, and all missing methods
-
 import { RuleFlowException } from '../exceptions/RuleFlowException';
 import { FunctionRegistry } from '../functions/FunctionRegistry';
 
@@ -268,9 +265,9 @@ export class ExpressionEvaluator {
     while (operators.length) {
       output.push(operators.pop()!);
     }
-
     return output;
   }
+  
 
   private evaluatePostfix(postfix: string[]): number {
     const stack: number[] = [];
@@ -405,46 +402,83 @@ export class ExpressionEvaluator {
   }
 
   private processFunctionCalls(expression: string): string {
-    let processed = expression;
-    let maxIterations = 10; // Prevent infinite loops
-    let iteration = 0;
-
-    // Keep processing until no more function calls found
-    while (this.hasFunctionCalls(processed) && iteration < maxIterations) {
-      processed = this.processInnerMostFunctions(processed);
-      iteration++;
+    if (!this.hasFunctionCalls(expression)) {
+      return expression;
     }
-
-    if (iteration >= maxIterations) {
-      throw new RuleFlowException(`Too many nested function calls or circular references in: ${expression}`);
+    
+    try {
+      return this.processInnerMostFunctionsRecursive(expression);
+    } catch (error: any) {
+      throw new RuleFlowException(`Function processing failed: ${error.message}`);
     }
-
-    return processed;
   }
 
   private hasFunctionCalls(expression: string): boolean {
     return /[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)/.test(expression);
   }
 
-  private processInnerMostFunctions(expression: string): string {
-    // Find and replace innermost function calls first
-    // This handles nested functions like round(sqrt(pow(x, 2)))
-
-    const functionPattern = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^()]*)\)/g;
-
-    return expression.replace(functionPattern, (match, functionName, argsString) => {
-      try {
-        // Parse and evaluate arguments
-        const args = this.parseArguments(argsString);
-
-        // Call the function
-        const result = this.functionRegistry.call(functionName, args);
-        // Apply automatic rounding to function results
-        return String(this.applyAutoRounding(result));
-      } catch (error: any) {
-        throw new RuleFlowException(`Function call failed: ${match} - ${error.message}`);
+  // Alternative approach - ใช้ recursive parsing
+  private processInnerMostFunctionsRecursive(expression: string): string {
+    
+    // หา function call แรกที่เจอ (จากซ้ายไปขวา)
+    const functionMatch = expression.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+    if (!functionMatch) {
+      return expression; // ไม่มี function calls
+    }
+    
+    const functionName = functionMatch[1];
+    const startIndex = functionMatch.index!;
+    const openParenIndex = startIndex + functionName.length;
+    
+    // หา closing parenthesis ที่ match
+    let parenCount = 0;
+    let endIndex = -1;
+    
+    for (let i = openParenIndex; i < expression.length; i++) {
+      if (expression[i] === '(') {
+        parenCount++;
+      } else if (expression[i] === ')') {
+        parenCount--;
+        if (parenCount === 0) {
+          endIndex = i;
+          break;
+        }
       }
-    });
+    }
+    
+    if (endIndex === -1) {
+      throw new RuleFlowException(`Unmatched parentheses in: ${expression}`);
+    }
+    
+    const argsString = expression.substring(openParenIndex + 1, endIndex);
+    const fullMatch = expression.substring(startIndex, endIndex + 1);
+
+    
+    // ถ้า args ยังมี function calls ให้ process ก่อน
+    const processedArgs = this.hasFunctionCalls(argsString) 
+      ? this.processInnerMostFunctionsRecursive(argsString)
+      : argsString;
+    
+    try {
+      const args = this.parseArguments(processedArgs);
+      const result = this.functionRegistry.call(functionName, args);
+      const resultStr = String(this.applyAutoRounding(result));
+      
+
+      
+      // แทนที่ function call ด้วยผลลัพธ์
+      const newExpression = expression.substring(0, startIndex) + 
+                          resultStr + 
+                          expression.substring(endIndex + 1);
+      
+      // ถ้ายังมี function calls อื่น ให้ process ต่อ
+      return this.hasFunctionCalls(newExpression) 
+        ? this.processInnerMostFunctionsRecursive(newExpression)
+        : newExpression;
+        
+    } catch (error: any) {
+      throw new RuleFlowException(`Function call failed: ${fullMatch} - ${error.message}`);
+    }
   }
 
   /**

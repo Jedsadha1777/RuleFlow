@@ -1,8 +1,3 @@
-/**
- * RuleFlow Core - ExpressionEvaluator
- * Complete 1:1 match with TypeScript version
- */
-
 class ExpressionEvaluator {
     constructor(functionRegistry) {
         this.variables = {};
@@ -10,10 +5,6 @@ class ExpressionEvaluator {
         this.autoRoundPrecision = 10; // Default precision
         this.autoRoundThreshold = 1e-10;
     }
-
-    // ========================================
-    // PUBLIC API METHODS (1:1 Match)
-    // ========================================
 
     setVariables(vars) {
         this.variables = { ...vars };
@@ -363,38 +354,86 @@ class ExpressionEvaluator {
      * Process function calls - TypeScript method
      */
     processFunctionCalls(expression) {
-        // This would be more complex in real implementation
-        // For now, assume functions are already processed
-        return expression;
+        const hasFunctions = /[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(expression);
+        if (!hasFunctions) {
+            return expression;
+        }
+        
+        try {
+            return this.processFunctions(expression);
+        } catch (error) {
+            throw new RuleFlowException(`JS Function processing failed: ${error.message}`);
+        }
     }
 
     /**
      * Process functions - TypeScript method
      */
     processFunctions(expression) {
-        const functionPattern = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*([^()]*)\s*\)/g;
-        let processedExpression = expression;
-        let match;
-        let maxIterations = 5;
-        let iteration = 0;
+        console.log(`🔍 JS Processing: ${expression}`);
         
-        while ((match = functionPattern.exec(processedExpression)) !== null && iteration < maxIterations) {
-            const fullMatch = match[0];
-            const funcName = match[1];
-            const argsStr = match[2];
-            
-            try {
-                const args = this.parseArguments(argsStr);
-                const result = this.functionRegistry.call(funcName, args);
-                processedExpression = processedExpression.replace(fullMatch, String(result));
-                functionPattern.lastIndex = 0;
-                iteration++;
-            } catch (error) {
-                throw new RuleFlowException(`Function call failed for '${funcName}': ${error.message}`);
+        // หา function call แรกที่เจอ (จากซ้ายไปขวา)
+        const functionMatch = expression.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+        if (!functionMatch) {
+            return expression; // ไม่มี function calls
+        }
+        
+        const functionName = functionMatch[1];
+        const startIndex = functionMatch.index;
+        const openParenIndex = startIndex + functionName.length;
+        
+        // หา closing parenthesis ที่ match
+        let parenCount = 0;
+        let endIndex = -1;
+        
+        for (let i = openParenIndex; i < expression.length; i++) {
+            if (expression[i] === '(') {
+                parenCount++;
+            } else if (expression[i] === ')') {
+                parenCount--;
+                if (parenCount === 0) {
+                    endIndex = i;
+                    break;
+                }
             }
         }
         
-        return processedExpression;
+        if (endIndex === -1) {
+            throw new RuleFlowException(`Unmatched parentheses in: ${expression}`);
+        }
+        
+        const argsString = expression.substring(openParenIndex + 1, endIndex);
+        const fullMatch = expression.substring(startIndex, endIndex + 1);
+        
+        console.log(`📞 JS Found function: ${functionName}(${argsString})`);
+        
+        // ถ้า args ยังมี function calls ให้ process ก่อน
+        const hasNestedFunctions = /[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(argsString);
+        const processedArgs = hasNestedFunctions 
+            ? this.processFunctions(argsString)
+            : argsString;
+        
+        try {
+            const args = this.parseArguments(processedArgs);
+            const result = this.functionRegistry.call(functionName, args);
+            const resultStr = String(result);
+            
+            console.log(`✅ JS ${functionName}(${processedArgs}) = ${resultStr}`);
+            
+            // แทนที่ function call ด้วยผลลัพธ์
+            const newExpression = expression.substring(0, startIndex) + 
+                                resultStr + 
+                                expression.substring(endIndex + 1);
+            
+            // ถ้ายังมี function calls อื่น ให้ process ต่อ
+            const hasMoreFunctions = /[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(newExpression);
+            return hasMoreFunctions 
+                ? this.processFunctions(newExpression)
+                : newExpression;
+                
+        } catch (error) {
+            throw new RuleFlowException(`JS Function call failed: ${fullMatch} - ${error.message}`);
+        }
     }
 
     /**
@@ -403,11 +442,47 @@ class ExpressionEvaluator {
     parseArguments(argsStr) {
         if (!argsStr.trim()) return [];
         
-        return argsStr.split(',').map(arg => {
-            const trimmed = arg.trim();
+        const args = [];
+        let currentArg = '';
+        let parenDepth = 0;
+        let inQuotes = false;
+        let quoteChar = '';
+        
+        for (let i = 0; i < argsStr.length; i++) {
+            const char = argsStr[i];
+            
+            if (!inQuotes && (char === '"' || char === "'")) {
+                inQuotes = true;
+                quoteChar = char;
+                currentArg += char;
+            } else if (inQuotes && char === quoteChar) {
+                inQuotes = false;
+                currentArg += char;
+            } else if (!inQuotes && char === '(') {
+                parenDepth++;
+                currentArg += char;
+            } else if (!inQuotes && char === ')') {
+                parenDepth--;
+                currentArg += char;
+            } else if (!inQuotes && char === ',' && parenDepth === 0) {
+                const trimmed = currentArg.trim();
+                if (trimmed) {
+                    const num = parseFloat(trimmed);
+                    args.push(isNaN(num) ? trimmed : num);
+                }
+                currentArg = '';
+            } else {
+                currentArg += char;
+            }
+        }
+        
+        if (currentArg.trim()) {
+            const trimmed = currentArg.trim();
             const num = parseFloat(trimmed);
-            return isNaN(num) ? trimmed : num;
-        });
+            args.push(isNaN(num) ? trimmed : num);
+        }
+        
+        return args;
     }
 
     /**
