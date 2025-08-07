@@ -27,6 +27,7 @@ class ExpressionEvaluator {
      */
     safeEval(expression, context) {
         try {
+            expression = this.preprocessDollarNotation(expression, context);
             // Replace variables first
             const expr = this.replaceVariablesInExpression(expression, context);
             
@@ -65,16 +66,20 @@ class ExpressionEvaluator {
      * Main evaluation method - exact TypeScript match
      */
     evaluate(expression) {
+        console.log('🔧 evaluate() called with:', expression);
         let processedExpression = expression;
 
-        // Preprocess $ notation
+        console.log('🔧 About to call preprocessDollarNotation');
         processedExpression = this.preprocessDollarNotation(processedExpression);
+        console.log('🔧 After preprocessDollarNotation:', processedExpression);
 
-        // First, replace variables
+        console.log('🔧 About to call replaceVariables');
         processedExpression = this.replaceVariables(processedExpression);
+        console.log('🔧 After replaceVariables:', processedExpression);
 
-        // Then, process function calls (including nested ones)
+        console.log('🔧 About to call processFunctionCalls');
         processedExpression = this.processFunctionCalls(processedExpression);
+        console.log('🔧 After processFunctionCalls:', processedExpression);
 
         try {
             const result = this.safeEvaluate(processedExpression);
@@ -317,12 +322,38 @@ class ExpressionEvaluator {
     /**
      * Preprocess $ notation - TypeScript method
      */
-    preprocessDollarNotation(expression) {
+    preprocessDollarNotation(expression, context = null) {
+        const variables = context || this.variables;
+        
+        console.log('🔧 preprocessDollarNotation INPUT:', expression);
+        console.log('🔧 Available variables keys:', Object.keys(variables));
+        console.log('🔧 Variables object:', variables);        // ✅ เพิ่ม
+        console.log('🔧 Variables type:', typeof variables);   // ✅ เพิ่ม
+        
         return expression.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, varName) => {
-            if (this.variables.hasOwnProperty(varName)) {
-                return String(this.variables[varName]);
+            console.log(`🔧 Found variable: ${match}, varName: "${varName}"`);
+            console.log(`🔧 Variable exists: ${variables.hasOwnProperty(varName)}`);
+            console.log(`🔧 Direct access: ${variables[varName]}`);              // ✅ เพิ่ม
+            console.log(`🔧 Variable type: ${typeof variables[varName]}`);       // ✅ เพิ่ม
+            
+            // ✅ ใช้ in operator แทน hasOwnProperty
+            if (varName in variables && variables[varName] !== undefined) {
+                const value = variables[varName];
+                console.log(`✅ Replacing ${match} with ${value}`);
+                
+                if (typeof value === 'number') {
+                    return String(value);
+                }
+                if (typeof value === 'string' && /^-?\d+\.?\d*$/.test(value)) {
+                    return value;
+                }
+                return String(value);
+            } else {
+                console.error(`❌ Variable ${match} not found`);
+                throw new RuleFlowException(
+                    `Variable '${match}' not found in context. Available variables: ${Object.keys(variables).join(', ')}`
+                );
             }
-            return match; // Keep as is if variable not found
         });
     }
 
@@ -439,49 +470,219 @@ class ExpressionEvaluator {
     /**
      * Parse function arguments - helper method
      */
-    parseArguments(argsStr) {
-        if (!argsStr.trim()) return [];
+    parseArguments(argsString) {
+        console.log(`🔧 JS parseArguments called with: "${argsString}"`);
         
+        if (!argsString.trim()) return [];
+
+        const args = [];
+        const argStrings = this.splitArgumentsCorrectly(argsString);
+        
+        console.log(`🔧 JS Split arguments: [${argStrings.map(s => `"${s}"`).join(', ')}]`);
+
+        for (const argString of argStrings) {
+            const trimmed = argString.trim();
+            console.log(`🔧 JS Processing argument: "${trimmed}"`);
+
+            // Try to parse as number
+            if (/^-?\d*\.?\d+$/.test(trimmed)) {
+                const num = parseFloat(trimmed);
+                console.log(`✅ JS Parsed as number: ${num}`);
+                args.push(num);
+                continue;
+            }
+            
+            // Try to parse as boolean
+            if (trimmed === 'true') {
+                console.log(`✅ JS Parsed as boolean: true`);
+                args.push(true);
+                continue;
+            }
+            
+            if (trimmed === 'false') {
+                console.log(`✅ JS Parsed as boolean: false`);
+                args.push(false);
+                continue;
+            }
+            
+            // Try to parse as string literal
+            if (/^["'][^"']*["']$/.test(trimmed)) {
+                const str = trimmed.slice(1, -1);
+                console.log(`✅ JS Parsed as string: "${str}"`);
+                args.push(str);
+                continue;
+            }
+            
+            // Handle expressions (with variables, operators, or nested functions)
+            if (this.isComplexExpression(trimmed)) {
+                try {
+                    console.log(`🔧 JS Evaluating complex argument: ${trimmed}`);
+                    const result = this.evaluateComplexArgument(trimmed);
+                    console.log(`✅ JS Complex argument result: ${result}`);
+                    
+                    if (result === null || result === undefined || isNaN(result)) {
+                        console.error(`❌ JS Invalid result from complex argument: ${result}`);
+                        args.push(0); // Fallback
+                    } else {
+                        args.push(result);
+                    }
+                } catch (error) {
+                    console.error(`❌ JS Failed to evaluate complex argument: ${trimmed} - ${error.message}`);
+                    args.push(0); // Fallback
+                }
+                continue;
+            }
+            
+            // Handle variable references
+            if (this.variables && this.variables.hasOwnProperty(trimmed)) {
+                const value = this.variables[trimmed];
+                console.log(`✅ JS Variable "${trimmed}" = ${value}`);
+                args.push(value);
+                continue;
+            }
+            
+            // Try to parse as simple number (fallback)
+            const numValue = parseFloat(trimmed);
+            if (!isNaN(numValue)) {
+                console.log(`✅ JS Fallback number parse: ${numValue}`);
+                args.push(numValue);
+            } else {
+                console.error(`❌ JS Cannot parse argument: "${trimmed}"`);
+                args.push(0); // Ultimate fallback
+            }
+        }
+        
+        console.log(`🔧 JS Final parsed arguments: [${args.join(', ')}]`);
+        return args;
+    }
+
+    /**
+     * Check if argument is a complex expression
+     */
+    isComplexExpression(str) {
+        // Has variables ($ notation or plain variables)
+        const hasVariables = /\$[a-zA-Z_][a-zA-Z0-9_]*/.test(str) || 
+                            /\b[a-zA-Z_][a-zA-Z0-9_]*\b/.test(str);
+        
+        // Has operators
+        const hasOperators = /[+\-*/()]/.test(str);
+        
+        // Has function calls
+        const hasFunctions = /[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(str);
+        
+        return hasVariables || hasOperators || hasFunctions;
+    }
+
+    /**
+     * Evaluate complex argument (with variables and operations)
+     */
+    evaluateComplexArgument(expression) {
+        console.log(`🔧 JS Evaluating complex argument: ${expression}`);
+        console.log(`🔧 JS Available variables:`, this.variables);
+        
+        // Step 1: Replace dollar variables
+        let processed = expression.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, varName) => {
+            if (this.variables && this.variables.hasOwnProperty(varName)) {
+                const value = this.variables[varName];
+                console.log(`✅ JS Replaced ${match} with ${value}`);
+                return String(value);
+            } else {
+                console.error(`❌ JS Variable ${match} not found`);
+                return '0'; // Fallback
+            }
+        });
+        
+        console.log(`🔧 JS After dollar replacement: ${processed}`);
+        
+        // Step 2: Replace plain variables (but not function names)
+        processed = processed.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (match, offset, fullString) => {
+            // Skip if it's followed by '(' (function call)
+            const nextCharIndex = offset + match.length;
+            if (nextCharIndex < fullString.length && fullString[nextCharIndex] === '(') {
+                return match; // Keep function names
+            }
+            
+            if (this.variables && this.variables.hasOwnProperty(match)) {
+                const value = this.variables[match];
+                console.log(`✅ JS Replaced variable ${match} with ${value}`);
+                return String(value);
+            }
+            return match;
+        });
+        
+        console.log(`🔧 JS After variable replacement: ${processed}`);
+        
+        // Step 3: Process any remaining function calls
+        if (/[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(processed)) {
+            console.log(`🔧 JS Processing nested functions in argument`);
+            processed = this.processFunctionCalls(processed);
+            console.log(`🔧 JS After function processing: ${processed}`);
+        }
+        
+        // Step 4: Evaluate final arithmetic
+        try {
+            const result = this.safeEvaluate(processed);
+            console.log(`✅ JS Final argument evaluation: ${result}`);
+            return result;
+        } catch (error) {
+            console.error(`❌ JS Argument evaluation failed: ${error.message}`);
+            return 0;
+        }
+    }
+
+    /**
+     * FIXED: splitArgumentsCorrectly - Complete TypeScript-compatible implementation
+     */
+    splitArgumentsCorrectly(argsString) {
+        console.log(`🔧 JS splitArgumentsCorrectly called with: "${argsString}"`);
+        
+        if (!argsString.trim()) return [];
+
         const args = [];
         let currentArg = '';
         let parenDepth = 0;
         let inQuotes = false;
         let quoteChar = '';
-        
-        for (let i = 0; i < argsStr.length; i++) {
-            const char = argsStr[i];
-            
-            if (!inQuotes && (char === '"' || char === "'")) {
-                inQuotes = true;
-                quoteChar = char;
-                currentArg += char;
-            } else if (inQuotes && char === quoteChar) {
-                inQuotes = false;
-                currentArg += char;
-            } else if (!inQuotes && char === '(') {
-                parenDepth++;
-                currentArg += char;
-            } else if (!inQuotes && char === ')') {
-                parenDepth--;
-                currentArg += char;
-            } else if (!inQuotes && char === ',' && parenDepth === 0) {
-                const trimmed = currentArg.trim();
-                if (trimmed) {
-                    const num = parseFloat(trimmed);
-                    args.push(isNaN(num) ? trimmed : num);
+
+        for (let i = 0; i < argsString.length; i++) {
+            const char = argsString[i];
+            const prevChar = i > 0 ? argsString[i - 1] : '';
+
+            if (!inQuotes) {
+                if (char === '"' || char === "'") {
+                    inQuotes = true;
+                    quoteChar = char;
+                    currentArg += char;
+                } else if (char === '(') {
+                    parenDepth++;
+                    currentArg += char;
+                } else if (char === ')') {
+                    parenDepth--;
+                    currentArg += char;
+                } else if (char === ',' && parenDepth === 0) {
+                    // End of argument
+                    if (currentArg.trim()) {
+                        args.push(currentArg.trim());
+                    }
+                    currentArg = '';
+                } else {
+                    currentArg += char;
                 }
-                currentArg = '';
             } else {
                 currentArg += char;
+                if (char === quoteChar && prevChar !== '\\') {
+                    inQuotes = false;
+                    quoteChar = '';
+                }
             }
         }
-        
+
+        // Add the last argument
         if (currentArg.trim()) {
-            const trimmed = currentArg.trim();
-            const num = parseFloat(trimmed);
-            args.push(isNaN(num) ? trimmed : num);
+            args.push(currentArg.trim());
         }
-        
+
+        console.log(`🔧 JS splitArgumentsCorrectly result: [${args.map(arg => `"${arg}"`).join(', ')}]`);
         return args;
     }
 
