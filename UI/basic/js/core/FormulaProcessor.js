@@ -205,50 +205,43 @@ class FormulaProcessor {
      * Process accumulative scoring - NEW method to match TypeScript
      */
     processAccumulativeScoring(formula, context) {
-        let totalScore = 0;
-        const details = [];
-
-        if (!formula.rules || !Array.isArray(formula.rules)) {
-            throw new RuleFlowException(`Formula '${formula.id}' rules must be an array`);
-        }
+        let totalScore = 0.0;
 
         for (const rule of formula.rules) {
-            if (rule.var && rule.ranges) {
-                const varValue = context[rule.var];
-                if (varValue === undefined) {
-                    continue; // Skip if variable not found
-                }
+            const varName = rule.var.startsWith('$') ? rule.var.substring(1) : rule.var;
+            const value = context[varName];
 
-                // Process ranges for this variable
+            if (value === undefined) {
+                continue;
+            }
+
+            // Handle ranges
+            if (rule.ranges) {
                 for (const range of rule.ranges) {
-                    if (this.evaluateCondition(range.if, varValue, context)) {
-                        const score = range.score || 0;
-                        totalScore += score;
+                    if (this.evaluateCondition(range.if, value, context)) {
+                        totalScore += range.score || 0;
                         
-                        details.push({
-                            variable: rule.var,
-                            value: varValue,
-                            condition: range.if,
-                            score: score,
-                            tier: range.tier || null
-                        });
-                        break; // Only match first applicable range
+                        // Handle set_vars
+                        if (range.set_vars) {
+                            Object.assign(context, range.set_vars);
+                        }
+                        break;
                     }
+                }
+            }
+            // Handle single condition
+            else if (rule.if) {
+                if (this.evaluateCondition(rule.if, value, context)) {
+                    totalScore += rule.score || 0;
                 }
             }
         }
 
-        const result = {
-            total_score: totalScore,
-            details: details
-        };
+        context[formula.id] = totalScore;
 
-        context[formula.id] = result;
-
-        // Store as variable if specified
         if (formula.as) {
             const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
-            context[varName] = result;
+            context[varName] = totalScore;
         }
     }
 
@@ -256,83 +249,127 @@ class FormulaProcessor {
      * Process advanced scoring - NEW method to match TypeScript
      */
     processAdvancedScoring(formula, context) {
-        if (!formula.scoring || !formula.scoring.ifs) {
-            throw new RuleFlowException(`Formula '${formula.id}' must have scoring.ifs configuration`);
+        if (formula.scoring.ifs) {
+            // Multi-dimensional scoring
+            const result = this.processMultiConditionScoring(formula.scoring.ifs, context);
+            context[formula.id] = result;
+        } else if (formula.scoring.if) {
+            // Simple scoring
+            const result = this.processSimpleScoring(formula.scoring, context);
+            context[formula.id] = result;
+        } else {
+            throw new RuleFlowException("Invalid scoring structure");
         }
 
-        const scoringConfig = formula.scoring.ifs;
-        const vars = scoringConfig.vars;
-        const tree = scoringConfig.tree;
+        // Store as variable if specified
+        if (formula.as) {
+            const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+            context[varName] = context[formula.id];
+        }
+    }
 
-        if (!vars || !Array.isArray(vars) || vars.length === 0) {
-            throw new RuleFlowException(`Scoring configuration must specify variables array`);
+    processMultiConditionScoring(scoringIfs, context) {
+        const vars = scoringIfs.vars || [];
+        const tree = scoringIfs.tree || [];
+        
+        // Get values for scoring variables
+        const values = vars.map(varName => {
+            const cleanVarName = varName.startsWith('$') ? varName.substring(1) : varName;
+            return context[cleanVarName];
+        });
+
+        // Check if any values are missing
+        if (values.some(val => val === undefined || val === null)) {
+            return this.createDefaultScoringResult();
         }
 
-        if (!tree || !Array.isArray(tree)) {
-            throw new RuleFlowException(`Scoring configuration must have tree array`);
-        }
-
-        // Get primary variable value (first variable)
-        const primaryVar = vars[0];
-        const primaryValue = context[primaryVar];
-
-        if (primaryValue === undefined) {
-            throw new RuleFlowException(`Primary scoring variable '${primaryVar}' not found in context`);
-        }
-
-        // Find matching tree node
-        for (const treeNode of tree) {
-            if (this.evaluateCondition(treeNode.if, primaryValue, context)) {
-                // Process ranges within this tree node
-                if (treeNode.ranges && Array.isArray(treeNode.ranges)) {
-                    // Get secondary variable if exists
-                    const secondaryVar = vars[1];
-                    const secondaryValue = secondaryVar ? context[secondaryVar] : null;
-
-                    for (const range of treeNode.ranges) {
-                        const targetValue = secondaryVar ? secondaryValue : primaryValue;
-                        
-                        if (this.evaluateCondition(range.if, targetValue, context)) {
-                            const result = {
-                                score: range.score || 0,
-                                tier: range.tier || null,
-                                level: range.level || null,
-                                primary_var: primaryVar,
-                                primary_value: primaryValue,
-                                secondary_var: secondaryVar,
-                                secondary_value: secondaryValue
-                            };
-
-                            context[formula.id] = result;
-
-                            if (formula.as) {
-                                const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
-                                context[varName] = result;
-                            }
-                            return;
+        // Process scoring tree
+        for (const branch of tree) {
+            if (this.evaluateCondition(branch.if, values[0], context)) {
+                if (branch.ranges && values.length > 1) {
+                    for (const range of branch.ranges) {
+                        if (this.evaluateCondition(range.if, values[1], context)) {
+                            return this.buildScoringResult(range, vars, values, context); 
                         }
                     }
                 }
-                break;
+                // No ranges found, return branch result
+                return this.buildScoringResult(branch, vars, values, context); 
             }
         }
 
-        // No matching condition found
+        // No match found
+        return this.createDefaultScoringResult();
+    }
+
+
+    buildScoringResult(matchedRule, vars = [], values = [], context = {}) { 
+        if (!matchedRule) {
+            return this.createDefaultScoringResult();
+        }
+
+        // Start with core result
         const result = {
-            score: 0,
-            tier: null,
-            level: null,
-            primary_var: primaryVar,
-            primary_value: primaryValue
+            score: matchedRule.score || matchedRule.result || 0
         };
 
-        context[formula.id] = result;
-
-        if (formula.as) {
-            const varName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
-            context[varName] = result;
+        // Add metadata about the match
+        if (vars.length > 0 && values.length > 0) {
+            result.primary_var = vars[0];
+            result.primary_value = values[0];
+            
+            if (vars.length > 1 && values.length > 1) {
+                result.secondary_var = vars[1];
+                result.secondary_value = values[1];
+            }
         }
+
+        // ✅ เพิ่ม properties เพิ่มเติมแต่ไม่ hardcode null
+        Object.keys(matchedRule).forEach(key => {
+            // ข้าม keys ที่ไม่ต้องการใน result
+            if (!['if', 'score', 'result'].includes(key)) {
+                // ✅ เพิ่มเฉพาะถ้ามีค่าจริงๆ (ไม่ใช่ null/undefined)
+                if (matchedRule[key] !== null && matchedRule[key] !== undefined) {
+                    result[key] = matchedRule[key];
+                }
+            }
+        });
+
+        // Handle set_vars if present
+        if (matchedRule.set_vars) {
+            Object.assign(context, matchedRule.set_vars);
+        }
+
+        return result;
     }
+
+
+    createDefaultScoringResult() {
+        return {
+            score: 0
+        };
+    }
+
+    processSimpleScoring(scoring, context) {
+        // Implementation for simple scoring logic
+        if (this.evaluateCondition(scoring.if, null, context)) {
+            const result = {
+                score: scoring.score || scoring.result || 0
+            };
+            
+            Object.keys(scoring).forEach(key => {
+                if (!['if', 'score', 'result'].includes(key)) {
+                    if (scoring[key] !== null && scoring[key] !== undefined) {
+                        result[key] = scoring[key];
+                    }
+                }
+            });
+            
+            return result;
+        }
+        return this.createDefaultScoringResult();
+    }
+
 
     // ====================================
     // HELPER METHODS
