@@ -638,9 +638,16 @@ export class FormulaProcessor {
 
     if (result && typeof result === 'object') {
       const excludedKeys = ['score', 'decision', 'level', 'breakdown', 'matched_rule'];
+      
       for (const [key, value] of Object.entries(result)) {
         if (!excludedKeys.includes(key) && value !== undefined && value !== null) {
-          context[`${variableName}_${key}`] = value;
+          
+          context[`${formula.id}_${key}`] = value; 
+          
+          if (formula.as) {
+            const asVarName = formula.as.startsWith('$') ? formula.as.substring(1) : formula.as;
+            context[`${asVarName}_${key}`] = value;          // storeasvalue_dd
+          }
         }
       }
     }
