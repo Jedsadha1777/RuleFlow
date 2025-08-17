@@ -120,7 +120,14 @@ class FormulaProcessor
                 if ($key === 'set_vars' && is_array($value)) {
                     $this->processSetVars($value, $context);
                 } else {
+                    
                     $context["{$formulaId}_{$key}"] = $value;
+                                    
+                    // เพิ่มการสร้างตาม 'as' ด้วย
+                    if (isset($formula['as'])) {
+                        $asVarName = RuleFlowHelper::normalizeVariableName($formula['as']);
+                        $context["{$asVarName}_{$key}"] = $value;
+                    }
                 }
             }
         } else {

@@ -95,7 +95,7 @@ export class ScoringProcessor {
     return this.evaluateMultiDimensionalScore(scoring.ifs, context);
   }
   
-  private evaluateMultiDimensionalScore(config: MultiDimensionalScoring, context: Record<string, any>): ScoringResult {
+  private evaluateMultiDimensionalScore(config: MultiDimensionalScoring, context: Record<string, any>): any {
     const { vars, tree } = config;
     
     // Get values for the variables in the scoring matrix
@@ -112,8 +112,7 @@ export class ScoringProcessor {
         if (node.ranges && values.length > 1) {
           for (const range of node.ranges) {
             if (this.evaluateCondition(range.if, values[1], context)) {
-              const result: ScoringResult = {
-                // PHP uses 'score' as primary, 'result' as fallback
+              const result: any = {
                 score: range.score ?? range.result ?? 0
               };
               
@@ -123,18 +122,15 @@ export class ScoringProcessor {
               const additionalProps = this.extractAdditionalProperties(range);
               Object.assign(result, additionalProps);
               
-              // Handle variable setting
-              if (range.set_vars) {
-                this.setVariables(range.set_vars, context);
-              }
+              // Return matched_rule for FormulaProcessor to handle set_vars
+              result.matched_rule = range;
               
               return result;
             }
           }
         } else {
           // Direct result from node
-          const result: ScoringResult = {
-            // PHP uses 'score' as primary, 'result' as fallback
+          const result: any = {
             score: node.score ?? node.result ?? 0
           };
           
@@ -144,10 +140,8 @@ export class ScoringProcessor {
           const additionalProps = this.extractAdditionalProperties(node);
           Object.assign(result, additionalProps);
           
-          // Handle variable setting
-          if (node.set_vars) {
-            this.setVariables(node.set_vars, context);
-          }
+          // Add matched_rule for set_vars processing
+          result.matched_rule = node;
           
           return result;
         }
@@ -160,7 +154,6 @@ export class ScoringProcessor {
 
   // เพิ่ม method สำหรับดึง additional properties
   private extractAdditionalProperties(item: any): Record<string, any> {
-    // ✅ เพิ่ม excluded keys ให้ครบถ้วนขึ้น
     const excluded = [
       'if', 'score', 'result', 'decision', 'level', 'set_vars', 'ranges',
       'op', 'value', 'var', 'and', 'or', 'function', 'params'
@@ -233,6 +226,17 @@ export class ScoringProcessor {
       case 'in':
         const array = simpleCondition.value as any[];
         return array.includes(valueToCompare);
+      
+     case 'not_in':
+      const notInArray = simpleCondition.value as any[];
+      return !notInArray.includes(valueToCompare);
+    case 'contains':
+      return String(valueToCompare).includes(String(simpleCondition.value));
+    case 'starts_with':
+      return String(valueToCompare).startsWith(String(simpleCondition.value));
+    case 'ends_with':
+      return String(valueToCompare).endsWith(String(simpleCondition.value));
+        
       default:
         throw new RuleFlowException(`Unknown operator: ${simpleCondition.op}`);
     }
