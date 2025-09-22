@@ -46,7 +46,7 @@ $result = $engine->evaluate($config, ["weight" => 70, "height" => 175]);
 // Result: ["weight" => 70, "height" => 175, "bmi_value" => 22.86, "category" => "Normal"]
 ```
 
-## 🆕 New Features
+## New Features
 
 ### Nested Logical Conditions
 
@@ -233,7 +233,7 @@ $result = $evaluator($inputs);
 }
 ```
 
-### 2. 🆕 Nested Logical Conditions
+### 2. Nested Logical Conditions
 ```json
 {
   "id": "complex_decision",
@@ -258,7 +258,7 @@ $result = $evaluator($inputs);
 }
 ```
 
-### 3. 🆕 Custom Function Calls
+### 3. Custom Function Calls
 ```json
 {
   "id": "booking_fee",
@@ -372,7 +372,7 @@ RuleFlow supports enhanced variable referencing with $ notation:
 }
 ```
 
-### 🆕 Nested Logic Features
+### Nested Logic Features
 
 #### Unlimited Nesting Depth
 ```json
@@ -421,14 +421,14 @@ RuleFlow supports enhanced variable referencing with $ notation:
 - **Range**: `between` → `{"op": "between", "value": [10, 20]}`
 - **Array**: `in` → `{"op": "in", "value": ["red", "blue"]}`
 - **String**: `contains`, `starts_with`, `ends_with`
-- **🆕 Function**: `function` → `{"op": "function", "function": "my_function"}`
+- **Function**: `function` → `{"op": "function", "function": "my_function"}`
 
 ### Functions
 - **Math**: `abs(x)`, `min(a,b,c)`, `max(a,b,c)`, `sqrt(x)`, `round(x,n)`, `ceil(x)`, `floor(x)`
-- **🆕 Custom**: Auto-loaded from `Functions/` directory
-- **🆕 Domain-specific**: Booking, date validation, pricing calculations, etc.
+- **Custom**: Auto-loaded from `Functions/` directory
+- **Domain-specific**: Booking, date validation, pricing calculations, etc.
 
-### 🆕 Logical Operators
+### Logical Operators
 - **AND**: All conditions must be true
 - **OR**: Any condition can be true
 - **Nesting**: Unlimited depth of logical combinations
@@ -604,7 +604,7 @@ Trading analysis tools:
 - Dynamic position sizing
 - Trading performance analysis
 
-#### 🆕 demo15-nested-logic-demonstration.php
+#### demo15-nested-logic-demonstration.php
 Comprehensive nested logic showcase:
 - **Bank loan approval** with complex multi-criteria decision making
 - **Insurance premium calculation** with risk assessment matrices
@@ -614,7 +614,7 @@ Comprehensive nested logic showcase:
 - **Code generation examples** for production deployment
 - Real-world business scenarios demonstrating AND/OR logic power
 
-## 🆕 Custom Functions Development
+## Custom Functions Development
 
 ### Creating Function Providers
 
@@ -738,7 +738,7 @@ $result = $engine->evaluate($workflowConfig, [
 php tests/RunAllTests.php
 
 # Run specific test suite
-php tests/RunAllTests.php --test=nested     # 🆕 Nested logic tests
+php tests/RunAllTests.php --test=nested     # Nested logic tests
 php tests/RunAllTests.php --test=template   # Template tests
 php tests/RunAllTests.php --test=expression # Expression tests
 php tests/RunAllTests.php --test=functions  # Function registry tests
@@ -753,16 +753,16 @@ php tests/RunAllTests.php --quick
 php tests/RunAllTests.php --list
 ```
 
-### 🆕 Test Coverage Overview
+### Test Coverage Overview
 
 The enhanced test suite includes:
 
 - **Basic Functionality Tests** — Expression evaluation, operators, functions
-- **🆕 Nested Logic Tests** — Complex AND/OR conditions, deep nesting
+- **Nested Logic Tests** — Complex AND/OR conditions, deep nesting
 - **$ Notation Tests** — Variable storage, referencing, complex expressions
 - **Multi-dimensional Scoring** — Nested conditions, range evaluations
 - **Switch/Case Logic** — Conditional branching, default handling
-- **🆕 Custom Functions** — Auto-discovery, function call testing
+- **Custom Functions** — Auto-discovery, function call testing
 - **Error Handling** — Input validation, configuration errors
 - **Code Generation** — Function optimization, safety checks, nested logic support
 
@@ -815,7 +815,7 @@ If tests fail:
 2. Verify all source files are present
 3. Run `--check` to validate test environment
 4. Review specific test output for error details
-5. **🆕 For nested logic issues**: Run `php nested_logic_demo.php`
+5. **For nested logic issues**: Run `php nested_logic_demo.php`
 
 ## Error Handling
 
@@ -863,8 +863,8 @@ if (!empty($testResult['warnings'])) {
 - **Input validation**: Missing required inputs, type mismatches
 - **Expression errors**: Invalid syntax, undefined variables
 - **Dependency errors**: Circular references, missing dependencies
-- **🆕 Nested logic errors**: Malformed AND/OR structures, missing conditions
-- **🆕 Function errors**: Missing custom functions, invalid function calls
+- **Nested logic errors**: Malformed AND/OR structures, missing conditions
+- **Function errors**: Missing custom functions, invalid function calls
 
 ## Known Limitations
 
@@ -892,7 +892,7 @@ if (!empty($testResult['warnings'])) {
    - Memory usage scales with dataset size
    - **Workaround**: Process in batches or use code generation
 
-2. **🆕 Deep Nested Logic**
+2. **Deep Nested Logic**
    - Very deep nesting (>10 levels) may impact performance
    - Complex logical trees with many branches slow down evaluation
    - **Workaround**: Simplify logic or use alternative approaches
@@ -913,7 +913,7 @@ if (!empty($testResult['warnings'])) {
    - No compile-time type validation
    - **Workaround**: Implement input validation in your application
 
-3. **🆕 Function Discovery**
+3. **Function Discovery**
    - Custom functions must follow naming conventions
    - Auto-discovery depends on proper interface implementation
    - **Workaround**: Use manual registration for edge cases
@@ -924,7 +924,7 @@ if (!empty($testResult['warnings'])) {
 - Use descriptive formula IDs
 - Group related calculations
 - Utilize $ notation for internal variables
-- **🆕 Structure nested logic clearly** with proper indentation
+- **Structure nested logic clearly** with proper indentation
 - Set clear default values
 - Include comprehensive validation
 
@@ -977,7 +977,7 @@ $result = $engine->evaluate($config, ["weight" => 70, "height" => 175]);
 // Result: ["weight" => 70, "height" => 175, "bmi_value" => 22.86, "category" => "Normal"]
 ```
 
-## 🆕 New Features
+## New Features
 
 ### Nested Logical Conditions
 
@@ -1164,7 +1164,7 @@ $result = $evaluator($inputs);
 }
 ```
 
-### 2. 🆕 Nested Logical Conditions
+### 2. Nested Logical Conditions
 ```json
 {
   "id": "complex_decision",
@@ -1189,7 +1189,7 @@ $result = $evaluator($inputs);
 }
 ```
 
-### 3. 🆕 Custom Function Calls
+### 3. Custom Function Calls
 ```json
 {
   "id": "booking_fee",
@@ -1303,7 +1303,7 @@ RuleFlow supports enhanced variable referencing with $ notation:
 }
 ```
 
-### 🆕 Nested Logic Features
+### Nested Logic Features
 
 #### Unlimited Nesting Depth
 ```json
@@ -1352,14 +1352,14 @@ RuleFlow supports enhanced variable referencing with $ notation:
 - **Range**: `between` → `{"op": "between", "value": [10, 20]}`
 - **Array**: `in` → `{"op": "in", "value": ["red", "blue"]}`
 - **String**: `contains`, `starts_with`, `ends_with`
-- **🆕 Function**: `function` → `{"op": "function", "function": "my_function"}`
+- **Function**: `function` → `{"op": "function", "function": "my_function"}`
 
 ### Functions
 - **Math**: `abs(x)`, `min(a,b,c)`, `max(a,b,c)`, `sqrt(x)`, `round(x,n)`, `ceil(x)`, `floor(x)`
-- **🆕 Custom**: Auto-loaded from `Functions/` directory
-- **🆕 Domain-specific**: Booking, date validation, pricing calculations, etc.
+- **Custom**: Auto-loaded from `Functions/` directory
+- **Domain-specific**: Booking, date validation, pricing calculations, etc.
 
-### 🆕 Logical Operators
+### Logical Operators
 - **AND**: All conditions must be true
 - **OR**: Any condition can be true
 - **Nesting**: Unlimited depth of logical combinations
@@ -1451,14 +1451,14 @@ $creditTemplates = $engine->searchTemplates('credit');
 - Use consistent naming conventions
 - Document complex expressions
 
-### 🆕 Nested Logic Best Practices
+### Nested Logic Best Practices
 - **Keep nesting reasonable** (max 5-6 levels for readability)
 - **Use meaningful variable names** in conditions
 - **Group related conditions** with AND/OR appropriately
 - **Test thoroughly** with edge cases
 - **Document complex business logic** in comments
 
-### 🆕 Custom Functions Guidelines
+### Custom Functions Guidelines
 - **Follow naming conventions** (camelCase or snake_case)
 - **Keep functions pure** (no side effects)
 - **Handle edge cases** gracefully
@@ -1468,8 +1468,8 @@ $creditTemplates = $engine->searchTemplates('credit');
 ### Performance Optimization
 - Order formulas by dependency
 - Use code generation for production
-- **🆕 Optimize nested conditions** by placing most selective conditions first
-- **🆕 Cache function results** where appropriate
+- **Optimize nested conditions** by placing most selective conditions first
+- **Cache function results** where appropriate
 - Minimize complex nested scoring
 - Cache frequently used configurations
 
@@ -1477,7 +1477,7 @@ $creditTemplates = $engine->searchTemplates('credit');
 - Validate configurations during development
 - Test with representative data
 - Use parentheses for complex expressions
-- **🆕 Validate nested logic structure** before deployment
+- **Validate nested logic structure** before deployment
 - Implement proper input validation
 
 ## Known Limitations & Solutions
